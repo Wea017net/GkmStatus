@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <PublishSingleFile>true</PublishSingleFile>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <Platforms>AnyCPU;x64;ARM64</Platforms>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Version>1.0.0</Version>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <Authors>Wea017net</Authors>
+    <Copyright>Copyright © 2026 Wea017net</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="app.manifest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\app.ico" />
+    <EmbeddedResource Include="Resources\app_icon_2048px.png" />
+    <EmbeddedResource Include="Resources\fonts\IBM_Plex_Sans_JP\IBMPlexSansJP-Bold.ttf" />
+    <EmbeddedResource Include="Resources\fonts\IBM_Plex_Sans_JP\IBMPlexSansJP-Medium.ttf" />
+    <EmbeddedResource Include="Resources\fonts\IBM_Plex_Sans_JP\IBMPlexSansJP-Regular.ttf" />
+    <EmbeddedResource Include="Resources\fonts\IBM_Plex_Sans_JP\OFL.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DiscordRichPresence" Version="1.6.1.70" />
+  </ItemGroup>
+
+</Project>
