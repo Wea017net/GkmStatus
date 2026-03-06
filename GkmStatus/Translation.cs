@@ -97,7 +97,7 @@ namespace GkmStatus
                 ["Button_Disconnect"] = "切断",
 
                 ["GameApp_Guide"] = "この変更は一度切断して\n再接続したあとに適用されます",
-                ["About_Message"] = "GkmStatus\nVer.{0}\n\n制作者: Wea017net",
+                ["About_Message"] = "GkmStatus\nv{0}\n\n制作者: Wea017net",
                 ["About_Author"] = "制作者: Wea017net",
                 ["About_FontAttribution"] = "使用フォント: IBM Plex Sans JP",
                 ["About_FontLicense"] = "ライセンスを表示",
@@ -201,7 +201,7 @@ namespace GkmStatus
                 ["Button_Disconnect"] = "Disconnect",
 
                 ["GameApp_Guide"] = "Changes apply after\ndisconnecting and reconnecting",
-                ["About_Message"] = "GkmStatus\nVer.{0}\n\nMade by: Wea017net",
+                ["About_Message"] = "GkmStatus\nv{0}\n\nMade by: Wea017net",
                 ["About_Author"] = "Made by: Wea017net",
                 ["About_FontAttribution"] = "Font: IBM Plex Sans JP",
                 ["About_FontLicense"] = "View License",

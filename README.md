@@ -2,7 +2,7 @@
   <img src="GkmStatus/Resources/app_icon_2048px.png" width="150" height="150" alt="GkmStatus Icon">
 </p>
 
-<h1 align="center">GkmStatus</h1>
+<h1 align="center">学マステータス / GkmStatus</h1>
 
 学園アイドルマスターのプレイヤー情報を Discord のアクティビティに表示できるアプリケーションです。
 

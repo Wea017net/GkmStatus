@@ -1025,6 +1025,19 @@ namespace GkmStatus
             about.ShowDialog(this);
         }
 
+        private static string NormalizeVersionString(string version)
+        {
+            if (string.IsNullOrEmpty(version)) return version;
+            version = version.Trim();
+            if (version.StartsWith("v", StringComparison.OrdinalIgnoreCase))
+                version = version[1..];
+            else if (version.StartsWith("Ver.", StringComparison.OrdinalIgnoreCase))
+                version = version[4..];
+            else if (version.StartsWith("Ver", StringComparison.OrdinalIgnoreCase))
+                version = version[3..];
+            return version.Trim();
+        }
+
         private async Task CheckForUpdatesAsync(bool manual = false)
         {
             if (!manual && (DateTime.UtcNow - lastUpdateCheck).TotalHours < 24)
@@ -1058,7 +1071,8 @@ namespace GkmStatus
                 if (doc.RootElement.TryGetProperty("tag_name", out var tag))
                 {
                     string latestStr = tag.GetString()?.TrimStart('v') ?? "";
-                    if (Version.TryParse(latestStr, out var latest) && Version.TryParse(Application.ProductVersion, out var current))
+                    string currentStr = NormalizeVersionString(Application.ProductVersion);
+                    if (Version.TryParse(latestStr, out var latest) && Version.TryParse(currentStr, out var current))
                     {
                         lastUpdateCheck = DateTime.UtcNow;
                         SaveSettings();
@@ -1606,7 +1620,7 @@ namespace GkmStatus
             if (!string.IsNullOrEmpty(state) && state.Length < 2) state = "";
 
             string gameName = GameApps[cmbGameName.SelectedIndex].Name;
-            try { client.SetPresence(new RichPresence { Details = SafeTrim(details ?? ""), State = SafeTrim(state ?? ""), Assets = new Assets { LargeImageKey = "app", LargeImageText = SafeTrimUtf8($"GkmStatus Ver.{Application.ProductVersion}", 128) }, Buttons = buttons, Timestamps = new Timestamps(startTime) }); }
+            try { client.SetPresence(new RichPresence { Details = SafeTrim(details ?? ""), State = SafeTrim(state ?? ""), Assets = new Assets { LargeImageKey = "app", LargeImageText = SafeTrimUtf8($"GkmStatus v{Application.ProductVersion}", 128) }, Buttons = buttons, Timestamps = new Timestamps(startTime) }); }
             catch (Exception ex) { Debug.WriteLine("RPC Update Error: " + ex.Message); }
         }
 

@@ -76,7 +76,7 @@ namespace GkmStatus
             // Version
             var lblVersion = new Label
             {
-                Text = "Ver." + Application.ProductVersion,
+                Text = "v" + Application.ProductVersion,
                 Font = _mainFont,
                 TextAlign = ContentAlignment.MiddleCenter,
                 Location = new Point(0, S(125)),
