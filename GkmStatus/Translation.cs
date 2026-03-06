@@ -13,6 +13,8 @@ namespace GkmStatus
         {
             ["日本語"] = new Dictionary<string, string>
             {
+                ["App_Name"] = "学マステータス",
+                
                 ["Menu_File"] = "ファイル",
                 ["Menu_Exit"] = "終了",
                 ["Menu_Settings"] = "設定",
@@ -117,6 +119,8 @@ namespace GkmStatus
             },
             ["English"] = new Dictionary<string, string>
             {
+                ["App_Name"] = "GkmStatus",
+
                 ["Menu_File"] = "File",
                 ["Menu_Exit"] = "Exit",
                 ["Menu_Settings"] = "Settings",

@@ -65,7 +65,7 @@ namespace GkmStatus
             // App Name
             var lblName = new Label
             {
-                Text = "GkmStatus",
+                Text = I18n.T("App_Name"),
                 Font = _titleFont,
                 TextAlign = ContentAlignment.MiddleCenter,
                 Location = new Point(0, S(95)),

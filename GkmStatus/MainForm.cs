@@ -1620,7 +1620,7 @@ namespace GkmStatus
             if (!string.IsNullOrEmpty(state) && state.Length < 2) state = "";
 
             string gameName = GameApps[cmbGameName.SelectedIndex].Name;
-            try { client.SetPresence(new RichPresence { Details = SafeTrim(details ?? ""), State = SafeTrim(state ?? ""), Assets = new Assets { LargeImageKey = "app", LargeImageText = SafeTrimUtf8($"GkmStatus v{Application.ProductVersion}", 128) }, Buttons = buttons, Timestamps = new Timestamps(startTime) }); }
+            try { client.SetPresence(new RichPresence { Details = SafeTrim(details ?? ""), State = SafeTrim(state ?? ""), Assets = new Assets { LargeImageKey = "app", LargeImageText = SafeTrimUtf8($"{I18n.T("App_Name")} v{Application.ProductVersion}", 128) }, Buttons = buttons, Timestamps = new Timestamps(startTime) }); }
             catch (Exception ex) { Debug.WriteLine("RPC Update Error: " + ex.Message); }
         }
 
