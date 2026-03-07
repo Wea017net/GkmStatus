@@ -5,6 +5,12 @@
 <h1 align="center">GkmStatus (学マステータス)</h1>
 
 <p align="center">
+  <a href="https://github.com/Wea017net/GkmStatus/releases/latest"><img alt="GitHub release (latest by date)" src="https://img.shields.io/github/v/tag/Wea017net/GkmStatus?color=19e2e2&label=latest&logo=github"></a>
+  <a href="https://github.com/maximmax42/Discord-CustomRP/releases"><img alt="All GitHub Releases" src="https://img.shields.io/github/downloads/Wea017net/GkmStatus/total?color=19e2e2&label=total%20downloads&logo=github"></a>
+  <img src="https://github.com/Wea017net/GkmStatus/actions/workflows/dotnet.yml/badge.svg" alt="Build Status">
+</p>
+
+<p align="center">
   <a href="README.md">日本語</a> | <a href="README_en.md">English</a>
 </p>
 
@@ -51,15 +57,17 @@ We hope that displaying player information in the activity will encourage commun
 4.  Enter the information you want to display on Discord, such as the game display name and your player information.
 5.  Click the Connect button to display the entered details on your Discord status.
 
-<p align="left">
-  <img src="screenshots/dotnet_download.png" height="200" alt="Dotnet Download Prompt">
-</p>
+> [!NOTE]
+> <p align="left">
+>   <img src="screenshots/dotnet_download.png" height="200" alt="Dotnet Download Prompt">
+> </p>
+> 
+> If the window above appears on startup, it means `.NET Runtime 10.0` is not installed on your PC. Please click `Download it now`, then open and install the downloaded `windowsdesktop-runtime-10.0.x-win-x64.exe`.
 
-If the window above appears on startup, it means `.NET Runtime 10.0` is not installed on your PC. Please click `Download it now`, then open and install the downloaded `windowsdesktop-runtime-10.0.x-win-x64.exe`.
-
-If "Settings -> `Monitor gakumas.exe and auto connect/disconnect`" is enabled, the app will automatically connect and disconnect from Discord by detecting the DMM GAMES version's launch status without needing to press the connect button. (This setting is enabled by default on the first launch).
-
-I recommend enabling all three settings: "`Run at system startup`", "`Start minimized in tray`", and "`Monitor gakumas.exe and auto connect/disconnect`". This allows you to show and hide your status without having to manually open or operate the app.
+> [!TIP]
+> If "Settings -> `Monitor gakumas.exe and auto connect/disconnect`" is enabled, the app will automatically connect and disconnect from Discord by detecting the DMM GAMES version's launch status > without needing to press the connect button. (This setting is enabled by default on the first launch).
+>
+> I recommend enabling all three settings: "`Run at system startup`", "`Start minimized in tray`", and "`Monitor gakumas.exe and auto connect/disconnect`". This allows you to show and hide your status without having to manually open or operate the app.
 
 ## Important Notes
 
@@ -79,12 +87,13 @@ Due to Discord's specifications, you cannot click or verify your own external li
 ## Disclaimer
 
 > [!WARNING]
-> **Please use this software at your own risk.**
-> The author assumes no responsibility for any damages (loss of data, PC malfunction, impact on Discord accounts, or other troubles) resulting from the use of this software.
+> **Use this software at your own risk.**
+> The author assumes no responsibility for any damages (including but not limited to loss of data, PC malfunction, impact on your Discord account, or any other troubles) arising from the use of this software.
 
-* This application is an unofficial fan project and is in no way affiliated with Bandai Namco Entertainment Inc., QualiArts, Inc., or any related companies.
-* The publication and distribution of this project may be suspended without notice upon request from the rights holders or if the author deems it inappropriate.
-* It is designed using standard Discord RPC features, but due to specification changes on Discord's side, functions may become unavailable without notice.
+* **Compliance**: This software is developed in compliance with the Discord Terms of Service. However, the author provides no guarantee regarding its continued safety or compatibility.
+* **Unofficial Project**: This app is an unofficial fan project and is not affiliated with Bandai Namco Entertainment Inc., QualiArts, Inc., or any related entities.
+* **Suspension of Service**: This project may be suspended or removed without notice upon request from the rights holders or at the author's discretion.
+* **Functionality**: While designed using standard Discord RPC features, its functionality may become unavailable due to updates or specification changes by Discord.
 
 ## Feedback / Bug Reports
 Feel free to report bugs or request features via [Issues](https://github.com/Wea017net/GkmStatus/issues) or via Direct Message on X ( [@Wea017net](https://x.com/Wea017net) ).
