@@ -1,6 +1,3 @@
-// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-// If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
 using System.Collections.Generic;
 
 namespace GkmStatus
@@ -14,7 +11,7 @@ namespace GkmStatus
             ["日本語"] = new Dictionary<string, string>
             {
                 ["App_Name"] = "学マステータス",
-                
+
                 ["Menu_File"] = "ファイル",
                 ["Menu_Exit"] = "終了",
                 ["Menu_Settings"] = "設定",
