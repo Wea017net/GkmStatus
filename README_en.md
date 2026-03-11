@@ -5,20 +5,28 @@
 <h1 align="center">GkmStatus (学マステータス)</h1>
 
 <p align="center">
-  <a href="https://github.com/Wea017net/GkmStatus/releases/latest"><img alt="GitHub release (latest by date)" src="https://img.shields.io/github/v/tag/Wea017net/GkmStatus?color=19e2e2&label=latest&logo=github"></a>
-  <a href="https://github.com/maximmax42/Discord-CustomRP/releases"><img alt="All GitHub Releases" src="https://img.shields.io/github/downloads/Wea017net/GkmStatus/total?color=19e2e2&label=total%20downloads&logo=github"></a>
-  <img src="https://github.com/Wea017net/GkmStatus/actions/workflows/dotnet.yml/badge.svg" alt="Build Status">
+An unofficial fan-made application that displays your <i>Gakuen Idolmaster</i> player information on your Discord activity.
 </p>
 
 <p align="center">
   <a href="README.md">日本語</a> | <a href="README_en.md">English</a>
 </p>
 
-An application that allows you to display your *Gakuen Idolmaster* player information on your Discord activity (Rich Presence).
+<p align="center">
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License"></a>
+  <a href="https://github.com/Wea017net/GkmStatus/releases/latest"><img alt="GitHub release (latest by date)" src="https://img.shields.io/github/v/tag/Wea017net/GkmStatus?color=19e2e2&label=Latest&logo=github"></a>
+  <a href="https://github.com/Wea017net/GkmStatus/releases"><img alt="All GitHub Releases" src="https://img.shields.io/github/downloads/Wea017net/GkmStatus/total?color=19e2e2&label=Total%20Downloads&logo=github"></a>
+  <img src="https://github.com/Wea017net/GkmStatus/actions/workflows/dotnet.yml/badge.svg" alt="Build Status">
+</p>
 
-<p align="left">
-  <img src="screenshots/main_window_en.png" height="500" alt="Main Window">&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="screenshots/discord_preview_en.png" height="500" alt="Discord Preview">
+<p align="center">
+  
+  
+</p>
+
+<p align="center">
+  <img src="screenshots/main_window_en.png" height="500" alt="Main Window">&nbsp;&nbsp;&nbsp;
+  <img src="screenshots/discord_preview_en.png" height="500" alt="Discord Preview">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 </p>
 
 ## Features
@@ -34,8 +42,11 @@ Since the DMM GAMES version of *Gakuen Idolmaster* is not a verified game on Dis
 
 By using this application, you can display not only the game name but also the game icon, your PLv, P-ID, and a game download button on your Discord activity.
 
-<img src="screenshots/rpc_before_en.png" height="180" alt="Before using GkmStatus">&nbsp;&nbsp;
-<img src="screenshots/rpc_after_en.png" height="180" alt="After using GkmStatus">
+<p>
+  <img src="screenshots/rpc_before_en.png" width="360" alt="Before using GkmStatus" align="middle">
+  &nbsp;&nbsp;
+  <img src="screenshots/rpc_after_en.png" width="360" alt="After using GkmStatus" align="middle">
+</p>
 
 We hope that displaying player information in the activity will encourage communication among producers, and that the download button will help attract new players to the game.
 
@@ -55,7 +66,7 @@ We hope that displaying player information in the activity will encourage commun
 2.  Extract the downloaded zip file.
 3.  Run `GkmStatus.exe` inside the extracted folder.
 4.  Enter the information you want to display on Discord, such as the game display name and your player information.
-5.  Click the Connect button to display the entered details on your Discord status.
+5.  Click the Connect button to display the entered details on your Discord activity.
 
 > [!NOTE]
 > <p align="left">
@@ -65,9 +76,9 @@ We hope that displaying player information in the activity will encourage commun
 > If the window above appears on startup, it means `.NET Runtime 10.0` is not installed on your PC. Please click `Download it now`, then open and install the downloaded `windowsdesktop-runtime-10.0.x-win-x64.exe`.
 
 > [!TIP]
-> If "Settings -> `Monitor gakumas.exe and auto connect/disconnect`" is enabled, the app will automatically connect and disconnect from Discord by detecting the DMM GAMES version's launch status > without needing to press the connect button. (This setting is enabled by default on the first launch).
->
-> I recommend enabling all three settings: "`Run at system startup`", "`Start minimized in tray`", and "`Monitor gakumas.exe and auto connect/disconnect`". This allows you to show and hide your status without having to manually open or operate the app.
+> If "Settings -> Monitor gakumas.exe and auto connect/disconnect" is enabled, the app will automatically connect and disconnect from Discord by detecting the DMM GAMES version's launch status without needing to press the connect button. (This setting is enabled by default on the first launch).
+> 
+> I recommend enabling all three settings: "Run at system startup", "Start minimized in tray", and "Monitor gakumas.exe and auto connect/disconnect". This allows you to show and hide your status without having to manually open or operate the app.
 
 ## Important Notes
 
@@ -84,23 +95,34 @@ Due to Discord's specifications, you cannot click or verify your own external li
     ```
 3.  Open the project and build it.
 
-## Disclaimer
-
-> [!WARNING]
-> **Use this software at your own risk.**
-> The author assumes no responsibility for any damages (including but not limited to loss of data, PC malfunction, impact on your Discord account, or any other troubles) arising from the use of this software.
-
-* **Compliance**: This software is developed in compliance with the Discord Terms of Service. However, the author provides no guarantee regarding its continued safety or compatibility.
-* **Unofficial Project**: This app is an unofficial fan project and is not affiliated with Bandai Namco Entertainment Inc., QualiArts, Inc., or any related entities.
-* **Suspension of Service**: This project may be suspended or removed without notice upon request from the rights holders or at the author's discretion.
-* **Functionality**: While designed using standard Discord RPC features, its functionality may become unavailable due to updates or specification changes by Discord.
-
 ## Feedback / Bug Reports
+
 Feel free to report bugs or request features via [Issues](https://github.com/Wea017net/GkmStatus/issues) or via Direct Message on X ( [@Wea017net](https://x.com/Wea017net) ).
 
 ## License
 
-This project is licensed under the [Mozilla Public License 2.0 (MPL 2.0)](LICENSE).
+This project is licensed under the [MIT License](LICENSE).
+
+## Disclaimer
+
+> [!WARNING]
+> **Please use this software at your own risk.** > The author assumes no responsibility for any damages (including but not limited to loss of data, PC malfunction, impact on Discord accounts, or other troubles) resulting from the use of this software.
+
+### About this Project
+
+This project is an **unofficial fan-made application** related to *Gakuen Idolmaster* and is published strictly as a non-commercial fan activity.
+
+This project is **in no way affiliated with, authorized, or endorsed by** Bandai Namco Entertainment Inc., QualiArts, Inc., or any related entities.
+
+All trademarks, copyrights, and related rights concerning *Gakuen Idolmaster* belong to Bandai Namco Entertainment Inc. and their respective rights holders.
+
+### Regarding Requests from Rights Holders
+
+The publication and distribution of this project may be suspended without notice upon request from the rights holders or if the author deems it inappropriate.
+
+### Regarding External Services
+
+This application utilizes Discord's Rich Presence feature. Functions may become unavailable without notice due to specification changes or updates by Discord.
 
 ## Libraries & Assets
 
