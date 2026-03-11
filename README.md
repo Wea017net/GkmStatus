@@ -15,7 +15,7 @@
 <p align="center">
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License"></a>
   <a href="https://github.com/Wea017net/GkmStatus/releases/latest"><img alt="GitHub release (latest by date)" src="https://img.shields.io/github/v/tag/Wea017net/GkmStatus?color=19e2e2&label=Latest&logo=github"></a>
-  <a href="https://github.com/maximmax42/Discord-CustomRP/releases"><img alt="All GitHub Releases" src="https://img.shields.io/github/downloads/Wea017net/GkmStatus/total?color=19e2e2&label=Total%20Downloads&logo=github"></a>
+  <a href="https://github.com/Wea017net/GkmStatus/releases/latest"><img alt="All GitHub Releases" src="https://img.shields.io/github/downloads/Wea017net/GkmStatus/total?color=19e2e2&label=Total%20Downloads&logo=github"></a>
   <img src="https://github.com/Wea017net/GkmStatus/actions/workflows/dotnet.yml/badge.svg" alt="Build Status">
 </p>
 
