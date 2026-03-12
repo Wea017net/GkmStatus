@@ -103,7 +103,7 @@ Discord の仕様により、外部リンクボタンの表示は自分で確認
 3.  プロジェクトを開き、ビルドを実行します。
 
 ## フィードバック / 不具合報告
-不具合の報告や機能のリクエストは [Issues](https://github.com/Wea017net/GkmStatus/issues) または X ( [@Wea017net](https://x.com/Wea017net) ) のダイレクトメッセージにてお気軽にお寄せください。
+不具合の報告や機能のリクエストは [Discordサーバー](https://discord.gg/jtWS47JfR7) または [Issues](https://github.com/Wea017net/GkmStatus/issues) にてお気軽にお寄せください。
 
 ## ライセンス
 
