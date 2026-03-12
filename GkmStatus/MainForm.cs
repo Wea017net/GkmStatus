@@ -41,7 +41,7 @@ namespace GkmStatus
         public int DetailsTypeIndex { get; set; } = 3;
         public string ProducerName { get; set; } = "";
         public int ProducerLevel { get; set; } = 1;
-        public int StateTypeIndex { get; set; } = -1; // Deprecated
+        public int StateTypeIndex { get; set; } = -1;
         public string StateType { get; set; } = "Idol";
         public int CharNameLangIndex { get; set; } = 0;
         public string? SelectedProduceCharacterId { get; set; } = "hanami_saki";
@@ -386,14 +386,11 @@ namespace GkmStatus
                     pfc = new PrivateFontCollection();
                     var assembly = System.Reflection.Assembly.GetExecutingAssembly();
 
-                    // Dump manifest resources for debugging so missing fonts can be diagnosed.
                     try { Debug.WriteLine("Manifest resources: " + string.Join(", ", assembly.GetManifestResourceNames())); } catch { }
 
-                    // Try to find any embedded ttf resources that look like IBM Plex (case-insensitive "plex")
                     var manifestNames = assembly.GetManifestResourceNames();
                     var ttfCandidates = manifestNames.Where(n => n.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase) && n.Contains("plex", StringComparison.OrdinalIgnoreCase)).ToArray();
 
-                    // If nothing found, fall back to the originally expected resource names
                     if (ttfCandidates.Length == 0)
                     {
                         ttfCandidates = [
@@ -415,10 +412,8 @@ namespace GkmStatus
                                 IntPtr fontPtr = Marshal.AllocCoTaskMem(fontData.Length);
                                 Marshal.Copy(fontData, 0, fontPtr, fontData.Length);
 
-                                // Register for GDI+ (PrivateFontCollection)
                                 pfc.AddMemoryFont(fontPtr, fontData.Length);
 
-                                // Register for GDI (TextRenderer) - CRITICAL for WinForms controls
                                 AddFontMemResourceEx(fontPtr, (uint)fontData.Length, IntPtr.Zero, out uint _);
 
                                 fontPointers.Add(fontPtr);
@@ -446,7 +441,6 @@ namespace GkmStatus
                     }
                 }
 
-                // Fallback: if regular is still null but we have families, take the first one as regular
                 if (regular == null && pfc.Families.Length > 0)
                 {
                     regular = pfc.Families.FirstOrDefault(f => f.Name.Contains("IBM Plex Sans JP", StringComparison.OrdinalIgnoreCase))
@@ -458,7 +452,6 @@ namespace GkmStatus
                     float basePx = 13.3f * uiScale;
                     appFont = new Font(regular, basePx, GraphicsUnit.Pixel);
 
-                    // ボールドとミディアムの決定
                     if (bold != null) appFontBold = new Font(bold, basePx, GraphicsUnit.Pixel);
                     else appFontBold = new Font(regular, basePx, FontStyle.Bold, GraphicsUnit.Pixel);
 
