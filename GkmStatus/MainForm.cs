@@ -343,8 +343,8 @@ namespace GkmStatus
                 trayIcon.Visible = true;
                 if (notifyOnMinimizeItem?.Checked == true)
                 {
-                    trayIcon.Tag = null;
-                    trayIcon.ShowBalloonTip(2000, APP_NAME, I18n.T("Notify_Minimized"), ToolTipIcon.Info);
+                trayIcon.Tag = null;
+                trayIcon.ShowBalloonTip(2000, I18n.T("App_Name"), I18n.T("Notify_Minimized"), ToolTipIcon.Info);
                 }
             }
         }
@@ -461,7 +461,7 @@ namespace GkmStatus
             this.ClientSize = new Size(S(520), S(630));
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
 
-            this.Text = I18n.CurrentLanguage == "日本語" ? "学マステータス" : "GkmStatus";
+            this.Text = I18n.T("App_Name");
             this.MaximizeBox = false;
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.FromArgb(32, 34, 37);
@@ -486,7 +486,7 @@ namespace GkmStatus
             trayIcon = new NotifyIcon
             {
                 Icon = this.Icon ?? SystemIcons.Application,
-                Text = I18n.CurrentLanguage == "日本語" ? "学マステータス" : "GkmStatus",
+                Text = I18n.T("App_Name"),
                 Visible = false
             };
 
@@ -527,10 +527,10 @@ namespace GkmStatus
                     {
                         cmbDetailsType.SelectedIndex = index;
                         UpdateRpc();
-                        if (notifyInBackgroundItem?.Checked == true)
+                            if (notifyInBackgroundItem?.Checked == true)
                         {
                             trayIcon.Tag = null;
-                            trayIcon.ShowBalloonTip(3000, APP_NAME, I18n.T("Notify_TrayDetailsChanged"), ToolTipIcon.Info);
+                            trayIcon.ShowBalloonTip(3000, I18n.T("App_Name"), I18n.T("Notify_TrayDetailsChanged"), ToolTipIcon.Info);
                         }
                     };
                     trayMenuDetails.DropDownItems.Add(item);
@@ -556,7 +556,7 @@ namespace GkmStatus
                         if (notifyInBackgroundItem?.Checked == true)
                         {
                             trayIcon.Tag = null;
-                            trayIcon.ShowBalloonTip(3000, APP_NAME, I18n.T("Notify_TrayStateChanged"), ToolTipIcon.Info);
+                            trayIcon.ShowBalloonTip(3000, I18n.T("App_Name"), I18n.T("Notify_TrayStateChanged"), ToolTipIcon.Info);
                         }
                     };
                     trayMenuState.DropDownItems.Add(item);
@@ -584,7 +584,7 @@ namespace GkmStatus
                         if (notifyInBackgroundItem?.Checked == true)
                         {
                             trayIcon.Tag = null;
-                            trayIcon.ShowBalloonTip(3000, APP_NAME, I18n.T("Notify_TrayIdolChanged"), ToolTipIcon.Info);
+                            trayIcon.ShowBalloonTip(3000, I18n.T("App_Name"), I18n.T("Notify_TrayIdolChanged"), ToolTipIcon.Info);
                         }
                     };
                     trayMenuProduce.DropDownItems.Add(item);
@@ -904,7 +904,7 @@ namespace GkmStatus
 
         private void ApplyLanguage()
         {
-            this.Text = I18n.CurrentLanguage == "日本語" ? "学マステータス" : "GkmStatus";
+            this.Text = $"{I18n.T("App_Name")} v{Application.ProductVersion}";
 
             if (fileMenu != null)
             {
@@ -971,7 +971,7 @@ namespace GkmStatus
 
             if (client?.IsInitialized == true)
             {
-                if (btnConnect.Text == "一時停止" || btnConnect.Text == "Pause")
+                if (btnConnect.Text == I18n.T("Button_Pause"))
                 {
                     UpdateUIForConnected(client.CurrentUser?.Username ?? "Unknown");
                 }
@@ -1181,9 +1181,24 @@ namespace GkmStatus
 
             int newIdx = cmbBtnMode.SelectedIndex;
 
-            if (newIdx == 0) { txtBtn1Label.Text = ""; txtBtn1Url.Text = ""; txtBtn2Label.Text = ""; txtBtn2Url.Text = ""; SetBtnInputsEnabled(false); }
-            else if (newIdx == 1) { txtBtn1Label.Text = I18n.CurrentLanguage == "日本語" ? "プレイ (iOS / Android)" : "Play (iOS / Android)"; txtBtn1Url.Text = "http://app.adjust.com/1ai6ouao"; txtBtn2Label.Text = I18n.CurrentLanguage == "日本語" ? "プレイ (DMM GAMES)" : "Play (DMM GAMES)"; txtBtn2Url.Text = "https://dmg-gakuen.idolmaster-official.jp/"; SetBtnInputsEnabled(false); }
-            else if (newIdx == 2) { txtBtn1Label.Text = I18n.CurrentLanguage == "日本語" ? "この表示について" : "About this presence"; txtBtn1Url.Text = "https://github.com/Wea017net/GkmStatus"; txtBtn2Label.Text = ""; txtBtn2Url.Text = ""; SetBtnInputsEnabled(false); }
+            if (newIdx == 0)
+            {
+                txtBtn1Label.Text = ""; txtBtn1Url.Text = ""; txtBtn2Label.Text = ""; txtBtn2Url.Text = ""; SetBtnInputsEnabled(false);
+            }
+            else if (newIdx == 1)
+            {
+                txtBtn1Label.Text = I18n.T("Button_StoreLabel_Mobile");
+                txtBtn1Url.Text = "http://app.adjust.com/1ai6ouao";
+                txtBtn2Label.Text = I18n.T("Button_StoreLabel_DMM");
+                txtBtn2Url.Text = "https://dmg-gakuen.idolmaster-official.jp/";
+                SetBtnInputsEnabled(false);
+            }
+            else if (newIdx == 2)
+            {
+                txtBtn1Label.Text = I18n.T("Button_AboutPresence");
+                txtBtn1Url.Text = "https://github.com/Wea017net/GkmStatus";
+                txtBtn2Label.Text = ""; txtBtn2Url.Text = ""; SetBtnInputsEnabled(false);
+            }
             else if (newIdx == 3)
             {
                 SetPlaceholder(txtBtn1Label, I18n.T("Placeholder_BtnLabel", 1)); SetPlaceholder(txtBtn1Url, I18n.T("Placeholder_BtnUrl", 1));
@@ -1460,11 +1475,11 @@ namespace GkmStatus
             UpdateUIForConnected(e.User.Username);
             UpdateRpc();
             UpdateTrayMenuState();
-            if (this.WindowState == FormWindowState.Minimized && (notifyInBackgroundItem?.Checked == true))
-            {
-                trayIcon.Tag = null;
-                trayIcon.ShowBalloonTip(3000, APP_NAME, I18n.T("Status_Connected_Notify", e.User.Username), ToolTipIcon.Info);
-            }
+                            if (this.WindowState == FormWindowState.Minimized && (notifyInBackgroundItem?.Checked == true))
+                            {
+                                trayIcon.Tag = null;
+                                trayIcon.ShowBalloonTip(3000, I18n.T("App_Name"), I18n.T("Status_Connected_Notify", e.User.Username), ToolTipIcon.Info);
+                            }
         }));
     };
             client.OnError += (sender, e) => { this.Invoke((MethodInvoker)(() => { HandleConnectionError(I18n.T("Status_Error", e.Message)); })); };
@@ -1492,7 +1507,7 @@ namespace GkmStatus
             if (this.WindowState == FormWindowState.Minimized && (notifyInBackgroundItem?.Checked == true))
             {
                 trayIcon.Tag = null;
-                trayIcon.ShowBalloonTip(3000, APP_NAME, I18n.T("Status_Disconnected_Notify"), ToolTipIcon.Info);
+                trayIcon.ShowBalloonTip(3000, I18n.T("App_Name"), I18n.T("Status_Disconnected_Notify"), ToolTipIcon.Info);
             }
         }
         private void DisposeRpc()
@@ -1503,7 +1518,7 @@ namespace GkmStatus
             if (this.WindowState == FormWindowState.Minimized && (notifyInBackgroundItem?.Checked == true))
             {
                 trayIcon.Tag = null;
-                trayIcon.ShowBalloonTip(3000, APP_NAME, I18n.T("Status_ManualDisconnected_Notify"), ToolTipIcon.Info);
+                trayIcon.ShowBalloonTip(3000, I18n.T("App_Name"), I18n.T("Status_ManualDisconnected_Notify"), ToolTipIcon.Info);
             }
         }
 
@@ -1580,7 +1595,7 @@ namespace GkmStatus
 
             if (cmbStateType.SelectedIndex == 1)
             {
-                state = $"P-ID: {(string.IsNullOrWhiteSpace(txtStateCustom.Text) ? (I18n.CurrentLanguage == "日本語" ? "未設定" : "Not Set") : txtStateCustom.Text)}";
+                state = $"P-ID: {(string.IsNullOrWhiteSpace(txtStateCustom.Text) ? I18n.T("State_NotSet") : txtStateCustom.Text)}";
             }
             else if (cmbStateType.SelectedIndex == 2 || cmbStateType.SelectedIndex == 3)
             {
@@ -1590,13 +1605,11 @@ namespace GkmStatus
                     string name = currentPresence.CharNameLangIndex == 1 ? pc.NameEn : pc.Display;
                     if (cmbStateType.SelectedIndex == 3)
                     {
-                        if (I18n.CurrentLanguage == "English") state = "Producing " + name;
-                        else state = name + I18n.T("State_ProducingSuffix");
+                        state = I18n.T("State_Producing_Format", name);
                     }
                     else
                     {
-                        if (I18n.CurrentLanguage == "English") state = I18n.T("State_IdolSuffix") + name;
-                        else state = name + I18n.T("State_IdolSuffix");
+                        state = I18n.T("State_Idol_Format", name);
                     }
                 }
             }
@@ -1720,7 +1733,7 @@ namespace GkmStatus
             if (trayIcon == null) return;
 
             var baseIcon = this.Icon ?? SystemIcons.Application;
-            string appDisplayName = I18n.CurrentLanguage == "日本語" ? "学マステータス" : "GkmStatus";
+            string appDisplayName = I18n.T("App_Name");
             trayIcon.Text = string.IsNullOrEmpty(statusText) ? appDisplayName : $"{appDisplayName} - {statusText}";
 
             if (color == null)
