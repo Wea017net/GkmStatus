@@ -134,7 +134,9 @@ Discord 側の仕様変更などにより、予告なく機能が利用できな
 - **[IBM Plex Sans JP](https://fonts.google.com/specimen/IBM+Plex+Sans+JP)** (Licensed under the [SIL Open Font License](https://github.com/Wea017net/GkmStatus/blob/main/GkmStatus/Resources/fonts/IBM_Plex_Sans_JP/OFL.txt), Version 1.1)
   - Copyright © 2017 IBM Corp.
  
-## 先駆者様
+## 先駆者様 / 謝辞
 
-先行プロジェクトに敬意を表します。
+先行プロジェクトおよび、UI設計の参考にさせていただいたツール・アプリケーションの制作者に敬意を表します。
+
 - [gakumasRPC](https://github.com/vermilion10/gakumasRPC) - by @vermilion10
+- [CustomRP](https://github.com/maximmax42/Discord-CustomRP) - by @maximmax42

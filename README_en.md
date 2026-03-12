@@ -133,5 +133,7 @@ This application utilizes Discord's Rich Presence feature. Functions may become 
  
 ## Special Thanks
 
-Respect and gratitude to the preceding project:
+Respect and gratitude to the preceding project and the amazing tool that inspired the UI design:
+
 - [gakumasRPC](https://github.com/vermilion10/gakumasRPC) - by @vermilion10
+- [CustomRP](https://github.com/maximmax42/Discord-CustomRP) - by @maximmax42
