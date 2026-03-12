@@ -5,7 +5,7 @@
 <h1 align="center">GkmStatus (学マステータス)</h1>
 
 <p align="center">
-An unofficial fan-made application that displays your <i>Gakuen Idolmaster</i> player information on your Discord activity.
+An unofficial fan-made application that displays your THE iDOLM@STER Gakuen player information on your Discord activity.
 </p>
 
 <p align="center">
@@ -55,6 +55,9 @@ We hope that displaying player information in the activity will encourage commun
 * Windows 10 64-bit / Windows 11 64-bit
 * [.NET 10.0 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
 
+> [!NOTE]
+> Running on Windows on ARM, macOS, or Linux is not supported.
+
 ## Supported Languages
 
 * Japanese (ja)
@@ -69,6 +72,8 @@ We hope that displaying player information in the activity will encourage commun
 5.  Click the Connect button to display the entered details on your Discord activity.
 
 > [!NOTE]
+> If the "Windows protected your PC" window appears, you can launch the app by clicking `More info` and then clicking the `Run anyway` button that appears at the bottom of the window.
+> 
 > <p align="left">
 >   <img src="screenshots/dotnet_download.png" height="200" alt="Dotnet Download Prompt">
 > </p>
@@ -76,9 +81,9 @@ We hope that displaying player information in the activity will encourage commun
 > If the window above appears on startup, it means `.NET Runtime 10.0` is not installed on your PC. Please click `Download it now`, then open and install the downloaded `windowsdesktop-runtime-10.0.x-win-x64.exe`.
 
 > [!TIP]
-> If "Settings -> Monitor gakumas.exe and auto connect/disconnect" is enabled, the app will automatically connect and disconnect from Discord by detecting the DMM GAMES version's launch status without needing to press the connect button. (This setting is enabled by default on the first launch).
+> If "Settings -> `Monitor gakumas.exe and auto connect/disconnect`" is enabled, the app will automatically connect and disconnect from Discord by detecting the DMM GAMES version's launch status without needing to press the connect button. (This setting is enabled by default on the first launch).
 > 
-> I recommend enabling all three settings: "Run at system startup", "Start minimized in tray", and "Monitor gakumas.exe and auto connect/disconnect". This allows you to show and hide your status without having to manually open or operate the app.
+> I recommend enabling all three settings: `Run at system startup`, `Start minimized in tray`, and `Monitor gakumas.exe and auto connect/disconnect`. This allows you to show and hide your status without having to manually open or operate the app.
 
 ## Important Notes
 
