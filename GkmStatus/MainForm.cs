@@ -159,6 +159,9 @@ namespace GkmStatus
         [LibraryImport("dwmapi.dll")]
         private static partial int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
 
+        [LibraryImport("gdi32.dll")]
+        private static partial IntPtr AddFontMemResourceEx(IntPtr pbFont, uint cbFont, IntPtr pdv, out uint pcFonts);
+
 
         private const string PROCESS_NAME = "gakumas";
         private static readonly List<(string Name, string AppId)> GameApps =
@@ -252,6 +255,8 @@ namespace GkmStatus
         private Icon? currentTrayIconStatus;
         private DateTime lastUpdateCheck = DateTime.MinValue;
         private PrivateFontCollection? pfc;
+        private readonly List<IntPtr> fontPointers = [];
+
 
         private float uiScale = 1.0f;
         private bool isInternalMinimize = false;
@@ -299,7 +304,10 @@ namespace GkmStatus
                 }
                 if (trayIcon != null) { trayIcon.Visible = false; trayIcon.Dispose(); }
                 SaveSettings();
+                foreach (var ptr in fontPointers) Marshal.FreeCoTaskMem(ptr);
+                pfc?.Dispose();
             };
+
         }
 
         private int S(int value) => (int)Math.Round(value * uiScale);
@@ -343,8 +351,8 @@ namespace GkmStatus
                 trayIcon.Visible = true;
                 if (notifyOnMinimizeItem?.Checked == true)
                 {
-                trayIcon.Tag = null;
-                trayIcon.ShowBalloonTip(2000, I18n.T("App_Name"), I18n.T("Notify_Minimized"), ToolTipIcon.Info);
+                    trayIcon.Tag = null;
+                    trayIcon.ShowBalloonTip(2000, I18n.T("App_Name"), I18n.T("Notify_Minimized"), ToolTipIcon.Info);
                 }
             }
         }
@@ -377,42 +385,85 @@ namespace GkmStatus
                 {
                     pfc = new PrivateFontCollection();
                     var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-                    string[] resources =
-                    [
-                        "GkmStatus.Resources.fonts.IBM_Plex_Sans_JP.IBMPlexSansJP-Regular.ttf",
-                        "GkmStatus.Resources.fonts.IBM_Plex_Sans_JP.IBMPlexSansJP-Bold.ttf",
-                        "GkmStatus.Resources.fonts.IBM_Plex_Sans_JP.IBMPlexSansJP-Medium.ttf"
-                    ];
 
-                    foreach (string resourceName in resources)
+                    // Dump manifest resources for debugging so missing fonts can be diagnosed.
+                    try { Debug.WriteLine("Manifest resources: " + string.Join(", ", assembly.GetManifestResourceNames())); } catch { }
+
+                    // Try to find any embedded ttf resources that look like IBM Plex (case-insensitive "plex")
+                    var manifestNames = assembly.GetManifestResourceNames();
+                    var ttfCandidates = manifestNames.Where(n => n.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase) && n.Contains("plex", StringComparison.OrdinalIgnoreCase)).ToArray();
+
+                    // If nothing found, fall back to the originally expected resource names
+                    if (ttfCandidates.Length == 0)
+                    {
+                        ttfCandidates = [
+                            "GkmStatus.Resources.fonts.IBM_Plex_Sans_JP.IBMPlexSansJP-Regular.ttf",
+                            "GkmStatus.Resources.fonts.IBM_Plex_Sans_JP.IBMPlexSansJP-Bold.ttf",
+                            "GkmStatus.Resources.fonts.IBM_Plex_Sans_JP.IBMPlexSansJP-Medium.ttf"
+                        ];
+                    }
+
+                    foreach (string resourceName in ttfCandidates)
                     {
                         using Stream? stream = assembly.GetManifestResourceStream(resourceName);
                         if (stream != null)
                         {
-                            byte[] fontData = new byte[stream.Length];
-                            stream.ReadExactly(fontData, 0, (int)stream.Length);
-                            IntPtr fontPtr = Marshal.AllocCoTaskMem(fontData.Length);
-                            Marshal.Copy(fontData, 0, fontPtr, fontData.Length);
-                            pfc.AddMemoryFont(fontPtr, fontData.Length);
-                            Marshal.FreeCoTaskMem(fontPtr);
+                            try
+                            {
+                                byte[] fontData = new byte[stream.Length];
+                                stream.ReadExactly(fontData, 0, (int)stream.Length);
+                                IntPtr fontPtr = Marshal.AllocCoTaskMem(fontData.Length);
+                                Marshal.Copy(fontData, 0, fontPtr, fontData.Length);
+
+                                // Register for GDI+ (PrivateFontCollection)
+                                pfc.AddMemoryFont(fontPtr, fontData.Length);
+
+                                // Register for GDI (TextRenderer) - CRITICAL for WinForms controls
+                                AddFontMemResourceEx(fontPtr, (uint)fontData.Length, IntPtr.Zero, out uint _);
+
+                                fontPointers.Add(fontPtr);
+                                Debug.WriteLine("Loaded and registered font resource: " + resourceName);
+                            }
+                            catch (Exception ex) { Debug.WriteLine("Failed loading font resource '" + resourceName + "': " + ex.Message); }
+                        }
+                        else
+                        {
+                            Debug.WriteLine("Font resource not found: " + resourceName);
                         }
                     }
                 }
 
                 FontFamily? regular = null, bold = null, medium = null;
+                try { Debug.WriteLine("PrivateFontCollection families: " + string.Join(", ", pfc.Families.Select(f => f.Name))); } catch { }
                 foreach (var ff in pfc.Families)
                 {
-                    if (ff.Name == "IBM Plex Sans JP") regular = ff;
-                    if (ff.Name == "IBM Plex Sans JP Bold") bold = ff;
-                    if (ff.Name == "IBM Plex Sans JP Medium") medium = ff;
+                    string name = ff.Name;
+                    if (name.Contains("IBM Plex Sans JP", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (name.Contains("Bold", StringComparison.OrdinalIgnoreCase)) bold = ff;
+                        else if (name.Contains("Medium", StringComparison.OrdinalIgnoreCase)) medium = ff;
+                        else regular = ff;
+                    }
+                }
+
+                // Fallback: if regular is still null but we have families, take the first one as regular
+                if (regular == null && pfc.Families.Length > 0)
+                {
+                    regular = pfc.Families.FirstOrDefault(f => f.Name.Contains("IBM Plex Sans JP", StringComparison.OrdinalIgnoreCase))
+                              ?? pfc.Families[0];
                 }
 
                 if (regular != null)
                 {
                     float basePx = 13.3f * uiScale;
                     appFont = new Font(regular, basePx, GraphicsUnit.Pixel);
-                    appFontBold = bold != null ? new Font(bold, basePx, GraphicsUnit.Pixel) : new Font(regular, basePx, FontStyle.Bold, GraphicsUnit.Pixel);
-                    appFontMedium = medium != null ? new Font(medium, basePx, GraphicsUnit.Pixel) : appFontBold;
+
+                    // ボールドとミディアムの決定
+                    if (bold != null) appFontBold = new Font(bold, basePx, GraphicsUnit.Pixel);
+                    else appFontBold = new Font(regular, basePx, FontStyle.Bold, GraphicsUnit.Pixel);
+
+                    if (medium != null) appFontMedium = new Font(medium, basePx, GraphicsUnit.Pixel);
+                    else appFontMedium = appFontBold;
 
                     SetupMenuFont();
                     return;
@@ -422,6 +473,7 @@ namespace GkmStatus
             {
                 Debug.WriteLine("Font Load Error: " + ex.Message);
             }
+
 
             float basePxFallback = 13.3f * uiScale;
             appFont = new Font("Meiryo UI", basePxFallback, GraphicsUnit.Pixel);
@@ -527,7 +579,7 @@ namespace GkmStatus
                     {
                         cmbDetailsType.SelectedIndex = index;
                         UpdateRpc();
-                            if (notifyInBackgroundItem?.Checked == true)
+                        if (notifyInBackgroundItem?.Checked == true)
                         {
                             trayIcon.Tag = null;
                             trayIcon.ShowBalloonTip(3000, I18n.T("App_Name"), I18n.T("Notify_TrayDetailsChanged"), ToolTipIcon.Info);
@@ -1475,11 +1527,11 @@ namespace GkmStatus
             UpdateUIForConnected(e.User.Username);
             UpdateRpc();
             UpdateTrayMenuState();
-                            if (this.WindowState == FormWindowState.Minimized && (notifyInBackgroundItem?.Checked == true))
-                            {
-                                trayIcon.Tag = null;
-                                trayIcon.ShowBalloonTip(3000, I18n.T("App_Name"), I18n.T("Status_Connected_Notify", e.User.Username), ToolTipIcon.Info);
-                            }
+            if (this.WindowState == FormWindowState.Minimized && (notifyInBackgroundItem?.Checked == true))
+            {
+                trayIcon.Tag = null;
+                trayIcon.ShowBalloonTip(3000, I18n.T("App_Name"), I18n.T("Status_Connected_Notify", e.User.Username), ToolTipIcon.Info);
+            }
         }));
     };
             client.OnError += (sender, e) => { this.Invoke((MethodInvoker)(() => { HandleConnectionError(I18n.T("Status_Error", e.Message)); })); };
