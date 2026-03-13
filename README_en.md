@@ -58,6 +58,20 @@ We hope that displaying player information in the activity will encourage commun
 > [!NOTE]
 > Running on Windows on ARM, macOS, or Linux is not supported.
 
+## Edition Differences
+
+> [!TIP]
+> GkmStatus is available in two editions: Standard and Lite.
+> Please choose the edition that best fits your environment.
+
+### Standard Edition (`GkmStatus_win-x64_vx.x.x.zip`)
+
+Contains only the `GkmStatus.exe` file. Since the .NET Runtime 10.0 is built-in (Self-contained), you can use it immediately without any additional installations.
+
+### Lite Edition (`GkmStatus_win-x64_vx.x.x_lite.zip`)
+
+Contains `GkmStatus.exe` and several supporting files. This edition has a smaller file size, but since the .NET Runtime 10.0 is not included, you must have it pre-installed on your PC.
+
 ## Supported Languages
 
 * Japanese (ja)
@@ -73,12 +87,6 @@ We hope that displaying player information in the activity will encourage commun
 
 > [!NOTE]
 > If the "Windows protected your PC" window appears, you can launch the app by clicking `More info` and then clicking the `Run anyway` button that appears at the bottom of the window.
-> 
-> <p align="left">
->   <img src="screenshots/dotnet_download.png" height="200" alt="Dotnet Download Prompt">
-> </p>
-> 
-> If the window above appears on startup, it means `.NET Runtime 10.0` is not installed on your PC. Please click `Download it now`, then open and install the downloaded `windowsdesktop-runtime-10.0.x-win-x64.exe`.
 
 > [!TIP]
 > If "Settings -> `Monitor gakumas.exe and auto connect/disconnect`" is enabled, the app will automatically connect and disconnect from Discord by detecting the DMM GAMES version's launch status without needing to press the connect button. (This setting is enabled by default on the first launch).
