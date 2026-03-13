@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Drawing.Text;
 using System.Diagnostics;
@@ -18,7 +18,7 @@ namespace GkmStatus
 {
     public class AppConfig
     {
-        public int ConfigVersion { get; set; } = 1; // バージョン管理用
+        public int ConfigVersion { get; set; } = 1;
         public AppSettings Settings { get; set; } = new AppSettings();
         public PresenceSettings Presence { get; set; } = new PresenceSettings();
     }
@@ -39,16 +39,16 @@ namespace GkmStatus
 
     public class PresenceSettings
     {
-        public string DetailsType { get; set; } = "Both"; // None, PName, PLv, Both
+        public string DetailsType { get; set; } = "Both";
         public string ProducerName { get; set; } = "";
         public int ProducerLevel { get; set; } = 1;
-        public string StateType { get; set; } = "Producing"; // None, PID, Idol, Producing, Custom
+        public string StateType { get; set; } = "Producing";
         public int CharNameLangIndex { get; set; } = 0;
-        public string? SelectedIdolCharacterId { get; set; } = "hanami_saki"; // 「担当アイドル」用
-        public string? SelectedProduceCharacterId { get; set; } = "hanami_saki"; // 「プロデュース中」用
+        public string? SelectedIdolCharacterId { get; set; } = "hanami_saki";
+        public string? SelectedProduceCharacterId { get; set; } = "hanami_saki";
         public Dictionary<string, string> StateHistory { get; set; } = [];
         public int GameAppIndex { get; set; } = 0;
-        public string ButtonMode { get; set; } = "Store"; // None, Store, App, Custom
+        public string ButtonMode { get; set; } = "Store";
         public Dictionary<string, ButtonHistoryData> ButtonHistory { get; set; } = [];
     }
 
@@ -280,7 +280,6 @@ namespace GkmStatus
 
             SetupFonts();
             InitializeCustomUI();
-            // 設定ファイルのパスをAppDataに設定
             string appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GkmStatus");
             configPath = Path.Combine(appDataPath, "config.json");
 
@@ -557,11 +556,11 @@ namespace GkmStatus
             };
 
             var trayMenu = new ContextMenuStrip();
-            trayMenu.Opening += (s, e) => 
-            { 
-                UpdateTrayMenuState(); // ここで最新の可視・不可視を反映
+            trayMenu.Opening += (s, e) =>
+            {
+                UpdateTrayMenuState();
                 SetForegroundWindow(this.Handle);
-                if (trayMenuProduce != null) 
+                if (trayMenuProduce != null)
                 {
                     string stateStr = GetStateString(cmbStateType.SelectedIndex);
                     trayMenuProduce.Enabled = (stateStr == "Idol" || stateStr == "Producing");
@@ -611,7 +610,7 @@ namespace GkmStatus
                     {
                         cmbStateType.SelectedIndex = index;
                         UpdateRpc();
-                        if (trayMenuProduce != null) 
+                        if (trayMenuProduce != null)
                         {
                             string stateStr = GetStateString(index);
                             trayMenuProduce.Enabled = (stateStr == "Idol" || stateStr == "Producing");
@@ -634,7 +633,7 @@ namespace GkmStatus
             {
                 trayMenuProduce.DropDownItems.Clear();
                 string? currentId = (GetStateString(cmbStateType.SelectedIndex) == "Idol") ? currentPresence.SelectedIdolCharacterId : currentPresence.SelectedProduceCharacterId;
-                
+
                 foreach (var pc in ProduceCharacters)
                 {
                     string displayName = currentPresence.CharNameLangIndex == 1 ? pc.NameEn : pc.Display;
@@ -643,7 +642,7 @@ namespace GkmStatus
                     item.Click += (sender, ev) =>
                     {
                         int index = ProduceCharacters.IndexOf(pc);
-                        if (index >= 0 && index < cmbProduceCharacter.Items.Count) 
+                        if (index >= 0 && index < cmbProduceCharacter.Items.Count)
                         {
                             cmbProduceCharacter.SelectedIndex = index;
                         }
@@ -662,7 +661,7 @@ namespace GkmStatus
             trayMenu.Items.Add(trayMenuDetails);
             trayMenu.Items.Add(trayMenuState);
             trayMenu.Items.Add(trayMenuProduce);
-            
+
             var traySepSettings = new ToolStripSeparator { Tag = "SepSettings" };
             trayMenu.Items.Add(traySepSettings);
 
@@ -765,7 +764,7 @@ namespace GkmStatus
                     string stateStr = GetStateString(cmbStateType.SelectedIndex);
                     if (stateStr == "Idol") currentPresence.SelectedIdolCharacterId = characterId;
                     else if (stateStr == "Producing") currentPresence.SelectedProduceCharacterId = characterId;
-                    
+
                     if (!isInitializing) SaveSettings();
                 }
             };
@@ -934,7 +933,6 @@ namespace GkmStatus
                 minimizeToTrayItem
             ]);
 
-            // クリックしてもメニューを閉じないようにイベントを追加
             settingsMenu.DropDown.Closing += (s, e) =>
             {
                 if (e.CloseReason == ToolStripDropDownCloseReason.ItemClicked) e.Cancel = true;
@@ -1424,7 +1422,6 @@ namespace GkmStatus
                     if (monitorTimer.Enabled) MonitorProcess(null, EventArgs.Empty);
                 }
 
-                // テーマの読み込み
                 string theme = config.Settings.SelectedTheme ?? "Auto";
                 switch (theme)
                 {
@@ -1434,7 +1431,6 @@ namespace GkmStatus
                     default: themeAuto.PerformClick(); break;
                 }
 
-                // 言語の読み込み
                 string langStr = config.Settings.SelectedLanguage ?? (System.Globalization.CultureInfo.CurrentUICulture.Name.StartsWith("ja") ? "ja" : "en");
                 if (langStr == "en" || langStr == "English")
                 {
@@ -1456,8 +1452,7 @@ namespace GkmStatus
                 numPLevel.Value = Math.Clamp(currentPresence.ProducerLevel, 1, 100);
                 cmbStateType.SelectedIndex = GetStateIndex(currentPresence.StateType ?? "Producing");
                 cmbCharNameLang.SelectedIndex = Math.Clamp(currentPresence.CharNameLangIndex, 0, 1);
-                
-                // アイドルの復元
+
                 RefreshProduceCharacterList();
                 string? currentId = (GetStateString(cmbStateType.SelectedIndex) == "Idol") ? currentPresence.SelectedIdolCharacterId : currentPresence.SelectedProduceCharacterId;
                 int charIdx = ProduceCharacters.FindIndex(c => c.Id == currentId);
@@ -1625,10 +1620,10 @@ namespace GkmStatus
 
         private void InitializeLogic()
         {
-            startTime = DateTime.UtcNow; 
+            startTime = DateTime.UtcNow;
             UpdateTimestampLabel();
-            
-            monitorTimer = new System.Windows.Forms.Timer { Interval = 3000 }; 
+
+            monitorTimer = new System.Windows.Forms.Timer { Interval = 3000 };
             monitorTimer.Tick += MonitorProcess;
             if (monitorItem?.Checked == true) monitorTimer.Enabled = true;
 
@@ -1642,20 +1637,20 @@ namespace GkmStatus
             if (client?.IsInitialized == true) { UpdateUIForConnected(client.CurrentUser?.Username ?? "接続済み"); UpdateRpc(); return; }
 
             connectionSeconds = 0;
-            if (connectionTimer is null) 
-            { 
-                 connectionTimer = new System.Windows.Forms.Timer { Interval = 1000 }; 
-                 connectionTimer.Tick += (s, e) => 
-                 { 
-                     if (!connectionTimer.Enabled || lblStatus.ForeColor != COLOR_PAUSE) return;
-                     connectionSeconds++; 
-                     lblStatus.Text = I18n.T("Status_Connecting", connectionSeconds); 
-                     if (connectionSeconds >= CONNECTION_TIMEOUT) HandleConnectionError(I18n.T("Status_Timeout")); 
-                 }; 
+            if (connectionTimer is null)
+            {
+                connectionTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+                connectionTimer.Tick += (s, e) =>
+                {
+                    if (!connectionTimer.Enabled || lblStatus.ForeColor != COLOR_PAUSE) return;
+                    connectionSeconds++;
+                    lblStatus.Text = I18n.T("Status_Connecting", connectionSeconds);
+                    if (connectionSeconds >= CONNECTION_TIMEOUT) HandleConnectionError(I18n.T("Status_Timeout"));
+                };
             }
             lblStatus.Text = I18n.T("Status_Connecting", 0); lblStatus.ForeColor = COLOR_PAUSE; btnConnect.Enabled = false;
             UpdateTrayStatusIcon(COLOR_PAUSE, I18n.T("Tray_Status_Connecting"));
-            
+
             client?.Deinitialize();
             client?.Dispose();
             client = null;
@@ -1674,10 +1669,9 @@ namespace GkmStatus
                     connectionTimer.Stop();
                     UpdateUIForConnected(e.User.Username);
                     UpdateTrayMenuState();
-                    
-                    // 接続直後は反映されないことがあるため、少し待ってから更新
+
                     await System.Threading.Tasks.Task.Delay(500);
-                    if (client?.IsInitialized == true) 
+                    if (client?.IsInitialized == true)
                     {
                         UpdateRpc();
                         UpdateTrayMenuState();
@@ -1693,7 +1687,7 @@ namespace GkmStatus
 
             client.OnError += (sender, e) => { this.Invoke((MethodInvoker)(() => { HandleConnectionError(I18n.T("Status_Error", e.Message)); })); };
             connectionTimer.Start();
-            
+
             try { if (!client.Initialize()) HandleConnectionError(I18n.T("Status_InitFailed")); }
             catch (Exception ex) { HandleConnectionError(I18n.T("Status_Exception", ex.Message)); }
         }
@@ -1805,7 +1799,7 @@ namespace GkmStatus
             string detailsStr = GetDetailsString(cmbDetailsType.SelectedIndex);
             switch (detailsStr) { case "PName": details = $"{pName}"; break; case "PLv": details = $"PLv{numPLevel.Value}"; break; case "Both": details = $"{pName} | PLv{numPLevel.Value}"; break; }
             string? state = null;
-            
+
             string stateStr = GetStateString(cmbStateType.SelectedIndex);
 
             if (stateStr == "PID")
@@ -1996,7 +1990,6 @@ namespace GkmStatus
             bool isConnected = client?.IsInitialized == true;
             bool isPaused = isConnected && (btnConnect.Text == I18n.T("Button_Connect"));
 
-            // 接続中かつ一時停止中でない場合のみ詳細設定を表示
             bool showSettings = isConnected && !isPaused;
 
             trayMenuDetails.Visible = showSettings;
@@ -2007,7 +2000,6 @@ namespace GkmStatus
             trayMenuPause.Visible = isConnected && !isPaused;
             trayMenuDisconnect.Visible = isConnected;
 
-            // セパレーターの表示制御
             foreach (ToolStripItem item in trayIcon.ContextMenuStrip.Items)
             {
                 if (item is ToolStripSeparator sep)

@@ -47,13 +47,15 @@ jobs:
     - name: Publish Self Contained
       run: dotnet publish GkmStatus/GkmStatus.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ./publish-sc/GkmStatus
 
-    # ZIP にまとめる (フォルダ構造を維持するため親ディレクトリを指定)
+    # ZIP にまとめる
     - name: Create Artifacts
       shell: pwsh
       run: |
         $tag = "${{ github.ref_name }}"
+        # Lite版は既存通りフォルダとしてまとめる
         Compress-Archive -Path ./publish-lite/GkmStatus -DestinationPath GkmStatus_win-x64_$($tag)_lite.zip
-        Compress-Archive -Path ./publish-sc/GkmStatus -DestinationPath GkmStatus_win-x64_$($tag).zip
+        # 同梱版は直下のファイル(GkmStatus.exe等)のみをまとめるためワイルドカードを指定
+        Compress-Archive -Path ./publish-sc/GkmStatus/* -DestinationPath GkmStatus_win-x64_$($tag).zip
 
     # GitHub Release を作成してファイルを添付 (下書き状態で作成)
     - name: Create Release
