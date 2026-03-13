@@ -1,19 +1,17 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
-
-name: .NET
+# This workflow will build and release a .NET project
+name: .NET Build and Release
 
 on:
   push:
     branches: [ "main" ]
+    tags:
+      - "v*"
   pull_request:
     branches: [ "main" ]
 
 jobs:
   build:
-
     runs-on: windows-latest
-
     steps:
     - uses: actions/checkout@v4
     - name: Setup .NET
@@ -23,6 +21,46 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
-      run: dotnet build --no-restore
+      run: dotnet build --no-restore -c Release
     - name: Test
       run: dotnet test --no-build --verbosity normal
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+
+    # 1. 非同梱版 (Lite: Framework Dependent)
+    - name: Publish Lite
+      run: dotnet publish GkmStatus/GkmStatus.csproj -c Release -r win-x64 --self-contained false -o ./publish-lite/GkmStatus
+    
+    # 2. 同梱版 (Self Contained)
+    - name: Publish Self Contained
+      run: dotnet publish GkmStatus/GkmStatus.csproj -c Release -r win-x64 --self-contained true -o ./publish-sc/GkmStatus
+
+    # ZIP にまとめる (フォルダ構造を維持するため親ディレクトリを指定)
+    - name: Create Artifacts
+      shell: pwsh
+      run: |
+        $tag = "${{ github.ref_name }}"
+        Compress-Archive -Path ./publish-lite/GkmStatus -DestinationPath GkmStatus_win-x64_$($tag)_lite.zip
+        Compress-Archive -Path ./publish-sc/GkmStatus -DestinationPath GkmStatus_win-x64_$($tag).zip
+
+    # GitHub Release を作成してファイルを添付 (下書き状態で作成)
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: true
+        files: |
+          GkmStatus_win-x64_*.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

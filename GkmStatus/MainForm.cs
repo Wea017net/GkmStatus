@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Drawing.Text;
 using System.Diagnostics;
@@ -18,6 +18,7 @@ namespace GkmStatus
 {
     public class AppConfig
     {
+        public int ConfigVersion { get; set; } = 1; // バージョン管理用
         public AppSettings Settings { get; set; } = new AppSettings();
         public PresenceSettings Presence { get; set; } = new PresenceSettings();
     }
@@ -38,16 +39,16 @@ namespace GkmStatus
 
     public class PresenceSettings
     {
-        public int DetailsTypeIndex { get; set; } = 3;
+        public string DetailsType { get; set; } = "Both"; // None, PName, PLv, Both
         public string ProducerName { get; set; } = "";
         public int ProducerLevel { get; set; } = 1;
-        public int StateTypeIndex { get; set; } = -1;
-        public string StateType { get; set; } = "Idol";
+        public string StateType { get; set; } = "Producing"; // None, PID, Idol, Producing, Custom
         public int CharNameLangIndex { get; set; } = 0;
-        public string? SelectedProduceCharacterId { get; set; } = "hanami_saki";
+        public string? SelectedIdolCharacterId { get; set; } = "hanami_saki"; // 「担当アイドル」用
+        public string? SelectedProduceCharacterId { get; set; } = "hanami_saki"; // 「プロデュース中」用
         public Dictionary<string, string> StateHistory { get; set; } = [];
         public int GameAppIndex { get; set; } = 0;
-        public int ButtonModeIndex { get; set; } = 0;
+        public string ButtonMode { get; set; } = "Store"; // None, Store, App, Custom
         public Dictionary<string, ButtonHistoryData> ButtonHistory { get; set; } = [];
     }
 
@@ -159,6 +160,10 @@ namespace GkmStatus
         [LibraryImport("dwmapi.dll")]
         private static partial int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
 
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool SetForegroundWindow(IntPtr hWnd);
+
         [LibraryImport("gdi32.dll")]
         private static partial IntPtr AddFontMemResourceEx(IntPtr pbFont, uint cbFont, IntPtr pdv, out uint pcFonts);
 
@@ -174,8 +179,8 @@ namespace GkmStatus
         ];
         private const string REG_RUN_KEY = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
         private const string APP_NAME = "GkmStatus";
-        private readonly string configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
-        private static readonly JsonSerializerOptions jsonOptions = new() { WriteIndented = true };
+        private readonly string configPath;
+        private static readonly JsonSerializerOptions jsonOptions = new() { WriteIndented = true, AllowTrailingCommas = true, PropertyNameCaseInsensitive = true };
 
         private static readonly Color COLOR_ERROR = ColorTranslator.FromHtml("#fc5555");
         private static readonly Color COLOR_CONNECT = ColorTranslator.FromHtml("#68b900");
@@ -227,17 +232,16 @@ namespace GkmStatus
         private int footerButtonsY;
 
         private ToolStripMenuItem fileMenu = null!, exitItem = null!, settingsMenu = null!, runAtStartupItem = null!, startMinimizedItem = null!, autoConnectItem = null!, checkForUpdatesItem = null!, notifyInBackgroundItem = null!, notifyOnMinimizeItem = null!, minimizeToTrayItem = null!, monitorItem = null!;
-        private ToolStripMenuItem viewMenu = null!, themeMenu = null!, langMenu = null!, helpMenu = null!, githubMenu = null!, checkUpdateMenuItem = null!, aboutMenu = null!;
+        private ToolStripMenuItem viewMenu = null!, themeMenu = null!, langMenu = null!, helpMenu = null!, githubMenu = null!, checkUpdateMenuItem = null!, aboutMenu = null!, openAppLocationMenu = null!, openConfigLocationMenu = null!;
         private ToolStripMenuItem langEnglish = null!, langJapanese = null!;
         private ToolStripMenuItem themeAuto = null!, themeLight = null!, themeDark = null!, themeOLED = null!;
-        private string currentThemeName = "自動選択";
-        private string currentLanguage = "日本語";
         private ToolStripMenuItem trayMenuConnect = null!, trayMenuPause = null!, trayMenuDisconnect = null!, trayMenuProduce = null!, trayMenuDetails = null!, trayMenuState = null!;
 
         private DiscordRpcClient? client;
         private DateTime startTime;
         private System.Windows.Forms.Timer? monitorTimer;
         private System.Windows.Forms.Timer? connectionTimer;
+        private System.Windows.Forms.Timer? clockTimer;
         private int connectionSeconds = 0;
         private const int CONNECTION_TIMEOUT = 30;
         private bool wasProcessRunning = false;
@@ -276,7 +280,9 @@ namespace GkmStatus
 
             SetupFonts();
             InitializeCustomUI();
-            InitializeLogic();
+            // 設定ファイルのパスをAppDataに設定
+            string appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GkmStatus");
+            configPath = Path.Combine(appDataPath, "config.json");
 
             isInitializing = true;
             LoadSettings();
@@ -291,6 +297,7 @@ namespace GkmStatus
             CmbBtnMode_SelectedIndexChanged(null, EventArgs.Empty);
 
             isInitializing = false;
+            InitializeLogic();
 
             this.FormClosing += (s, e) =>
             {
@@ -368,13 +375,10 @@ namespace GkmStatus
 
         private void ReapplyTheme()
         {
-            switch (currentThemeName)
-            {
-                case "ライト": ApplyThemeLight(); break;
-                case "ダーク": ApplyThemeDark(); break;
-                case "OLED": ApplyThemeOLED(); break;
-                default: ApplyThemeAuto(); break;
-            }
+            if (themeLight.Checked) ApplyThemeLight();
+            else if (themeDark.Checked) ApplyThemeDark();
+            else if (themeOLED.Checked) ApplyThemeOLED();
+            else ApplyThemeAuto();
         }
 
         private void SetupFonts()
@@ -553,7 +557,17 @@ namespace GkmStatus
             };
 
             var trayMenu = new ContextMenuStrip();
-            trayMenu.Opening += (s, e) => { if (trayMenuProduce != null) trayMenuProduce.Enabled = (cmbStateType.SelectedIndex == 3); };
+            trayMenu.Opening += (s, e) => 
+            { 
+                UpdateTrayMenuState(); // ここで最新の可視・不可視を反映
+                SetForegroundWindow(this.Handle);
+                if (trayMenuProduce != null) 
+                {
+                    string stateStr = GetStateString(cmbStateType.SelectedIndex);
+                    trayMenuProduce.Enabled = (stateStr == "Idol" || stateStr == "Producing");
+                    trayMenuProduce.Text = (stateStr == "Idol") ? I18n.T("State_Idol") : I18n.T("Tray_ProducingIdol");
+                }
+            };
             trayMenu.Items.Add(I18n.T("Tray_Open"), null, (s, e) => RestoreFromTray());
             trayMenu.Items.Add(new ToolStripSeparator());
 
@@ -581,7 +595,6 @@ namespace GkmStatus
                     trayMenuDetails.DropDownItems.Add(item);
                 }
             };
-            trayMenu.Items.Add(trayMenuDetails);
 
             trayMenuState = new ToolStripMenuItem(I18n.T("Header_State"));
             trayMenuState.DropDownItems.Add(new ToolStripMenuItem("..."));
@@ -598,6 +611,13 @@ namespace GkmStatus
                     {
                         cmbStateType.SelectedIndex = index;
                         UpdateRpc();
+                        if (trayMenuProduce != null) 
+                        {
+                            string stateStr = GetStateString(index);
+                            trayMenuProduce.Enabled = (stateStr == "Idol" || stateStr == "Producing");
+                            trayMenuProduce.Text = (stateStr == "Idol") ? I18n.T("State_Idol") : I18n.T("Tray_ProducingIdol");
+                        }
+
                         if (notifyInBackgroundItem?.Checked == true)
                         {
                             trayIcon.Tag = null;
@@ -607,23 +627,26 @@ namespace GkmStatus
                     trayMenuState.DropDownItems.Add(item);
                 }
             };
-            trayMenu.Items.Add(trayMenuState);
 
             trayMenuProduce = new ToolStripMenuItem(I18n.T("Tray_ProducingIdol"));
             trayMenuProduce.DropDownItems.Add(new ToolStripMenuItem("..."));
             trayMenuProduce.DropDownOpening += (s, e) =>
             {
                 trayMenuProduce.DropDownItems.Clear();
+                string? currentId = (GetStateString(cmbStateType.SelectedIndex) == "Idol") ? currentPresence.SelectedIdolCharacterId : currentPresence.SelectedProduceCharacterId;
+                
                 foreach (var pc in ProduceCharacters)
                 {
                     string displayName = currentPresence.CharNameLangIndex == 1 ? pc.NameEn : pc.Display;
                     var item = new ToolStripMenuItem(displayName);
-                    if (currentPresence.SelectedProduceCharacterId == pc.Id) item.Checked = true;
+                    if (currentId == pc.Id) item.Checked = true;
                     item.Click += (sender, ev) =>
                     {
-                        currentPresence.SelectedProduceCharacterId = pc.Id;
                         int index = ProduceCharacters.IndexOf(pc);
-                        if (index >= 0 && index < cmbProduceCharacter.Items.Count) cmbProduceCharacter.SelectedIndex = index;
+                        if (index >= 0 && index < cmbProduceCharacter.Items.Count) 
+                        {
+                            cmbProduceCharacter.SelectedIndex = index;
+                        }
                         UpdateRpc();
 
                         if (notifyInBackgroundItem?.Checked == true)
@@ -635,8 +658,13 @@ namespace GkmStatus
                     trayMenuProduce.DropDownItems.Add(item);
                 }
             };
+
+            trayMenu.Items.Add(trayMenuDetails);
+            trayMenu.Items.Add(trayMenuState);
             trayMenu.Items.Add(trayMenuProduce);
-            trayMenu.Items.Add(new ToolStripSeparator());
+            
+            var traySepSettings = new ToolStripSeparator { Tag = "SepSettings" };
+            trayMenu.Items.Add(traySepSettings);
 
             trayMenuConnect = new ToolStripMenuItem(I18n.T("Button_Connect"), null, (s, e) => InitializeRpc());
             trayMenuPause = new ToolStripMenuItem(I18n.T("Button_Pause"), null, (s, e) => PauseRpc());
@@ -646,6 +674,7 @@ namespace GkmStatus
 
             trayMenu.Items.Add(new ToolStripSeparator());
             trayMenu.Items.Add(I18n.T("Tray_Exit"), null, (s, e) => Application.Exit());
+
             trayIcon.ContextMenuStrip = trayMenu;
 
             int y = S(40);
@@ -732,7 +761,11 @@ namespace GkmStatus
             {
                 if (cmbProduceCharacter.SelectedIndex >= 0)
                 {
-                    currentPresence.SelectedProduceCharacterId = ProduceCharacters[cmbProduceCharacter.SelectedIndex].Id;
+                    string characterId = ProduceCharacters[cmbProduceCharacter.SelectedIndex].Id;
+                    string stateStr = GetStateString(cmbStateType.SelectedIndex);
+                    if (stateStr == "Idol") currentPresence.SelectedIdolCharacterId = characterId;
+                    else if (stateStr == "Producing") currentPresence.SelectedProduceCharacterId = characterId;
+                    
                     if (!isInitializing) SaveSettings();
                 }
             };
@@ -901,6 +934,12 @@ namespace GkmStatus
                 minimizeToTrayItem
             ]);
 
+            // クリックしてもメニューを閉じないようにイベントを追加
+            settingsMenu.DropDown.Closing += (s, e) =>
+            {
+                if (e.CloseReason == ToolStripDropDownCloseReason.ItemClicked) e.Cancel = true;
+            };
+
             viewMenu = new ToolStripMenuItem(I18n.T("Menu_View"));
             themeMenu = new ToolStripMenuItem(I18n.T("Menu_Theme"));
             themeAuto = new ToolStripMenuItem(I18n.T("Menu_ThemeAuto"));
@@ -908,12 +947,16 @@ namespace GkmStatus
             themeDark = new ToolStripMenuItem("ダーク");
             themeOLED = new ToolStripMenuItem("OLED");
 
-            themeAuto.Click += (s, e) => { currentThemeName = "自動選択"; ApplyThemeAuto(); UpdateThemeChecks(themeAuto, themeLight, themeDark, themeOLED); SaveSettings(); };
-            themeLight.Click += (s, e) => { currentThemeName = "ライト"; ApplyThemeLight(); UpdateThemeChecks(themeLight, themeAuto, themeDark, themeOLED); SaveSettings(); };
-            themeDark.Click += (s, e) => { currentThemeName = "ダーク"; ApplyThemeDark(); UpdateThemeChecks(themeDark, themeAuto, themeLight, themeOLED); SaveSettings(); };
-            themeOLED.Click += (s, e) => { currentThemeName = "OLED"; ApplyThemeOLED(); UpdateThemeChecks(themeOLED, themeAuto, themeLight, themeDark); SaveSettings(); };
+            themeAuto.Click += (s, e) => { ApplyThemeAuto(); UpdateThemeChecks(themeAuto, themeLight, themeDark, themeOLED); SaveSettings(); };
+            themeLight.Click += (s, e) => { ApplyThemeLight(); UpdateThemeChecks(themeLight, themeAuto, themeDark, themeOLED); SaveSettings(); };
+            themeDark.Click += (s, e) => { ApplyThemeDark(); UpdateThemeChecks(themeDark, themeAuto, themeLight, themeOLED); SaveSettings(); };
+            themeOLED.Click += (s, e) => { ApplyThemeOLED(); UpdateThemeChecks(themeOLED, themeAuto, themeLight, themeDark); SaveSettings(); };
 
             themeMenu.DropDownItems.AddRange([themeAuto, themeLight, themeDark, themeOLED]);
+            themeMenu.DropDown.Closing += (s, e) =>
+            {
+                if (e.CloseReason == ToolStripDropDownCloseReason.ItemClicked) e.Cancel = true;
+            };
             viewMenu.DropDownItems.Add(themeMenu);
 
             var separator2 = new ToolStripSeparator();
@@ -921,14 +964,37 @@ namespace GkmStatus
             langEnglish = new ToolStripMenuItem("English");
             langJapanese = new ToolStripMenuItem("日本語");
 
-            langEnglish.Click += (s, e) => { currentLanguage = "English"; I18n.CurrentLanguage = "English"; UpdateThemeChecks(langEnglish, langJapanese); ApplyLanguage(); SaveSettings(); };
-            langJapanese.Click += (s, e) => { currentLanguage = "日本語"; I18n.CurrentLanguage = "日本語"; UpdateThemeChecks(langJapanese, langEnglish); ApplyLanguage(); SaveSettings(); };
+            langEnglish.Click += (s, e) => { I18n.CurrentLanguage = "English"; UpdateThemeChecks(langEnglish, langJapanese); ApplyLanguage(); SaveSettings(); };
+            langJapanese.Click += (s, e) => { I18n.CurrentLanguage = "日本語"; UpdateThemeChecks(langJapanese, langEnglish); ApplyLanguage(); SaveSettings(); };
 
             langMenu.DropDownItems.AddRange([langEnglish, langJapanese]);
+            langMenu.DropDown.Closing += (s, e) =>
+            {
+                if (e.CloseReason == ToolStripDropDownCloseReason.ItemClicked) e.Cancel = true;
+            };
             viewMenu.DropDownItems.Add(separator2);
             viewMenu.DropDownItems.Add(langMenu);
 
             helpMenu = new ToolStripMenuItem(I18n.T("Menu_Help"));
+            openAppLocationMenu = new ToolStripMenuItem(I18n.T("Menu_OpenAppLocation"));
+            openConfigLocationMenu = new ToolStripMenuItem(I18n.T("Menu_OpenConfigLocation"));
+
+            openAppLocationMenu.Click += (s, e) =>
+            {
+                try { Process.Start("explorer.exe", $"/select,\"{Process.GetCurrentProcess().MainModule?.FileName}\""); }
+                catch { MessageBox.Show(I18n.T("Error_Browser")); }
+            };
+
+            openConfigLocationMenu.Click += (s, e) =>
+            {
+                try
+                {
+                    if (File.Exists(configPath)) Process.Start("explorer.exe", $"/select,\"{configPath}\"");
+                    else Process.Start("explorer.exe", $"\"{Path.GetDirectoryName(configPath)}\"");
+                }
+                catch { MessageBox.Show(I18n.T("Error_Browser")); }
+            };
+
             githubMenu = new ToolStripMenuItem(I18n.T("Menu_Github"));
             githubMenu.Click += (s, e) => { try { Process.Start(new ProcessStartInfo("https://github.com/Wea017net/GkmStatus") { UseShellExecute = true }); } catch { MessageBox.Show(I18n.T("Error_Browser")); } };
 
@@ -938,7 +1004,8 @@ namespace GkmStatus
             aboutMenu = new ToolStripMenuItem(I18n.T("Menu_About"));
             aboutMenu.Click += (s, e) => ShowAboutDialog();
 
-            helpMenu.DropDownItems.AddRange([githubMenu, checkUpdateMenuItem, aboutMenu]);
+            var separatorHelp = new ToolStripSeparator();
+            helpMenu.DropDownItems.AddRange([openAppLocationMenu, openConfigLocationMenu, separatorHelp, githubMenu, checkUpdateMenuItem, aboutMenu]);
 
             menu.Items.Add(fileMenu); menu.Items.Add(settingsMenu); menu.Items.Add(viewMenu); menu.Items.Add(helpMenu);
             this.Controls.Add(menu);
@@ -975,6 +1042,8 @@ namespace GkmStatus
                 langMenu.Text = I18n.T("Menu_Language");
 
                 helpMenu.Text = I18n.T("Menu_Help");
+                openAppLocationMenu.Text = I18n.T("Menu_OpenAppLocation");
+                openConfigLocationMenu.Text = I18n.T("Menu_OpenConfigLocation");
                 githubMenu.Text = I18n.T("Menu_Github");
                 checkUpdateMenuItem.Text = I18n.T("Menu_CheckUpdateNow");
                 aboutMenu.Text = I18n.T("Menu_About");
@@ -1016,7 +1085,11 @@ namespace GkmStatus
 
             if (client?.IsInitialized == true)
             {
-                if (btnConnect.Text == I18n.T("Button_Pause"))
+                if (connectionTimer?.Enabled == true)
+                {
+                    lblStatus.Text = I18n.T("Status_Connecting", connectionSeconds);
+                }
+                else if (btnConnect.Text == I18n.T("Button_Pause"))
                 {
                     UpdateUIForConnected(client.CurrentUser?.Username ?? "Unknown");
                 }
@@ -1151,30 +1224,43 @@ namespace GkmStatus
             }
         }
 
-        private static string GetStateString(int i) => i switch { 0 => "None", 1 => "PID", 2 => "Idol", 3 => "Producing", 4 => "Custom", _ => "PID" };
-        private static int GetStateIndex(string s) => s switch { "None" => 0, "PID" => 1, "Idol" => 2, "Producing" => 3, "Custom" => 4, _ => 1 };
+        private static string GetStateString(int i) => i switch { 0 => "None", 1 => "PID", 2 => "Idol", 3 => "Producing", 4 => "Custom", _ => "Producing" };
+        private static int GetStateIndex(string s) => s switch { "None" => 0, "PID" => 1, "Idol" => 2, "Producing" => 3, "Custom" => 4, _ => 3 };
+
+        private static string GetDetailsString(int i) => i switch { 0 => "None", 1 => "PName", 2 => "PLv", 3 => "Both", _ => "Both" };
+        private static int GetDetailsIndex(string s) => s switch { "None" => 0, "PName" => 1, "PLv" => 2, "Both" => 3, _ => 3 };
+
+        private static string GetButtonModeString(int i) => i switch { 0 => "None", 1 => "Store", 2 => "App", 3 => "Custom", _ => "None" };
+        private static int GetButtonModeIndex(string s) => s switch { "None" => 0, "Store" => 1, "App" => 2, "Custom" => 3, _ => 0 };
+
+        private static string GetThemeString(int i) => i switch { 0 => "Auto", 1 => "Light", 2 => "Dark", 3 => "OLED", _ => "Auto" };
+        private static int GetThemeIndex(string s) => s switch { "Auto" => 0, "Light" => 1, "Dark" => 2, "OLED" => 3, _ => 0 };
+
+        private static string GetLangString(int i) => i switch { 0 => "ja", 1 => "en", _ => "ja" };
+        private static int GetLangIndex(string s) => s switch { "ja" => 0, "en" => 1, _ => 0 };
 
         private void CmbStateType_SelectedIndexChanged(object? sender, EventArgs e)
         {
             int idx = cmbStateType.SelectedIndex;
             if (idx == -1) return;
+            string stateStr = GetStateString(idx);
 
-            if (!isInitializing && lastStateIdx != -1 && lastStateIdx != 2 && lastStateIdx != 3)
+            if (!isInitializing && lastStateIdx != -1 && GetStateString(lastStateIdx) != "Idol" && GetStateString(lastStateIdx) != "Producing")
             {
                 currentPresence.StateHistory[GetStateString(lastStateIdx)] = txtStateCustom.Text;
             }
 
-            bool isProduceMode = (idx == 2 || idx == 3);
+            bool isProduceMode = (stateStr == "Idol" || stateStr == "Producing");
 
             if (txtStateCustom.Tag is Panel container)
             {
-                container.Visible = !isProduceMode && (idx != 0);
+                container.Visible = !isProduceMode && (stateStr != "None");
             }
 
             cmbProduceCharacter.Visible = isProduceMode;
             cmbCharNameLang.Visible = isProduceMode;
 
-            if (idx == 1)
+            if (stateStr == "PID")
             {
                 if (txtStateCustom.Tag is Panel con)
                 {
@@ -1186,7 +1272,7 @@ namespace GkmStatus
                 txtStateCustom.MaxLength = 8;
                 SetPlaceholder(txtStateCustom, I18n.T("Placeholder_PID"));
             }
-            else if (idx == 4)
+            else if (stateStr == "Custom")
             {
                 if (txtStateCustom.Tag is Panel con)
                 {
@@ -1203,13 +1289,11 @@ namespace GkmStatus
                 txtStateCustom.Enabled = false;
             }
 
-            if (!isInitializing && currentPresence.StateHistory.TryGetValue(GetStateString(idx), out string? savedText))
+            if (stateStr == "Idol" || stateStr == "Producing")
             {
-                txtStateCustom.Text = savedText;
-            }
-            else if (!isInitializing && !isProduceMode)
-            {
-                txtStateCustom.Text = "";
+                var currentId = (stateStr == "Idol") ? currentPresence.SelectedIdolCharacterId : currentPresence.SelectedProduceCharacterId;
+                int charIdx = ProduceCharacters.FindIndex(c => c.Id == currentId);
+                cmbProduceCharacter.SelectedIndex = charIdx >= 0 ? charIdx : 0;
             }
 
             lastStateIdx = idx;
@@ -1219,36 +1303,36 @@ namespace GkmStatus
         private void CmbBtnMode_SelectedIndexChanged(object? sender, EventArgs e)
         {
             if (cmbBtnMode.SelectedIndex == -1) return;
-            if (!isInitializing && lastBtnIdx == 3)
+            if (!isInitializing && GetButtonModeString(lastBtnIdx) == "Custom")
             {
-                currentPresence.ButtonHistory["3"] = new ButtonHistoryData { L1 = txtBtn1Label.Text, U1 = txtBtn1Url.Text, L2 = txtBtn2Label.Text, U2 = txtBtn2Url.Text };
+                currentPresence.ButtonHistory["Custom"] = new ButtonHistoryData { L1 = txtBtn1Label.Text, U1 = txtBtn1Url.Text, L2 = txtBtn2Label.Text, U2 = txtBtn2Url.Text };
             }
 
-            int newIdx = cmbBtnMode.SelectedIndex;
+            string btnMode = GetButtonModeString(cmbBtnMode.SelectedIndex);
 
-            if (newIdx == 0)
+            if (btnMode == "None")
             {
                 txtBtn1Label.Text = ""; txtBtn1Url.Text = ""; txtBtn2Label.Text = ""; txtBtn2Url.Text = ""; SetBtnInputsEnabled(false);
             }
-            else if (newIdx == 1)
+            else if (btnMode == "Store")
             {
                 txtBtn1Label.Text = I18n.T("Button_StoreLabel_Mobile");
-                txtBtn1Url.Text = "http://app.adjust.com/1ai6ouao";
+                txtBtn1Url.Text = "https://app.adjust.com/1ai6ouao";
                 txtBtn2Label.Text = I18n.T("Button_StoreLabel_DMM");
                 txtBtn2Url.Text = "https://dmg-gakuen.idolmaster-official.jp/";
                 SetBtnInputsEnabled(false);
             }
-            else if (newIdx == 2)
+            else if (btnMode == "App")
             {
                 txtBtn1Label.Text = I18n.T("Button_AboutPresence");
                 txtBtn1Url.Text = "https://github.com/Wea017net/GkmStatus";
                 txtBtn2Label.Text = ""; txtBtn2Url.Text = ""; SetBtnInputsEnabled(false);
             }
-            else if (newIdx == 3)
+            else if (btnMode == "Custom")
             {
                 SetPlaceholder(txtBtn1Label, I18n.T("Placeholder_BtnLabel", 1)); SetPlaceholder(txtBtn1Url, I18n.T("Placeholder_BtnUrl", 1));
                 SetPlaceholder(txtBtn2Label, I18n.T("Placeholder_BtnLabel", 2)); SetPlaceholder(txtBtn2Url, I18n.T("Placeholder_BtnUrl", 2));
-                if (currentPresence.ButtonHistory.TryGetValue("3", out var h)) { txtBtn1Label.Text = h.L1; txtBtn1Url.Text = h.U1; txtBtn2Label.Text = h.L2; txtBtn2Url.Text = h.U2; }
+                if (currentPresence.ButtonHistory.TryGetValue("Custom", out var h)) { txtBtn1Label.Text = h.L1; txtBtn1Url.Text = h.U1; txtBtn2Label.Text = h.L2; txtBtn2Url.Text = h.U2; }
                 else { txtBtn1Label.Text = ""; txtBtn1Url.Text = ""; txtBtn2Label.Text = ""; txtBtn2Url.Text = ""; }
                 SetBtnInputsEnabled(true);
                 lblBtnWarning.Visible = Encoding.UTF8.GetByteCount(txtBtn1Label.Text) > 32 || Encoding.UTF8.GetByteCount(txtBtn2Label.Text) > 32;
@@ -1257,7 +1341,7 @@ namespace GkmStatus
             {
                 lblBtnWarning.Visible = false;
             }
-            lastBtnIdx = newIdx;
+            lastBtnIdx = cmbBtnMode.SelectedIndex;
             if (!isInitializing) SaveSettings();
         }
 
@@ -1266,18 +1350,49 @@ namespace GkmStatus
             if (isInitializing) return;
             try
             {
-                if (cmbStateType.SelectedIndex != -1 && cmbStateType.SelectedIndex != 2 && cmbStateType.SelectedIndex != 3) currentPresence.StateHistory[GetStateString(cmbStateType.SelectedIndex)] = txtStateCustom.Text;
-                var config = new AppConfig { Settings = new AppSettings { StartMinimized = startMinimizedItem.Checked, ConnectOnStart = autoConnectItem.Checked, AutoCheckUpdates = checkForUpdatesItem.Checked, ShowBackgroundNotifications = notifyInBackgroundItem.Checked, NotifyOnMinimize = notifyOnMinimizeItem.Checked, MinimizeToTray = minimizeToTrayItem.Checked, AutoDetectGakumas = monitorItem.Checked, SelectedTheme = currentThemeName, SelectedLanguage = currentLanguage, LastUpdateCheck = lastUpdateCheck }, Presence = currentPresence };
-                config.Presence.DetailsTypeIndex = cmbDetailsType.SelectedIndex >= 0 ? cmbDetailsType.SelectedIndex : 3;
+                string? dir = Path.GetDirectoryName(configPath);
+                if (dir != null && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+
+                string st = GetStateString(cmbStateType.SelectedIndex);
+                if (cmbStateType.SelectedIndex != -1 && st != "Idol" && st != "Producing")
+                    currentPresence.StateHistory[st] = txtStateCustom.Text;
+
+                var config = new AppConfig
+                {
+                    ConfigVersion = 1,
+                    Settings = new AppSettings
+                    {
+                        StartMinimized = startMinimizedItem.Checked,
+                        ConnectOnStart = autoConnectItem.Checked,
+                        AutoCheckUpdates = checkForUpdatesItem.Checked,
+                        ShowBackgroundNotifications = notifyInBackgroundItem.Checked,
+                        NotifyOnMinimize = notifyOnMinimizeItem.Checked,
+                        MinimizeToTray = minimizeToTrayItem.Checked,
+                        AutoDetectGakumas = monitorItem.Checked,
+                        SelectedTheme = GetThemeString(
+                            themeLight.Checked ? 1 : (themeDark.Checked ? 2 : (themeOLED.Checked ? 3 : 0))
+                        ),
+                        SelectedLanguage = GetLangString(langEnglish.Checked ? 1 : 0),
+                        LastUpdateCheck = lastUpdateCheck
+                    },
+                    Presence = currentPresence
+                };
+
+                config.Presence.DetailsType = GetDetailsString(cmbDetailsType.SelectedIndex);
                 config.Presence.GameAppIndex = cmbGameName.SelectedIndex >= 0 ? cmbGameName.SelectedIndex : 0;
                 config.Presence.StateType = GetStateString(cmbStateType.SelectedIndex);
-                config.Presence.ButtonModeIndex = cmbBtnMode.SelectedIndex >= 0 ? cmbBtnMode.SelectedIndex : 0;
+                config.Presence.ButtonMode = GetButtonModeString(cmbBtnMode.SelectedIndex);
                 config.Presence.ProducerName = txtPName.Text;
                 config.Presence.ProducerLevel = (int)numPLevel.Value;
-                if ((cmbStateType.SelectedIndex == 2 || cmbStateType.SelectedIndex == 3) && cmbProduceCharacter.SelectedIndex >= 0)
+
+                if (cmbProduceCharacter.SelectedIndex >= 0)
                 {
-                    config.Presence.SelectedProduceCharacterId = ProduceCharacters[cmbProduceCharacter.SelectedIndex].Id;
+                    string characterId = ProduceCharacters[cmbProduceCharacter.SelectedIndex].Id;
+                    string stateStr = GetStateString(cmbStateType.SelectedIndex);
+                    if (stateStr == "Idol") config.Presence.SelectedIdolCharacterId = characterId;
+                    else if (stateStr == "Producing") config.Presence.SelectedProduceCharacterId = characterId;
                 }
+
                 string json = JsonSerializer.Serialize(config, jsonOptions);
                 File.WriteAllText(configPath, json);
             }
@@ -1288,43 +1403,14 @@ namespace GkmStatus
         {
             if (!File.Exists(configPath))
             {
-                themeAuto.PerformClick();
-                monitorItem.Checked = true;
-                checkForUpdatesItem.Checked = true;
-                notifyInBackgroundItem.Checked = true;
-                notifyOnMinimizeItem.Checked = true;
-                cmbStateType.SelectedIndex = 2;
-                cmbBtnMode.SelectedIndex = 1;
-
-                if (System.Globalization.CultureInfo.CurrentUICulture.Name.StartsWith("ja"))
-                {
-                    currentLanguage = "日本語";
-                    I18n.CurrentLanguage = "日本語";
-                    langJapanese.Checked = true;
-                    langEnglish.Checked = false;
-                }
-                else
-                {
-                    currentLanguage = "English";
-                    I18n.CurrentLanguage = "English";
-                    langEnglish.Checked = true;
-                    langJapanese.Checked = false;
-                }
-
-                if (monitorTimer != null)
-                {
-                    monitorTimer.Enabled = true;
-                    MonitorProcess(null, EventArgs.Empty);
-                }
-
-                ApplyLanguage();
+                SetDefaultSettings();
                 return;
             }
             try
             {
                 string json = File.ReadAllText(configPath);
-                var config = JsonSerializer.Deserialize<AppConfig>(json, jsonOptions);
-                if (config == null) return;
+                var config = JsonSerializer.Deserialize<AppConfig>(json, jsonOptions) ?? throw new JsonException("Failed to deserialize config.");
+
                 startMinimizedItem.Checked = config.Settings.StartMinimized;
                 autoConnectItem.Checked = config.Settings.ConnectOnStart;
                 checkForUpdatesItem.Checked = config.Settings.AutoCheckUpdates;
@@ -1337,42 +1423,87 @@ namespace GkmStatus
                     monitorTimer.Enabled = monitorItem.Checked;
                     if (monitorTimer.Enabled) MonitorProcess(null, EventArgs.Empty);
                 }
-                currentThemeName = config.Settings.SelectedLanguage != null ? config.Settings.SelectedTheme : "自動選択";
+
+                // テーマの読み込み
+                string theme = config.Settings.SelectedTheme ?? "Auto";
+                switch (theme)
+                {
+                    case "Light": themeLight.PerformClick(); break;
+                    case "Dark": themeDark.PerformClick(); break;
+                    case "OLED": themeOLED.PerformClick(); break;
+                    default: themeAuto.PerformClick(); break;
+                }
+
+                // 言語の読み込み
+                string langStr = config.Settings.SelectedLanguage ?? (System.Globalization.CultureInfo.CurrentUICulture.Name.StartsWith("ja") ? "ja" : "en");
+                if (langStr == "en" || langStr == "English")
+                {
+                    I18n.CurrentLanguage = "English";
+                    langEnglish.Checked = true; langJapanese.Checked = false;
+                }
+                else
+                {
+                    I18n.CurrentLanguage = "日本語";
+                    langJapanese.Checked = true; langEnglish.Checked = false;
+                }
+
                 lastUpdateCheck = config.Settings.LastUpdateCheck;
-                switch (currentThemeName) { case "ライト": themeLight.PerformClick(); break; case "ダーク": themeDark.PerformClick(); break; case "OLED": themeOLED.PerformClick(); break; default: themeAuto.PerformClick(); break; }
-                currentLanguage = config.Settings.SelectedLanguage ?? (System.Globalization.CultureInfo.CurrentUICulture.Name.StartsWith("ja") ? "日本語" : "English");
-                I18n.CurrentLanguage = currentLanguage;
-                if (currentLanguage == "English") { langEnglish.Checked = true; langJapanese.Checked = false; } else { langJapanese.Checked = true; langEnglish.Checked = false; }
                 currentPresence = config.Presence;
 
-                if (string.IsNullOrEmpty(currentPresence.StateType))
-                {
-                    currentPresence.StateType = currentPresence.StateTypeIndex switch { 0 => "None", 1 => "PID", 2 => "Producing", 3 => "Custom", _ => "PID" };
-                }
-
-                cmbGameName.SelectedIndex = Math.Min(currentPresence.GameAppIndex, cmbGameName.Items.Count - 1);
-                cmbDetailsType.SelectedIndex = currentPresence.DetailsTypeIndex;
+                cmbGameName.SelectedIndex = Math.Clamp(currentPresence.GameAppIndex, 0, cmbGameName.Items.Count - 1);
+                cmbDetailsType.SelectedIndex = GetDetailsIndex(currentPresence.DetailsType ?? "Both");
                 txtPName.Text = currentPresence.ProducerName;
-                numPLevel.Value = currentPresence.ProducerLevel;
-                cmbStateType.SelectedIndex = GetStateIndex(currentPresence.StateType);
+                numPLevel.Value = Math.Clamp(currentPresence.ProducerLevel, 1, 100);
+                cmbStateType.SelectedIndex = GetStateIndex(currentPresence.StateType ?? "Producing");
                 cmbCharNameLang.SelectedIndex = Math.Clamp(currentPresence.CharNameLangIndex, 0, 1);
+                
+                // アイドルの復元
                 RefreshProduceCharacterList();
+                string? currentId = (GetStateString(cmbStateType.SelectedIndex) == "Idol") ? currentPresence.SelectedIdolCharacterId : currentPresence.SelectedProduceCharacterId;
+                int charIdx = ProduceCharacters.FindIndex(c => c.Id == currentId);
+                cmbProduceCharacter.SelectedIndex = charIdx >= 0 ? charIdx : 0;
 
-                if (currentPresence.StateHistory.TryGetValue("3", out string? oldCustom) && !currentPresence.StateHistory.ContainsKey("Custom"))
-                {
-                    currentPresence.StateHistory["Custom"] = oldCustom;
-                }
-                if (currentPresence.StateHistory.TryGetValue("1", out string? oldPid) && !currentPresence.StateHistory.ContainsKey("PID"))
-                {
-                    currentPresence.StateHistory["PID"] = oldPid;
-                }
-
-                if (currentPresence.StateHistory.TryGetValue(currentPresence.StateType, out string? savedState)) txtStateCustom.Text = savedState;
-                cmbBtnMode.SelectedIndex = currentPresence.ButtonModeIndex;
+                cmbBtnMode.SelectedIndex = GetButtonModeIndex(currentPresence.ButtonMode ?? "Store");
                 if (config.Settings.ConnectOnStart) InitializeRpc();
                 ApplyLanguage();
             }
-            catch (Exception ex) { Debug.WriteLine("Load Error: " + ex.Message); }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Load Error (resetting to defaults): " + ex.Message);
+                SetDefaultSettings();
+            }
+        }
+
+        private void SetDefaultSettings()
+        {
+            themeAuto.PerformClick();
+            monitorItem.Checked = true;
+            checkForUpdatesItem.Checked = true;
+            notifyInBackgroundItem.Checked = true;
+            notifyOnMinimizeItem.Checked = true;
+            cmbStateType.SelectedIndex = 2;
+            cmbBtnMode.SelectedIndex = 1;
+
+            if (System.Globalization.CultureInfo.CurrentUICulture.Name.StartsWith("ja"))
+            {
+                I18n.CurrentLanguage = "日本語";
+                langJapanese.Checked = true;
+                langEnglish.Checked = false;
+            }
+            else
+            {
+                I18n.CurrentLanguage = "English";
+                langEnglish.Checked = true;
+                langJapanese.Checked = false;
+            }
+
+            if (monitorTimer != null)
+            {
+                monitorTimer.Enabled = true;
+                MonitorProcess(null, EventArgs.Empty);
+            }
+
+            ApplyLanguage();
         }
 
         private static bool IsRunAtStartup()
@@ -1494,41 +1625,77 @@ namespace GkmStatus
 
         private void InitializeLogic()
         {
-            startTime = DateTime.UtcNow; UpdateTimestampLabel();
-            monitorTimer = new System.Windows.Forms.Timer { Interval = 3000 }; monitorTimer.Tick += MonitorProcess;
-            var clockTimer = new System.Windows.Forms.Timer { Interval = 1000, Enabled = true };
+            startTime = DateTime.UtcNow; 
+            UpdateTimestampLabel();
+            
+            monitorTimer = new System.Windows.Forms.Timer { Interval = 3000 }; 
+            monitorTimer.Tick += MonitorProcess;
+            if (monitorItem?.Checked == true) monitorTimer.Enabled = true;
+
+            clockTimer = new System.Windows.Forms.Timer { Interval = 1000, Enabled = true };
             clockTimer.Tick += (s, e) => { UpdateTimestampLabel(); if (client?.IsInitialized == true) client.Invoke(); };
         }
 
         private void InitializeRpc()
         {
+            if (connectionTimer?.Enabled == true) return;
             if (client?.IsInitialized == true) { UpdateUIForConnected(client.CurrentUser?.Username ?? "接続済み"); UpdateRpc(); return; }
-            if (lblStatus.Text.StartsWith(I18n.T("Status_Connecting", ""))) return;
+
             connectionSeconds = 0;
-            if (connectionTimer is null) { connectionTimer = new System.Windows.Forms.Timer { Interval = 1000 }; connectionTimer.Tick += (s, e) => { connectionSeconds++; lblStatus.Text = I18n.T("Status_Connecting", connectionSeconds); if (connectionSeconds >= CONNECTION_TIMEOUT) HandleConnectionError(I18n.T("Status_Timeout")); }; }
+            if (connectionTimer is null) 
+            { 
+                 connectionTimer = new System.Windows.Forms.Timer { Interval = 1000 }; 
+                 connectionTimer.Tick += (s, e) => 
+                 { 
+                     if (!connectionTimer.Enabled || lblStatus.ForeColor != COLOR_PAUSE) return;
+                     connectionSeconds++; 
+                     lblStatus.Text = I18n.T("Status_Connecting", connectionSeconds); 
+                     if (connectionSeconds >= CONNECTION_TIMEOUT) HandleConnectionError(I18n.T("Status_Timeout")); 
+                 }; 
+            }
             lblStatus.Text = I18n.T("Status_Connecting", 0); lblStatus.ForeColor = COLOR_PAUSE; btnConnect.Enabled = false;
             UpdateTrayStatusIcon(COLOR_PAUSE, I18n.T("Tray_Status_Connecting"));
-            connectionTimer.Start();
-            client?.Deinitialize(); client?.Dispose(); client = null;
+            
+            client?.Deinitialize();
+            client?.Dispose();
+            client = null;
+
             string appId = GameApps[cmbGameName.SelectedIndex].AppId;
-            client = new DiscordRpcClient(appId);
-            client.OnReady += (sender, e) =>
-    {
-        this.Invoke((MethodInvoker)(() =>
-        {
-            connectionTimer.Stop();
-            UpdateUIForConnected(e.User.Username);
-            UpdateRpc();
-            UpdateTrayMenuState();
-            if (this.WindowState == FormWindowState.Minimized && (notifyInBackgroundItem?.Checked == true))
+            client = new DiscordRpcClient(appId)
             {
-                trayIcon.Tag = null;
-                trayIcon.ShowBalloonTip(3000, I18n.T("App_Name"), I18n.T("Status_Connected_Notify", e.User.Username), ToolTipIcon.Info);
-            }
-        }));
-    };
+                Logger = new DiscordRPC.Logging.ConsoleLogger() { Level = DiscordRPC.Logging.LogLevel.Warning },
+                SkipIdenticalPresence = false
+            };
+
+            client.OnReady += (sender, e) =>
+            {
+                this.Invoke((MethodInvoker)(async () =>
+                {
+                    connectionTimer.Stop();
+                    UpdateUIForConnected(e.User.Username);
+                    UpdateTrayMenuState();
+                    
+                    // 接続直後は反映されないことがあるため、少し待ってから更新
+                    await System.Threading.Tasks.Task.Delay(500);
+                    if (client?.IsInitialized == true) 
+                    {
+                        UpdateRpc();
+                        UpdateTrayMenuState();
+                    }
+
+                    if (this.WindowState == FormWindowState.Minimized && (notifyInBackgroundItem?.Checked == true))
+                    {
+                        trayIcon.Tag = null;
+                        trayIcon.ShowBalloonTip(3000, I18n.T("App_Name"), I18n.T("Status_Connected_Notify", e.User.Username), ToolTipIcon.Info);
+                    }
+                }));
+            };
+
             client.OnError += (sender, e) => { this.Invoke((MethodInvoker)(() => { HandleConnectionError(I18n.T("Status_Error", e.Message)); })); };
-            try { if (!client.Initialize()) HandleConnectionError(I18n.T("Status_InitFailed")); } catch (Exception ex) { HandleConnectionError(I18n.T("Status_Exception", ex.Message)); }
+            connectionTimer.Start();
+            
+            try { if (!client.Initialize()) HandleConnectionError(I18n.T("Status_InitFailed")); }
+            catch (Exception ex) { HandleConnectionError(I18n.T("Status_Exception", ex.Message)); }
         }
 
         private void HandleConnectionError(string message)
@@ -1635,20 +1802,24 @@ namespace GkmStatus
 
             string? pName = string.IsNullOrWhiteSpace(txtPName.Text) ? I18n.T("Placeholder_PName") : txtPName.Text;
             string? details = null;
-            switch (cmbDetailsType.SelectedIndex) { case 1: details = $"{pName}"; break; case 2: details = $"PLv{numPLevel.Value}"; break; case 3: details = $"{pName} | PLv{numPLevel.Value}"; break; }
+            string detailsStr = GetDetailsString(cmbDetailsType.SelectedIndex);
+            switch (detailsStr) { case "PName": details = $"{pName}"; break; case "PLv": details = $"PLv{numPLevel.Value}"; break; case "Both": details = $"{pName} | PLv{numPLevel.Value}"; break; }
             string? state = null;
+            
+            string stateStr = GetStateString(cmbStateType.SelectedIndex);
 
-            if (cmbStateType.SelectedIndex == 1)
+            if (stateStr == "PID")
             {
                 state = $"P-ID: {(string.IsNullOrWhiteSpace(txtStateCustom.Text) ? I18n.T("State_NotSet") : txtStateCustom.Text)}";
             }
-            else if (cmbStateType.SelectedIndex == 2 || cmbStateType.SelectedIndex == 3)
+            else if (stateStr == "Idol" || stateStr == "Producing")
             {
-                var pc = ProduceCharacters.Find(c => c.Id == currentPresence.SelectedProduceCharacterId);
+                string? charId = (stateStr == "Idol") ? currentPresence.SelectedIdolCharacterId : currentPresence.SelectedProduceCharacterId;
+                var pc = ProduceCharacters.Find(c => c.Id == charId);
                 if (pc != null)
                 {
                     string name = currentPresence.CharNameLangIndex == 1 ? pc.NameEn : pc.Display;
-                    if (cmbStateType.SelectedIndex == 3)
+                    if (stateStr == "Producing")
                     {
                         state = I18n.T("State_Producing_Format", name);
                     }
@@ -1658,12 +1829,12 @@ namespace GkmStatus
                     }
                 }
             }
-            else if (cmbStateType.SelectedIndex == 4)
+            else if (stateStr == "Custom")
             {
                 state = string.IsNullOrWhiteSpace(txtStateCustom.Text) ? "" : txtStateCustom.Text;
             }
             Button[]? buttons = null;
-            if (cmbBtnMode.SelectedIndex != 0)
+            if (GetButtonModeString(cmbBtnMode.SelectedIndex) != "None")
             {
                 string SafeTrimBtn(string t) => SafeTrimUtf8(t, 32);
 
@@ -1682,9 +1853,9 @@ namespace GkmStatus
         private void MonitorProcess(object? sender, EventArgs e) { var processes = Process.GetProcessesByName(PROCESS_NAME); bool isRunningNow = processes.Length > 0; if (isRunningNow && !wasProcessRunning) { startTime = DateTime.UtcNow; UpdateTimestampLabel(); InitializeRpc(); } else if (!isRunningNow && wasProcessRunning) { PauseRpc(); } wasProcessRunning = isRunningNow; }
         private void UpdateDetailsInputs(object? sender, EventArgs e)
         {
-            int idx = cmbDetailsType.SelectedIndex;
-            txtPName.Enabled = (idx == 1 || idx == 3);
-            numPLevel.Enabled = (idx == 2 || idx == 3);
+            string detailsStr = GetDetailsString(cmbDetailsType.SelectedIndex);
+            txtPName.Enabled = (detailsStr == "PName" || detailsStr == "Both");
+            numPLevel.Enabled = (detailsStr == "PLv" || detailsStr == "Both");
             if (!isInitializing) SaveSettings();
         }
         private void SetBtnInputsEnabled(bool e) { txtBtn1Label.Enabled = e; txtBtn1Url.Enabled = e; txtBtn2Label.Enabled = e; txtBtn2Url.Enabled = e; }
@@ -1741,7 +1912,7 @@ namespace GkmStatus
 
         private void RefreshProduceCharacterList()
         {
-            var currentId = currentPresence.SelectedProduceCharacterId;
+            string? currentId = (GetStateString(cmbStateType.SelectedIndex) == "Idol") ? currentPresence.SelectedIdolCharacterId : currentPresence.SelectedProduceCharacterId;
             cmbProduceCharacter.Items.Clear();
             bool isEn = currentPresence.CharNameLangIndex == 1;
 
@@ -1825,9 +1996,28 @@ namespace GkmStatus
             bool isConnected = client?.IsInitialized == true;
             bool isPaused = isConnected && (btnConnect.Text == I18n.T("Button_Connect"));
 
+            // 接続中かつ一時停止中でない場合のみ詳細設定を表示
+            bool showSettings = isConnected && !isPaused;
+
+            trayMenuDetails.Visible = showSettings;
+            trayMenuState.Visible = showSettings;
+            trayMenuProduce.Visible = showSettings;
+
             trayMenuConnect.Visible = !isConnected || isPaused;
             trayMenuPause.Visible = isConnected && !isPaused;
             trayMenuDisconnect.Visible = isConnected;
+
+            // セパレーターの表示制御
+            foreach (ToolStripItem item in trayIcon.ContextMenuStrip.Items)
+            {
+                if (item is ToolStripSeparator sep)
+                {
+                    if (sep.Tag?.ToString() == "SepSettings")
+                    {
+                        sep.Visible = showSettings;
+                    }
+                }
+            }
         }
     }
 }
