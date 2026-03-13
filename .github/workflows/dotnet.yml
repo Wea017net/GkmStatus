@@ -45,7 +45,7 @@ jobs:
     
     # 2. 同梱版 (Self Contained)
     - name: Publish Self Contained
-      run: dotnet publish GkmStatus/GkmStatus.csproj -c Release -r win-x64 --self-contained true -o ./publish-sc/GkmStatus
+      run: dotnet publish GkmStatus/GkmStatus.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ./publish-sc/GkmStatus
 
     # ZIP にまとめる (フォルダ構造を維持するため親ディレクトリを指定)
     - name: Create Artifacts
