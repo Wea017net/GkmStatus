@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Drawing.Text;
 using System.Diagnostics;
@@ -1269,6 +1269,10 @@ namespace GkmStatus
                 txtStateCustom.Enabled = true;
                 txtStateCustom.MaxLength = 8;
                 SetPlaceholder(txtStateCustom, I18n.T("Placeholder_PID"));
+                if (currentPresence.StateHistory.TryGetValue("PID", out var pidText))
+                    txtStateCustom.Text = pidText;
+                else
+                    txtStateCustom.Text = "";
             }
             else if (stateStr == "Custom")
             {
@@ -1281,6 +1285,10 @@ namespace GkmStatus
                 txtStateCustom.Enabled = true;
                 txtStateCustom.MaxLength = 128;
                 SetPlaceholder(txtStateCustom, I18n.T("Placeholder_Custom"));
+                if (currentPresence.StateHistory.TryGetValue("Custom", out var customText))
+                    txtStateCustom.Text = customText;
+                else
+                    txtStateCustom.Text = "";
             }
             else
             {
@@ -1451,6 +1459,14 @@ namespace GkmStatus
                 txtPName.Text = currentPresence.ProducerName;
                 numPLevel.Value = Math.Clamp(currentPresence.ProducerLevel, 1, 100);
                 cmbStateType.SelectedIndex = GetStateIndex(currentPresence.StateType ?? "Producing");
+
+                string loadedState = currentPresence.StateType ?? "Producing";
+                if (loadedState != "Idol" && loadedState != "Producing" && loadedState != "None")
+                {
+                    if (currentPresence.StateHistory.TryGetValue(loadedState, out var savedText))
+                        txtStateCustom.Text = savedText;
+                }
+
                 cmbCharNameLang.SelectedIndex = Math.Clamp(currentPresence.CharNameLangIndex, 0, 1);
 
                 RefreshProduceCharacterList();
