@@ -104,7 +104,7 @@ Due to Discord's specifications, you cannot click or verify your own external li
 1.  Install Visual Studio 2026 or .NET SDK 10.0.
 2.  Clone the repository.
     ```bash
-    git clone [https://github.com/Wea017net/GkmStatus.git](https://github.com/Wea017net/GkmStatus.git)
+    git clone https://github.com/Wea017net/GkmStatus.git
     ```
 3.  Open the project and build it.
 
