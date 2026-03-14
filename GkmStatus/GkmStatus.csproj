@@ -15,6 +15,7 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <Authors>Wea017net</Authors>
     <Copyright>Copyright © 2026 Wea017net</Copyright>
+    <Description>A Discord Rich Presence App for Gakumas</Description>
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
