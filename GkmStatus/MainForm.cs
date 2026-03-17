@@ -227,6 +227,7 @@ namespace GkmStatus
         private System.Windows.Forms.Button btnConnect = null!, btnDisconnect = null!, btnUpdate = null!;
         private Label lblResetGuide = null!;
         private Label lblBtnWarning = null!;
+        private Label lblBtnModeNote = null!;
         private ToolTip statusToolTip = null!;
         private System.Windows.Forms.Timer resetGuideTimer = null!;
         private int footerButtonsY;
@@ -238,6 +239,7 @@ namespace GkmStatus
         private ToolStripMenuItem trayMenuConnect = null!, trayMenuPause = null!, trayMenuDisconnect = null!, trayMenuProduce = null!, trayMenuDetails = null!, trayMenuState = null!;
 
         private DiscordRpcClient? client;
+        private bool isManualPaused = false;
         private DateTime startTime;
         private System.Windows.Forms.Timer? monitorTimer;
         private System.Windows.Forms.Timer? connectionTimer;
@@ -809,6 +811,18 @@ namespace GkmStatus
             AddHeader(I18n.T("Header_Buttons"), y, "Header_Buttons"); y += S(25);
             cmbBtnMode = CreateCombo(new Point(S(20), y), S(150), [I18n.T("Button_ModeNone"), I18n.T("Button_ModeStore"), I18n.T("Button_ModeApp"), I18n.T("Button_ModeCustom")]);
             cmbBtnMode.SelectedIndexChanged += CmbBtnMode_SelectedIndexChanged;
+
+            lblBtnModeNote = new Label
+            {
+                Text = I18n.T("Button_ModeNote"),
+                Location = new Point(S(180), y + S(3)),
+                AutoSize = true,
+                Visible = false,
+                ForeColor = Color.Gray,
+                Font = appFontMedium
+            };
+            this.Controls.Add(lblBtnModeNote);
+
             y += S(35);
             txtBtn1Label = CreateText(new Point(S(20), y), S(150)); txtBtn1Label.MaxLength = 31;
             txtBtn1Url = CreateText(new Point(S(180), y), S(320)); txtBtn1Url.MaxLength = 512;
@@ -856,7 +870,7 @@ namespace GkmStatus
             y += S(20);
 
             btnConnect = CreateButton(I18n.T("Button_Connect"), new Point(S(20), y), S(100), COLOR_CONNECT);
-            btnConnect.Click += (s, e) => { if (btnConnect.Text == I18n.T("Button_Pause")) PauseRpc(); else InitializeRpc(); };
+            btnConnect.Click += (s, e) => { if (client?.IsInitialized == true && !isManualPaused) PauseRpc(); else InitializeRpc(); };
             btnUpdate = CreateButton(I18n.T("Button_Update"), new Point(S(130), y), S(100), COLOR_PRIMARY);
             btnUpdate.Enabled = false; btnUpdate.Click += async (s, e) =>
             {
@@ -880,14 +894,13 @@ namespace GkmStatus
             btnDisconnect = CreateButton(I18n.T("Button_Disconnect"), new Point(S(240), y), S(100), COLOR_ERROR);
             btnDisconnect.Enabled = false; btnDisconnect.Click += (s, e) => DisposeRpc();
 
-            lblStatus = new Label { Text = I18n.T("Status_Disconnected"), Location = new Point(S(360), y), AutoSize = true, ForeColor = Color.Gray, Font = appFontMedium };
+            lblStatus = new Label { Text = I18n.T("Status_Disconnected"), Location = new Point(S(352), y), AutoSize = true, ForeColor = Color.Gray, Font = appFontMedium };
             statusToolTip = new ToolTip();
             statusToolTip.SetToolTip(lblStatus, lblStatus.Text);
             this.Controls.Add(btnConnect); this.Controls.Add(btnUpdate); this.Controls.Add(btnDisconnect); this.Controls.Add(lblStatus);
 
-            AdjustStatusVerticalPosition();
 
-            UpdateUIForDisconnect();
+            AdjustStatusVerticalPosition();
 
             var menu = new MenuStrip();
             fileMenu = new(I18n.T("Menu_File"));
@@ -918,7 +931,7 @@ namespace GkmStatus
             minimizeToTrayItem.CheckedChanged += (s, e) => SaveSettings();
 
             monitorItem = new(I18n.T("Menu_MonitorProcess")) { CheckOnClick = true, Checked = true };
-            monitorItem.CheckedChanged += (s, e) => { if (monitorTimer != null) monitorTimer.Enabled = monitorItem.Checked; SaveSettings(); };
+            monitorItem.CheckedChanged += (s, e) => { if (monitorTimer != null) monitorTimer.Enabled = monitorItem.Checked; if (client?.IsInitialized != true) UpdateUIForDisconnect(); SaveSettings(); };
 
             ToolStripSeparator separatorSettings = new();
             settingsMenu.DropDownItems.AddRange([
@@ -1069,6 +1082,7 @@ namespace GkmStatus
 
             lblResetGuide.Text = I18n.T("Timestamp_Guide");
             lblGameAppGuide.Text = I18n.T("GameApp_Guide");
+            if (lblBtnModeNote != null) lblBtnModeNote.Text = I18n.T("Button_ModeNote");
             UpdateTimestampLabel();
 
             btnResetTime.Text = I18n.T("Timestamp_Reset");
@@ -1087,13 +1101,14 @@ namespace GkmStatus
                 {
                     lblStatus.Text = I18n.T("Status_Connecting", connectionSeconds);
                 }
-                else if (btnConnect.Text == I18n.T("Button_Pause"))
+                else if (!isManualPaused)
                 {
                     UpdateUIForConnected(client.CurrentUser?.Username ?? "Unknown");
                 }
                 else
                 {
                     UpdateUIForPause();
+                    btnConnect.Text = I18n.T("Button_Resume");
                 }
             }
             else
@@ -1319,6 +1334,7 @@ namespace GkmStatus
             if (btnMode == "None")
             {
                 txtBtn1Label.Text = ""; txtBtn1Url.Text = ""; txtBtn2Label.Text = ""; txtBtn2Url.Text = ""; SetBtnInputsEnabled(false);
+                lblBtnModeNote.Visible = false;
             }
             else if (btnMode == "Store")
             {
@@ -1327,12 +1343,14 @@ namespace GkmStatus
                 txtBtn2Label.Text = I18n.T("Button_StoreLabel_DMM");
                 txtBtn2Url.Text = "https://dmg-gakuen.idolmaster-official.jp/";
                 SetBtnInputsEnabled(false);
+                lblBtnModeNote.Visible = true;
             }
             else if (btnMode == "App")
             {
                 txtBtn1Label.Text = I18n.T("Button_AboutPresence");
                 txtBtn1Url.Text = "https://github.com/Wea017net/GkmStatus";
                 txtBtn2Label.Text = ""; txtBtn2Url.Text = ""; SetBtnInputsEnabled(false);
+                lblBtnModeNote.Visible = true;
             }
             else if (btnMode == "Custom")
             {
@@ -1342,6 +1360,7 @@ namespace GkmStatus
                 else { txtBtn1Label.Text = ""; txtBtn1Url.Text = ""; txtBtn2Label.Text = ""; txtBtn2Url.Text = ""; }
                 SetBtnInputsEnabled(true);
                 lblBtnWarning.Visible = Encoding.UTF8.GetByteCount(txtBtn1Label.Text) > 32 || Encoding.UTF8.GetByteCount(txtBtn2Label.Text) > 32;
+                lblBtnModeNote.Visible = true;
             }
             else
             {
@@ -1570,10 +1589,10 @@ namespace GkmStatus
                 if (c is Label lbl)
                 {
                     if (lbl.Tag is string tag && tag.StartsWith("Header_")) lbl.Font = appFontBold;
-                    else if (lbl == lblGameAppGuide || lbl == lblResetGuide || lbl == lblStatus || lbl == lblBtnWarning) lbl.Font = appFontMedium;
+                    else if (lbl == lblGameAppGuide || lbl == lblResetGuide || lbl == lblStatus || lbl == lblBtnWarning || lbl == lblBtnModeNote) lbl.Font = appFontMedium;
                     else lbl.Font = appFont;
 
-                    if (lbl == lblResetGuide) lbl.ForeColor = Color.Gray;
+                    if (lbl == lblResetGuide || lbl == lblBtnModeNote) lbl.ForeColor = Color.Gray;
                     else if (lbl == lblGameAppGuide) lbl.ForeColor = COLOR_PAUSE;
                     else if (lbl == lblBtnWarning || lbl == lblStatus) { /* Managed by logic */ }
                     else lbl.ForeColor = isBright ? Color.Black : Color.LightGray;
@@ -1650,7 +1669,7 @@ namespace GkmStatus
         private void InitializeRpc()
         {
             if (connectionTimer?.Enabled == true) return;
-            if (client?.IsInitialized == true) { UpdateUIForConnected(client.CurrentUser?.Username ?? "接続済み"); UpdateRpc(); return; }
+            if (client?.IsInitialized == true) { isManualPaused = false; UpdateUIForConnected(client.CurrentUser?.Username ?? "接続済み"); UpdateRpc(); return; }
 
             connectionSeconds = 0;
             if (connectionTimer is null)
@@ -1665,6 +1684,7 @@ namespace GkmStatus
                 };
             }
             lblStatus.Text = I18n.T("Status_Connecting", 0); lblStatus.ForeColor = COLOR_PAUSE; btnConnect.Enabled = false;
+            AdjustStatusVerticalPosition();
             UpdateTrayStatusIcon(COLOR_PAUSE, I18n.T("Tray_Status_Connecting"));
 
             client?.Deinitialize();
@@ -1725,6 +1745,7 @@ namespace GkmStatus
         private void PauseRpc()
         {
             if (client?.IsInitialized == true) client.ClearPresence();
+            isManualPaused = true;
             UpdateUIForPause();
             if (this.WindowState == FormWindowState.Minimized && (notifyInBackgroundItem?.Checked == true))
             {
@@ -1736,6 +1757,7 @@ namespace GkmStatus
         {
             connectionTimer?.Stop();
             if (client is not null) { client.ClearPresence(); client.Deinitialize(); client.Dispose(); client = null; }
+            isManualPaused = false;
             UpdateUIForDisconnect();
             if (this.WindowState == FormWindowState.Minimized && (notifyInBackgroundItem?.Checked == true))
             {
@@ -1746,6 +1768,7 @@ namespace GkmStatus
 
         private void UpdateUIForConnected(string username)
         {
+            isManualPaused = false;
             string status = I18n.T("Status_Connected", username);
             lblStatus.Text = status;
             lblStatus.ForeColor = COLOR_CONNECT;
@@ -1770,7 +1793,7 @@ namespace GkmStatus
             lblStatus.ForeColor = COLOR_PAUSE;
             statusToolTip.SetToolTip(lblStatus, status.Replace("\n", " "));
             AdjustStatusVerticalPosition();
-            btnConnect.Text = I18n.T("Button_Connect");
+            btnConnect.Text = I18n.T("Button_Resume");
             btnConnect.BackColor = COLOR_CONNECT;
             btnConnect.Enabled = true;
             btnUpdate.Enabled = false;
@@ -1785,10 +1808,10 @@ namespace GkmStatus
         private void UpdateUIForDisconnect()
         {
             connectionTimer?.Stop();
-            string status = I18n.T("Status_Disconnected");
+            string status = monitorItem.Checked ? I18n.T("Status_Disconnected_Auto") : I18n.T("Status_Disconnected");
             lblStatus.Text = status;
             lblStatus.ForeColor = Color.Gray;
-            statusToolTip.SetToolTip(lblStatus, status);
+            statusToolTip.SetToolTip(lblStatus, status.Replace("\n", " "));
             AdjustStatusVerticalPosition();
             btnConnect.Text = I18n.T("Button_Connect");
             btnConnect.BackColor = COLOR_CONNECT;
@@ -1874,7 +1897,7 @@ namespace GkmStatus
             bool isSessionActive = client?.IsInitialized == true;
             TimeSpan ts = isSessionActive ? DateTime.UtcNow - startTime : TimeSpan.Zero;
 
-            lblStartTime.Text = $"{I18n.T("Timestamp_Label")}: {ts.Hours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
+            lblStartTime.Text = $"{I18n.T("Timestamp_Label")}: {(int)ts.TotalHours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
             lblStartTime.ForeColor = this.BackColor.GetBrightness() > 0.5f ? Color.Black : Color.LightGray;
         }
 
@@ -2004,7 +2027,7 @@ namespace GkmStatus
             if (trayIcon.ContextMenuStrip == null) return;
 
             bool isConnected = client?.IsInitialized == true;
-            bool isPaused = isConnected && (btnConnect.Text == I18n.T("Button_Connect"));
+            bool isPaused = isConnected && isManualPaused;
 
             bool showSettings = isConnected && !isPaused;
 
