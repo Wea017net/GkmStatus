@@ -20,7 +20,7 @@
 
 
 <p align="center">
-  <a href="https://github.com/Wea017net/GkmStatus/releases/download/v1.0.1/GkmStatus_win-x64_v1.0.1.zip"><img src="https://raw.githubusercontent.com/Wea017net/.github/refs/heads/main/GkmStatus/resources/download_win_ja.png" height="54px" alt="download">
+  <a href="https://github.com/Wea017net/GkmStatus/releases/download/v1.0.2/GkmStatus_win-x64_v1.0.2.zip"><img src="https://raw.githubusercontent.com/Wea017net/.github/refs/heads/main/GkmStatus/resources/download_win_ja.png" height="54px" alt="download">
 </p>
 
 <p align="center">
