@@ -63,7 +63,7 @@ namespace GkmStatus
             ApplyComponent();
             ResumeLayout();
 
-            _trayIconManager = new TrayIconManager(this.trayIcon, this.Icon!);
+            _trayIconManager = new TrayIconManager(this.trayIcon, this.Icon ?? SystemIcons.Application);
 
             _processWatcher = new ProcessWatcher(PROCESS_NAME);
             _processWatcher.ProcessStarted += (s, e) =>
