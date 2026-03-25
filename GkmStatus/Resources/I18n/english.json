@@ -1,0 +1,433 @@
+{
+  "english": [
+    {
+      "key": "App_Name",
+      "text": "GkmStatus"
+    },
+
+    {
+      "key": "Menu_File",
+      "text": "&File"
+    },
+    {
+      "key": "Menu_Exit",
+      "text": "Exit"
+    },
+    {
+      "key": "Menu_Settings",
+      "text": "&Settings"
+    },
+    {
+      "key": "Menu_RunAtStartup",
+      "text": "Run at system startup"
+    },
+    {
+      "key": "Menu_StartMinimized",
+      "text": "Start minimized in tray"
+    },
+    {
+      "key": "Menu_AutoConnect",
+      "text": "Try connecting on startup"
+    },
+    {
+      "key": "Menu_CheckForUpdates",
+      "text": "Check for updates on startup"
+    },
+    {
+      "key": "Menu_NotifyInBackground",
+      "text": "Notify in background"
+    },
+    {
+      "key": "Menu_NotifyOnMinimize",
+      "text": "Notify on minimize"
+    },
+    {
+      "key": "Menu_MinimizeToTray",
+      "text": "Minimize to tray on close"
+    },
+    {
+      "key": "Menu_MonitorProcess",
+      "text": "Monitor gakumas.exe and auto connect/disconnect"
+    },
+    {
+      "key": "Menu_Language",
+      "text": "Language"
+    },
+    {
+      "key": "Menu_View",
+      "text": "&View"
+    },
+    {
+      "key": "Menu_Theme",
+      "text": "Theme"
+    },
+    {
+      "key": "Menu_ThemeAuto",
+      "text": "Automatic"
+    },
+    {
+      "key": "Menu_ThemeLight",
+      "text": "Light"
+    },
+    {
+      "key": "Menu_ThemeDark",
+      "text": "Dark"
+    },
+    {
+      "key": "Menu_ThemeOLED",
+      "text": "OLED"
+    },
+    {
+      "key": "Menu_Help",
+      "text": "&Help"
+    },
+    {
+      "key": "Menu_Github",
+      "text": "Open GitHub page..."
+    },
+    {
+      "key": "Menu_CheckUpdateNow",
+      "text": "Check for Updates..."
+    },
+    {
+      "key": "Menu_About",
+      "text": "About this app..."
+    },
+    {
+      "key": "Menu_OpenAppLocation",
+      "text": "Open app location..."
+    },
+    {
+      "key": "Menu_OpenConfigLocation",
+      "text": "Open config location..."
+    },
+    {
+      "key": "Tray_Open",
+      "text": "Open"
+    },
+    {
+      "key": "Tray_ProducingIdol",
+      "text": "Producing Idol"
+    },
+    {
+      "key": "Tray_Exit",
+      "text": "Exit"
+    },
+
+    {
+      "key": "Header_GameName",
+      "text": "Game Display Name (Name)"
+    },
+    {
+      "key": "Header_Details",
+      "text": "Line 1 Info (Details)"
+    },
+    {
+      "key": "Header_State",
+      "text": "Line 2 Info (State)"
+    },
+    {
+      "key": "Header_Timestamp",
+      "text": "Elapsed Time (Timestamp)"
+    },
+    {
+      "key": "Header_Buttons",
+      "text": "External Link Settings (Buttons)"
+    },
+
+    {
+      "key": "Details_None",
+      "text": "None"
+    },
+    {
+      "key": "Details_PName",
+      "text": "Producer Name"
+    },
+    {
+      "key": "Details_PLv",
+      "text": "Producer Level"
+    },
+    {
+      "key": "Details_Both",
+      "text": "P-Name and PLv"
+    },
+    {
+      "key": "Placeholder_PName",
+      "text": "Producer"
+    },
+
+    {
+      "key": "State_None",
+      "text": "None"
+    },
+    {
+      "key": "State_PID",
+      "text": "P-ID"
+    },
+    {
+      "key": "State_Producing",
+      "text": "Producing..."
+    },
+    {
+      "key": "State_Idol",
+      "text": "In Charge"
+    },
+    {
+      "key": "State_Custom",
+      "text": "Custom"
+    },
+    {
+      "key": "Placeholder_PID",
+      "text": "Enter 8-digit P-ID"
+    },
+    {
+      "key": "Placeholder_Custom",
+      "text": "Enter text (2-128 characters)"
+    },
+    {
+      "key": "State_ProducingSuffix",
+      "text": " producing"
+    },
+    {
+      "key": "State_IdolSuffix",
+      "text": "Producer of "
+    },
+    {
+      "key": "State_NotSet",
+      "text": "Not Set"
+    },
+    {
+      "key": "State_Producing_Format",
+      "text": "Producing {0}"
+    },
+    {
+      "key": "State_Idol_Format",
+      "text": "Producer of {0}"
+    },
+
+    {
+      "key": "Timestamp_Label",
+      "text": "Elapsed"
+    },
+    {
+      "key": "Timestamp_Reset",
+      "text": "Reset Timer"
+    },
+    {
+      "key": "Timestamp_Guide",
+      "text": "Click 'Update' to apply"
+    },
+
+    {
+      "key": "Button_Mode",
+      "text": "Button Mode"
+    },
+    {
+      "key": "Button_ModeNone",
+      "text": "None"
+    },
+    {
+      "key": "Button_ModeStore",
+      "text": "Link to Game"
+    },
+    {
+      "key": "Button_ModeApp",
+      "text": "Link to this app"
+    },
+    {
+      "key": "Button_ModeCustom",
+      "text": "Custom"
+    },
+    {
+      "key": "Button_ModeNote",
+      "text": "Only visible to others (Discord limitation)"
+    },
+    {
+      "key": "Placeholder_BtnLabel",
+      "text": "Button {0} Label"
+    },
+    {
+      "key": "Placeholder_BtnUrl",
+      "text": "Button {0} URL"
+    },
+    {
+      "key": "Button_Warning_LabelLength",
+      "text": "Multi-byte chars will show up to 10 chars."
+    },
+    {
+      "key": "Button_Warning_UrlJp",
+      "text": "Japanese characters are not allowed in URLs.\nPlease use percent-encoded strings."
+    },
+
+    {
+      "key": "Status_Disconnected",
+      "text": "Disconnected"
+    },
+    {
+      "key": "Status_Disconnected_Auto",
+      "text": "Disconnected\n(Auto-connect enabled)"
+    },
+    {
+      "key": "Status_Connected",
+      "text": "Connected:\n{0}"
+    },
+    {
+      "key": "Status_Connected_Notify",
+      "text": "Connected to Discord and started displaying status."
+    },
+    {
+      "key": "Status_Disconnected_Notify",
+      "text": "Disconnected from Discord."
+    },
+    {
+      "key": "Status_ManualDisconnected_Notify",
+      "text": "Disconnected from Discord manually."
+    },
+    {
+      "key": "Status_Connecting",
+      "text": "Connecting... ({0}s)"
+    },
+    {
+      "key": "Status_Paused",
+      "text": "Connected\n(Display Paused)"
+    },
+    {
+      "key": "Status_Timeout",
+      "text": "Timeout: \nPlease check Discord."
+    },
+    {
+      "key": "Status_Error",
+      "text": "Error: {0}"
+    },
+    {
+      "key": "Status_InitFailed",
+      "text": "Initialization Failed."
+    },
+    {
+      "key": "Status_Exception",
+      "text": "Exception: {0}"
+    },
+    {
+      "key": "Status_Updated",
+      "text": "Updated"
+    },
+    {
+      "key": "Tray_Status_Connected",
+      "text": "Connected"
+    },
+    {
+      "key": "Tray_Status_Paused",
+      "text": "Paused"
+    },
+    {
+      "key": "Tray_Status_Connecting",
+      "text": "Connecting"
+    },
+
+    {
+      "key": "Button_Connect",
+      "text": "Connect"
+    },
+    {
+      "key": "Button_Pause",
+      "text": "Pause"
+    },
+    {
+      "key": "Button_Resume",
+      "text": "Resume"
+    },
+    {
+      "key": "Button_Update",
+      "text": "Update"
+    },
+    {
+      "key": "Button_Disconnect",
+      "text": "Disconnect"
+    },
+    {
+      "key": "Button_StoreLabel_Mobile",
+      "text": "Play (iOS / Android)"
+    },
+    {
+      "key": "Button_StoreLabel_DMM",
+      "text": "Play (DMM GAMES)"
+    },
+    {
+      "key": "Button_AboutPresence",
+      "text": "About this presence..."
+    },
+
+    {
+      "key": "GameApp_Guide",
+      "text": "Changes apply after\ndisconnecting and reconnecting"
+    },
+    {
+      "key": "About_Message",
+      "text": "GkmStatus\nv{0}\n\nMade by: Wea017net"
+    },
+    {
+      "key": "About_Author",
+      "text": "Made by: Wea017net"
+    },
+    {
+      "key": "About_FontAttribution",
+      "text": "Font: IBM Plex Sans JP"
+    },
+    {
+      "key": "About_FontLicense",
+      "text": "View License"
+    },
+    {
+      "key": "About_Title",
+      "text": "About this app"
+    },
+    {
+      "key": "Error_Browser",
+      "text": "Could not open the browser."
+    },
+    {
+      "key": "CharName_JP",
+      "text": "Japanese Names"
+    },
+    {
+      "key": "CharName_EN",
+      "text": "English Names"
+    },
+    {
+      "key": "Update_NotificationTitle",
+      "text": "New Version Available"
+    },
+    {
+      "key": "Update_NotificationBody",
+      "text": "Version {0} is now available.\nClick here to open the download page."
+    },
+    {
+      "key": "Update_NewAvailable",
+      "text": "A new version {0} is available.\nWould you like to open the download page?"
+    },
+    {
+      "key": "Update_NoUpdate",
+      "text": "You are using the latest version."
+    },
+    {
+      "key": "Update_RateLimit",
+      "text": "GitHub API rate limit exceeded. Please try again later."
+    },
+    {
+      "key": "Notify_Minimized",
+      "text": "Minimized to system tray."
+    },
+    {
+      "key": "Notify_TrayIdolChanged",
+      "text": "Applied the producing idol change and updated the presence."
+    },
+    {
+      "key": "Notify_TrayDetailsChanged",
+      "text": "Applied the Details change and updated the presence."
+    },
+    {
+      "key": "Notify_TrayStateChanged",
+      "text": "Applied the State change and updated the presence."
+    }
+  ]
+}

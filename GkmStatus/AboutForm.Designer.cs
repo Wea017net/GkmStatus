@@ -1,0 +1,180 @@
+﻿using GkmStatus.src.ui;
+
+namespace GkmStatus
+{
+    partial class AboutForm
+    {
+        private System.ComponentModel.IContainer components = null;
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && (components != null))
+            {
+                components.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        // GUIDesignerをだます
+        private void InitializeComponent()
+        {
+
+        }
+
+        void Cfg<T>(T c, Action<T> action) where T : Control => action(c);
+        private int S(int val) => (int)Math.Round(val * _scale);
+
+        // 動的に上書きする
+        private void ApplyComponent() {
+            this.Text = I18n.T(I18n.Text_List.App_Name);
+            this.AutoScaleMode = AutoScaleMode.None;
+            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+            this.ShowInTaskbar = false;
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.BackColor = _backColor;
+            this.ForeColor = _foreColor;
+            this.ClientSize = new Size(S(320), S(280));
+
+            // Icon
+            var iconBox = new PictureBox
+            {
+                Size = new Size(S(64), S(64)),
+                Location = new Point((this.ClientSize.Width - S(64)) / 2, S(25)),
+                SizeMode = PictureBoxSizeMode.Zoom
+            };
+            try
+            {
+                var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                using Stream stream = assembly.GetManifestResourceStream("GkmStatus.Resources.app_icon_2048px.png");
+                if (stream != null)
+                {
+                    iconBox.Image = Image.FromStream(stream);
+                }
+                using Stream icoStream = assembly.GetManifestResourceStream("GkmStatus.Resources.app.ico");
+                if (icoStream != null) this.Icon = new Icon(icoStream);
+            }
+            catch { }
+            this.Controls.Add(iconBox);
+
+            // App Name
+            var lblName = new Label
+            {
+                Text = I18n.T(I18n.Text_List.App_Name),
+                Font = _titleFont,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Location = new Point(0, S(95)),
+                Size = new Size(this.ClientSize.Width, S(30))
+            };
+            this.Controls.Add(lblName);
+
+            // Version
+            var lblVersion = new Label
+            {
+                Text = "v" + Application.ProductVersion,
+                Font = _mainFont,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Location = new Point(0, S(125)),
+                Size = new Size(this.ClientSize.Width, S(20)),
+                ForeColor = _foreColor.GetBrightness() > 0.5f ? Color.FromArgb(100, 100, 100) : Color.FromArgb(180, 180, 180)
+            };
+            this.Controls.Add(lblVersion);
+
+            // Author
+            var lblAuthor = new Label
+            {
+                Text = I18n.T(I18n.Text_List.About_Author),
+                Font = _mainFont,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Location = new Point(0, S(150)),
+                Size = new Size(this.ClientSize.Width, S(20))
+            };
+            this.Controls.Add(lblAuthor);
+
+            // Font Attribution
+            var lblFont = new Label
+            {
+                Text = I18n.T(I18n.Text_List.About_FontAttribution),
+                Font = new Font(_mainFont.FontFamily, 8f, GraphicsUnit.Point),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Location = new Point(0, S(172)),
+                Size = new Size(this.ClientSize.Width, S(15)),
+                ForeColor = _foreColor.GetBrightness() > 0.5f ? Color.FromArgb(120, 120, 120) : Color.FromArgb(150, 150, 150)
+            };
+            this.Controls.Add(lblFont);
+
+            var lnkLicense = new LinkLabel
+            {
+                Text = I18n.T(I18n.Text_List.About_FontLicense),
+                Font = new Font(_mainFont.FontFamily, 8f, GraphicsUnit.Point),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Location = new Point(0, S(187)),
+                Size = new Size(this.ClientSize.Width, S(15)),
+                LinkColor = COLOR_PRIMARY_DEFAULT,
+                ActiveLinkColor = Color.White,
+                VisitedLinkColor = COLOR_PRIMARY_DEFAULT
+            };
+            lnkLicense.LinkClicked += (s, e) => ShowLicense();
+            this.Controls.Add(lnkLicense);
+
+            // OK Button
+            var btnOk = new Button
+            {
+                Text = "OK",
+                Size = new Size(S(90), S(35)),
+                Location = new Point((this.ClientSize.Width - S(90)) / 2, S(225)),
+                FlatStyle = FlatStyle.Flat,
+                Font = _mainFont,
+                Cursor = Cursors.Hand
+            };
+            btnOk.FlatAppearance.BorderColor = _foreColor.GetBrightness() > 0.5f ? Color.Gray : Color.FromArgb(100, 100, 100);
+            btnOk.Click += (s, e) => this.Close();
+            this.Controls.Add(btnOk);
+        }
+
+        private void ShowLicense()
+        {
+            try
+            {
+                var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                using Stream stream = assembly.GetManifestResourceStream("GkmStatus.Resources.fonts.IBM_Plex_Sans_JP.OFL.txt");
+                if (stream != null)
+                {
+                    using var reader = new StreamReader(stream);
+                    string licenseText = reader.ReadToEnd();
+                    using var licenseForm = new Form
+                    {
+                        Text = "Font License",
+                        Icon = this.Icon,
+                        ShowIcon = true,
+                        Size = new Size(S(500), S(400)),
+                        StartPosition = FormStartPosition.CenterParent,
+                        BackColor = _backColor,
+                        ForeColor = _foreColor,
+                        MinimizeBox = false,
+                        MaximizeBox = false
+                    };
+                    var txt = new TextBox
+                    {
+                        Multiline = true,
+                        ReadOnly = true,
+                        Dock = DockStyle.Fill,
+                        Text = licenseText,
+                        ScrollBars = ScrollBars.Vertical,
+                        BackColor = _backColor,
+                        ForeColor = _foreColor,
+                        BorderStyle = BorderStyle.None,
+                        Font = new Font(FontFamily.GenericMonospace, 9f, GraphicsUnit.Point)
+                    };
+                    licenseForm.Controls.Add(txt);
+                    licenseForm.ShowDialog(this);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Could not load license: " + ex.Message);
+            }
+        }
+    }
+}

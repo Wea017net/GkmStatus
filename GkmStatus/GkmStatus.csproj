@@ -27,6 +27,9 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\app.ico" />
     <EmbeddedResource Include="Resources\app_icon_2048px.png" />
+	<EmbeddedResource Include="Resources\produce_characters.json" />
+	<EmbeddedResource Include="Resources\I18n\japanese.json" />
+	<EmbeddedResource Include="Resources\I18n\english.json" />
     <EmbeddedResource Include="Resources\fonts\IBM_Plex_Sans_JP\IBMPlexSansJP-Bold.ttf" />
     <EmbeddedResource Include="Resources\fonts\IBM_Plex_Sans_JP\IBMPlexSansJP-Medium.ttf" />
     <EmbeddedResource Include="Resources\fonts\IBM_Plex_Sans_JP\IBMPlexSansJP-Regular.ttf" />
@@ -35,6 +38,25 @@
 
   <ItemGroup>
     <PackageReference Include="DiscordRichPresence" Version="1.6.1.70" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Resources\I18n\" />
   </ItemGroup>
 
 </Project>
