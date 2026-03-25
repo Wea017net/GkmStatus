@@ -41,8 +41,7 @@ namespace GkmStatus.src
         {
             try
             {
-                using var key = Registry.CurrentUser.OpenSubKey(WINDOWS_THEME_REG_KEY);
-                var value = key?.GetValue("AppsUseLightTheme");
+                var value = Registry.GetValue(WINDOWS_THEME_REG_KEY, "AppsUseLightTheme", null);
                 if (value is int i && i == 1)
                     return COLOR_LIGHT_BG;
             }
