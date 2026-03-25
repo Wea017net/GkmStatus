@@ -265,6 +265,9 @@ namespace GkmStatus
 
             Native.SetPlaceholder(txtPName, I18n.T(Placeholder_PName));
             Native.SetPlaceholder(txtBtn1Label, I18n.T(Placeholder_BtnLabel, 1));
+            Native.SetPlaceholder(txtBtn1Url, I18n.T(Placeholder_BtnUrl, 1));
+            Native.SetPlaceholder(txtBtn2Label, I18n.T(Placeholder_BtnLabel, 2));
+            Native.SetPlaceholder(txtBtn2Url, I18n.T(Placeholder_BtnUrl, 2));
 
             if (rpc.Status != RpcStatus.Disconnected)
             {
