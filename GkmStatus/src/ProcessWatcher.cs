@@ -46,17 +46,30 @@ namespace GkmStatus.src
         private void OnTick(object? sender, EventArgs e)
         {
             var processes = Process.GetProcessesByName(_processName);
-            bool isNowRunning = processes.Length > 0;
+            try
+            {
+                bool isNowRunning = processes.Length > 0;
 
-            if(isNowRunning && !_wasRunning) {
-                IsRunning = true;
-                ProcessStarted?.Invoke(this, EventArgs.Empty);
-            }else if(!isNowRunning && _wasRunning) {
-                IsRunning = false;
-                ProcessStopped?.Invoke(this, EventArgs.Empty);
+                if (isNowRunning && !_wasRunning)
+                {
+                    IsRunning = true;
+                    ProcessStarted?.Invoke(this, EventArgs.Empty);
+                }
+                else if (!isNowRunning && _wasRunning)
+                {
+                    IsRunning = false;
+                    ProcessStopped?.Invoke(this, EventArgs.Empty);
+                }
+
+                _wasRunning = isNowRunning;
             }
-
-            _wasRunning = isNowRunning;
+            finally
+            {
+                foreach (var process in processes)
+                {
+                    process.Dispose();
+                }
+            }
         }
 
         protected virtual void Dispose(bool disposing)
