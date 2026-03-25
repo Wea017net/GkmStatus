@@ -30,7 +30,7 @@ namespace GkmStatus.src
         {
             if (!File.Exists(CONFIG_PATH))
             {
-                Config = Config = CreateDefaultConfig();
+                Config = CreateDefaultConfig();
                 return;
             }
 
