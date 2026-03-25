@@ -142,14 +142,6 @@
     },
 
     {
-      "key": "Details_None",
-      "text": "なし"
-    },
-    {
-      "key": "Details_PName",
-      "text": "プロデューサー名"
-    },
-    {
       "key": "Details_PLv",
       "text": "プロデューサーレベル"
     },
