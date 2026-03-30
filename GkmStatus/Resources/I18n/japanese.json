@@ -1,0 +1,431 @@
+{
+  "japanese": [
+    {
+      "key": "App_Name",
+      "text": "学マステータス"
+    },
+    {
+      "key": "Menu_File",
+      "text": "ファイル(&F)"
+    },
+    {
+      "key": "Menu_Exit",
+      "text": "終了"
+    },
+    {
+      "key": "Menu_Settings",
+      "text": "設定(&S)"
+    },
+    {
+      "key": "Menu_RunAtStartup",
+      "text": "システム起動時に実行"
+    },
+    {
+      "key": "Menu_StartMinimized",
+      "text": "最小化した状態(システムトレイ内)で起動"
+    },
+    {
+      "key": "Menu_AutoConnect",
+      "text": "起動時に接続を試行"
+    },
+    {
+      "key": "Menu_CheckForUpdates",
+      "text": "起動時にアプリの更新を確認"
+    },
+    {
+      "key": "Menu_NotifyInBackground",
+      "text": "バックグラウンド動作時に通知"
+    },
+    {
+      "key": "Menu_NotifyOnMinimize",
+      "text": "最小化時に通知"
+    },
+    {
+      "key": "Menu_MinimizeToTray",
+      "text": "×でアプリを最小化(システムトレイに格納)"
+    },
+    {
+      "key": "Menu_MonitorProcess",
+      "text": "gakumas.exeを監視して自動で接続/切断"
+    },
+    {
+      "key": "Menu_Language",
+      "text": "言語"
+    },
+    {
+      "key": "Menu_View",
+      "text": "表示(&V)"
+    },
+    {
+      "key": "Menu_Theme",
+      "text": "テーマ"
+    },
+    {
+      "key": "Menu_ThemeAuto",
+      "text": "自動選択"
+    },
+    {
+      "key": "Menu_ThemeLight",
+      "text": "ライト"
+    },
+    {
+      "key": "Menu_ThemeDark",
+      "text": "ダーク"
+    },
+    {
+      "key": "Menu_ThemeOLED",
+      "text": "OLED"
+    },
+    {
+      "key": "Menu_Help",
+      "text": "ヘルプ(&H)"
+    },
+    {
+      "key": "Menu_Github",
+      "text": "GitHubページを開く..."
+    },
+    {
+      "key": "Menu_CheckUpdateNow",
+      "text": "更新を確認..."
+    },
+    {
+      "key": "Menu_About",
+      "text": "このアプリについて..."
+    },
+    {
+      "key": "Menu_OpenAppLocation",
+      "text": "このアプリの場所を開く..."
+    },
+    {
+      "key": "Menu_OpenConfigLocation",
+      "text": "設定ファイルの場所を開く..."
+    },
+    {
+      "key": "Tray_Open",
+      "text": "開く"
+    },
+    {
+      "key": "Tray_ProducingIdol",
+      "text": "プロデュース中のアイドル"
+    },
+    {
+      "key": "Tray_Exit",
+      "text": "終了"
+    },
+    {
+      "key": "Header_GameName",
+      "text": "ゲームの表示名 (Name)"
+    },
+    {
+      "key": "Header_Details",
+      "text": "1行目の情報 (Details)"
+    },
+    {
+      "key": "Header_State",
+      "text": "2行目の情報 (State)"
+    },
+    {
+      "key": "Header_Timestamp",
+      "text": "経過時間 (Timestamp)"
+    },
+    {
+      "key": "Header_Buttons",
+      "text": "外部リンクボタン設定 (Buttons)"
+    },
+    {
+      "key": "Details_None",
+      "text": "なし"
+    },
+    {
+      "key": "Details_PName",
+      "text": "プロデューサー名"
+    },
+
+    {
+      "key": "Details_PLv",
+      "text": "プロデューサーレベル"
+    },
+    {
+      "key": "Details_Both",
+      "text": "プロデューサー名とPLv"
+    },
+    {
+      "key": "Placeholder_PName",
+      "text": "プロデューサー"
+    },
+
+    {
+      "key": "State_None",
+      "text": "なし"
+    },
+    {
+      "key": "State_PID",
+      "text": "P-ID"
+    },
+    {
+      "key": "State_Producing",
+      "text": "プロデュース中"
+    },
+    {
+      "key": "State_Idol",
+      "text": "担当アイドル"
+    },
+    {
+      "key": "State_Custom",
+      "text": "カスタム"
+    },
+    {
+      "key": "Placeholder_PID",
+      "text": "8桁のP-IDを入力"
+    },
+    {
+      "key": "Placeholder_Custom",
+      "text": "自由入力 (全角: 2～42 文字 / 半角: 2～128 文字)"
+    },
+    {
+      "key": "State_ProducingSuffix",
+      "text": "をプロデュース中"
+    },
+    {
+      "key": "State_IdolSuffix",
+      "text": " 担当"
+    },
+    {
+      "key": "State_NotSet",
+      "text": "未設定"
+    },
+    {
+      "key": "State_Producing_Format",
+      "text": "{0}をプロデュース中"
+    },
+    {
+      "key": "State_Idol_Format",
+      "text": "{0} 担当"
+    },
+
+    {
+      "key": "Timestamp_Label",
+      "text": "経過時間"
+    },
+    {
+      "key": "Timestamp_Reset",
+      "text": "時間をリセット"
+    },
+    {
+      "key": "Timestamp_Guide",
+      "text": "「更新」を押すと反映されます"
+    },
+
+    {
+      "key": "Button_Mode",
+      "text": "ボタン表示モード"
+    },
+    {
+      "key": "Button_ModeNone",
+      "text": "なし"
+    },
+    {
+      "key": "Button_ModeStore",
+      "text": "ゲームに誘導"
+    },
+    {
+      "key": "Button_ModeApp",
+      "text": "このアプリに誘導"
+    },
+    {
+      "key": "Button_ModeCustom",
+      "text": "カスタム"
+    },
+    {
+      "key": "Button_ModeNote",
+      "text": "Discordの仕様により自分からは確認できません"
+    },
+    {
+      "key": "Placeholder_BtnLabel",
+      "text": "ボタン{0}つ目のラベル"
+    },
+    {
+      "key": "Placeholder_BtnUrl",
+      "text": "ボタン{0}つ目のURL"
+    },
+    {
+      "key": "Button_Warning_LabelLength",
+      "text": "全角の場合は最大10文字まで表示されます。"
+    },
+    {
+      "key": "Button_Warning_UrlJp",
+      "text": "URLに日本語を含めることはできません。\nパーセントエンコーディング後の文字列を使用してください。"
+    },
+
+    {
+      "key": "Status_Connected",
+      "text": "接続完了:\n{0}"
+    },
+    {
+      "key": "Status_Connected_Notify",
+      "text": "Discordに接続してステータスの表示を開始しました。"
+    },
+    {
+      "key": "Status_Disconnected",
+      "text": "未接続"
+    },
+    {
+      "key": "Status_Disconnected_Auto",
+      "text": "未接続\n（自動接続が有効）"
+    },
+    {
+      "key": "Status_Disconnected_Notify",
+      "text": "Discordへのステータス表示を停止しました。"
+    },
+    {
+      "key": "Status_ManualDisconnected_Notify",
+      "text": "アプリとDiscordの接続を切断しました。"
+    },
+    {
+      "key": "Status_Connecting",
+      "text": "接続試行中... ({0}秒)"
+    },
+    {
+      "key": "Status_Paused",
+      "text": "接続済み\n（表示を停止中）"
+    },
+    {
+      "key": "Status_Timeout",
+      "text": "タイムアウト:\nDiscordの起動を要確認"
+    },
+    {
+      "key": "Status_Error",
+      "text": "エラー: {0}"
+    },
+    {
+      "key": "Status_InitFailed",
+      "text": "初期化失敗。"
+    },
+    {
+      "key": "Status_Exception",
+      "text": "例外: {0}"
+    },
+    {
+      "key": "Status_Updated",
+      "text": "更新しました"
+    },
+    {
+      "key": "Tray_Status_Connected",
+      "text": "接続完了"
+    },
+    {
+      "key": "Tray_Status_Paused",
+      "text": "表示停止中"
+    },
+    {
+      "key": "Tray_Status_Connecting",
+      "text": "接続試行中"
+    },
+
+    {
+      "key": "Button_Connect",
+      "text": "接続"
+    },
+    {
+      "key": "Button_Pause",
+      "text": "一時停止"
+    },
+    {
+      "key": "Button_Resume",
+      "text": "再開"
+    },
+    {
+      "key": "Button_Update",
+      "text": "更新"
+    },
+    {
+      "key": "Button_Disconnect",
+      "text": "切断"
+    },
+    {
+      "key": "Button_StoreLabel_Mobile",
+      "text": "プレイ (iOS / Android)"
+    },
+    {
+      "key": "Button_StoreLabel_DMM",
+      "text": "プレイ (DMM GAMES)"
+    },
+    {
+      "key": "Button_AboutPresence",
+      "text": "この表示について..."
+    },
+
+    {
+      "key": "GameApp_Guide",
+      "text": "この変更は一度切断して\n再接続したあとに適用されます"
+    },
+    {
+      "key": "About_Message",
+      "text": "GkmStatus\nv{0}\n\n制作者: Wea017net"
+    },
+    {
+      "key": "About_Author",
+      "text": "制作者: Wea017net"
+    },
+    {
+      "key": "About_FontAttribution",
+      "text": "使用フォント: IBM Plex Sans JP"
+    },
+    {
+      "key": "About_FontLicense",
+      "text": "ライセンスを表示"
+    },
+    {
+      "key": "About_Title",
+      "text": "このアプリについて"
+    },
+    {
+      "key": "Error_Browser",
+      "text": "ブラウザを開けませんでした。"
+    },
+    {
+      "key": "CharName_JP",
+      "text": "日本語表記"
+    },
+    {
+      "key": "CharName_EN",
+      "text": "英語表記"
+    },
+    {
+      "key": "Update_NotificationTitle",
+      "text": "新しいバージョンが利用可能です"
+    },
+    {
+      "key": "Update_NotificationBody",
+      "text": "新しいバージョン {0} が公開されています。\nクリックしてダウンロードページを開きます。"
+    },
+    {
+      "key": "Update_NewAvailable",
+      "text": "新しいバージョン {0} が公開されています。\nダウンロードページを開きますか？"
+    },
+    {
+      "key": "Update_NoUpdate",
+      "text": "最新バージョンを使用しています。"
+    },
+    {
+      "key": "Update_RateLimit",
+      "text": "GitHub APIの回数制限に達しました。しばらく時間をおいてから再度お試しください。"
+    },
+    {
+      "key": "Notify_Minimized",
+      "text": "システムトレイに最小化しました。"
+    },
+    {
+      "key": "Notify_TrayIdolChanged",
+      "text": "プロデュース中のアイドルの変更を適用して情報を更新しました。"
+    },
+    {
+      "key": "Notify_TrayDetailsChanged",
+      "text": "1行目の情報(Details)の変更を適用して情報を更新しました。"
+    },
+    {
+      "key": "Notify_TrayStateChanged",
+      "text": "2行目の情報(State)の変更を適用して情報を更新しました。"
+    }
+  ]
+}

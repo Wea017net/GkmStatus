@@ -1,0 +1,69 @@
+  {
+  "characters": [
+    {
+      "Id": "hanami_saki",
+      "Display": "花海咲季",
+      "NameEn": "Saki Hanami"
+    },
+    {
+      "Id": "tsukimura_temari",
+      "Display": "月村手毬",
+      "NameEn": "Temari Tsukimura"
+    },
+    {
+      "Id": "fujita_kotone",
+      "Display": "藤田ことね",
+      "NameEn": "Kotone Fujita"
+    },
+    {
+      "Id": "amaya_tsubame",
+      "Display": "雨夜燕",
+      "NameEn": "Tsubame Amaya"
+    },
+    {
+      "Id": "arimura_mao",
+      "Display": "有村麻央",
+      "NameEn": "Mao Arimura"
+    },
+    {
+      "Id": "katsuragi_lilja",
+      "Display": "葛城リーリヤ",
+      "NameEn": "Lilja Katsuragi"
+    },
+    {
+      "Id": "kuramoto_china",
+      "Display": "倉本千奈",
+      "NameEn": "China Kuramoto"
+    },
+    {
+      "Id": "shiun_sumika",
+      "Display": "紫雲清夏",
+      "NameEn": "Sumika Shiun"
+    },
+    {
+      "Id": "shinosawa_hiro",
+      "Display": "篠澤広",
+      "NameEn": "Hiro Shinosawa"
+    },
+    {
+      "Id": "juo_sena",
+      "Display": "十王星南",
+      "NameEn": "Sena Juo"
+    },
+    {
+      "Id": "hataya_misuzu",
+      "Display": "秦谷美鈴",
+      "NameEn": "Misuzu Hataya"
+    },
+    {
+      "Id": "hanami_ume",
+      "Display": "花海佑芽",
+      "NameEn": "Ume Hanami"
+    },
+    {
+      "Id": "himesaki_rinami",
+      "Display": "姫崎莉波",
+      "NameEn": "Rinami Himesaki"
+    }
+  ]
+}
