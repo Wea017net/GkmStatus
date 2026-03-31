@@ -19,6 +19,7 @@ namespace GkmStatus
     {
         private readonly bool isInitializing = true;
         private int footerButtonsY;
+        private bool _isFirstStartup = true;
         private bool _isResettingDefaults;
 
         private readonly DiscordRpcService rpc = new();
@@ -82,6 +83,7 @@ namespace GkmStatus
             {
                 SafeBeginInvoke(() =>
                 {
+                    if (startTime == default) startTime = DateTime.UtcNow;
                     connectionTimer?.Stop();
                     UpdateUIForConnected(username);
 
@@ -115,6 +117,9 @@ namespace GkmStatus
             if (startMinimizedItem.Checked)
             {
                 this.WindowState = FormWindowState.Minimized;
+                this.ShowInTaskbar = false;
+                this.Visible = false;
+                trayIcon.Visible = true;
             }
 
             UpdateDetailsInputs(null, EventArgs.Empty);
@@ -130,10 +135,7 @@ namespace GkmStatus
                 if (minimizeToTrayItem?.Checked == true && e.CloseReason == CloseReason.UserClosing)
                 {
                     e.Cancel = true;
-                    this.Hide();
-                    this.ShowInTaskbar = false;
-
-                    trayIcon.Visible = true;
+                    MinimizeToTray();
 
                     if (notifyOnMinimizeItem?.Checked == true)
                     {
@@ -179,8 +181,17 @@ namespace GkmStatus
             catch (InvalidOperationException) { }
         }
 
+        private void MinimizeToTray()
+        {
+            this.WindowState = FormWindowState.Minimized;
+            this.Hide();
+            this.ShowInTaskbar = false;
+            if (trayIcon != null) trayIcon.Visible = true;
+        }
+
         private void RestoreFromTray()
         {
+            _isFirstStartup = false;
             this.ShowInTaskbar = true;
             this.Show();
             this.WindowState = FormWindowState.Normal;
@@ -197,6 +208,8 @@ namespace GkmStatus
             else if (themeOLED.Checked) theme = AppTheme.OLED;
 
             _themeManager.ApplyTheme(this, theme);
+            if (trayIcon.ContextMenuStrip != null)
+                _themeManager.ApplyThemeToContextMenu(trayIcon.ContextMenuStrip, theme);
         }
 
         private void ApplyLanguage()
@@ -245,9 +258,9 @@ namespace GkmStatus
             if (trayIcon.ContextMenuStrip != null)
             {
                 trayIcon.ContextMenuStrip.Items[0].Text = I18n.T(Tray_Open);
-                trayMenuDetails?.Text = I18n.T(Header_Details);
-                trayMenuState?.Text = I18n.T(Header_State);
-                trayMenuProduce?.Text = I18n.T(Tray_ProducingIdol);
+                if (trayMenuDetails != null) trayMenuDetails.Text = I18n.T(Header_Details);
+                if (trayMenuState != null) trayMenuState.Text = I18n.T(Header_State);
+                if (trayMenuProduce != null) trayMenuProduce.Text = I18n.T(Tray_ProducingIdol);
                 trayMenuConnect.Text = I18n.T(Button_Connect);
                 trayMenuPause.Text = I18n.T(Button_Pause);
                 trayMenuDisconnect.Text = I18n.T(Button_Disconnect);
@@ -256,7 +269,7 @@ namespace GkmStatus
 
             lblResetGuide.Text = I18n.T(Timestamp_Guide);
             lblGameAppGuide.Text = I18n.T(GameApp_Guide);
-            lblBtnModeNote?.Text = I18n.T(Button_ModeNote);
+            if (lblBtnModeNote != null) lblBtnModeNote.Text = I18n.T(Button_ModeNote);
             UpdateTimestampLabel();
 
             btnResetTime.Text = I18n.T(Timestamp_Reset);
@@ -644,7 +657,6 @@ namespace GkmStatus
 
         private void InitializeLogic()
         {
-            startTime = DateTime.UtcNow;
             UpdateTimestampLabel();
 
             clockTimer = new System.Windows.Forms.Timer { Interval = 1000, Enabled = true };
@@ -658,6 +670,15 @@ namespace GkmStatus
 
         private void InitializeRpc()
         {
+            if (rpc.Status == RpcStatus.Paused)
+            {
+                rpc.Resume();
+                isManualPaused = false;
+                UpdateUIForConnected(rpc.CurrentUsername ?? "Unknown");
+                UpdateRpc();
+                return;
+            }
+
             if (rpc.Status == RpcStatus.Connecting || rpc.Status == RpcStatus.Connected) return;
             if (connectionTimer?.Enabled == true) return;
             if (cmbGameName.SelectedIndex < 0 || cmbGameName.SelectedIndex >= GameApps.Count) return;
@@ -903,6 +924,15 @@ namespace GkmStatus
 
             int idx = FindProduceCharacterIndex(currentId);
             cmbProduceCharacter.SelectedIndex = idx >= 0 ? idx : 0;
+        }
+        protected override void SetVisibleCore(bool value)
+        {
+            if (_isFirstStartup && startMinimizedItem?.Checked == true)
+            {
+                if (!IsHandleCreated) CreateHandle();
+                value = false;
+            }
+            base.SetVisibleCore(value);
         }
     }
 }

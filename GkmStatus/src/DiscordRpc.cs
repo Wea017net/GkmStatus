@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using DiscordRPC;
@@ -112,6 +112,15 @@ namespace GkmStatus.src
             client?.ClearPresence();
             Status = RpcStatus.Paused;
             StatusChanged?.Invoke(this, Status);
+        }
+
+        public void Resume()
+        {
+            if (Status == RpcStatus.Paused)
+            {
+                Status = RpcStatus.Connected;
+                StatusChanged?.Invoke(this, Status);
+            }
         }
 
         public void Invoke() => client?.Invoke();

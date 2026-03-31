@@ -1,4 +1,4 @@
-﻿using GkmStatus.src.ui;
+using GkmStatus.src.ui;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -25,7 +25,30 @@ namespace GkmStatus.src
 
         public void ApplyTheme(Form form, AppTheme theme)
         {
-            Color color = theme switch
+            Color color = GetThemeColor(theme);
+            ApplyColorsToForm(form, color);
+        }
+
+        public void ApplyThemeToContextMenu(ContextMenuStrip menu, AppTheme theme)
+        {
+            Color bg = GetThemeColor(theme);
+            bool isBright = bg.GetBrightness() > 0.5;
+            Color menuBg = isBright ? Color.FromArgb(235, 233, 233) : (bg.R == 0 ? Color.Black : Color.FromArgb(45, 47, 51));
+
+            menu.BackColor = menuBg;
+            menu.Font = _fontManager.MenuFont;
+            menu.Renderer = new MyRenderer(isBright, new CustomColorTable(isBright));
+
+            foreach (ToolStripItem item in menu.Items)
+            {
+                if (item is ToolStripMenuItem tsmi) ApplyThemeToMenuItems(tsmi, menuBg, isBright);
+                else item.Font = _fontManager.MenuFont;
+            }
+        }
+
+        private Color GetThemeColor(AppTheme theme)
+        {
+            return theme switch
             {
                 AppTheme.Auto => GetWindowsThemeColor(),
                 AppTheme.Light => COLOR_LIGHT_BG,
@@ -33,8 +56,6 @@ namespace GkmStatus.src
                 AppTheme.OLED => COLOR_OLED_BG,
                 _ => COLOR_DARK_BG
             };
-
-            ApplyColorsToForm(form, color);
         }
 
         private static Color GetWindowsThemeColor()
@@ -113,9 +134,9 @@ namespace GkmStatus.src
                 btn.Font = _fontManager.AppFontBold;
             }
 
-            if (c is not Label && c is not MenuStrip)
+            if (c is not Label && c is not MenuStrip && c is not Button)
             {
-                c.Font = _fontManager.AppFont;
+                c.Font = _fontManager.AppFontMedium;
             }
         }
 
@@ -124,12 +145,16 @@ namespace GkmStatus.src
             if (lbl.Tag is string tag && tag.StartsWith("Header_"))
                 lbl.Font = _fontManager.AppFontBold;
             else
-                lbl.Font = _fontManager.AppFont;
+                lbl.Font = _fontManager.AppFontMedium;
 
             if (lbl.Name == "lblResetGuide" || lbl.Name == "lblBtnModeNote")
                 lbl.ForeColor = Color.Gray;
             else if (lbl.Name == "lblGameAppGuide")
                 lbl.ForeColor = AppConstants.COLOR_PAUSE;
+            else if (lbl.Name == "lblStatus")
+            {
+                // do not overwrite color of lblStatus here as it is dynamic
+            }
             else
                 lbl.ForeColor = isBright ? Color.Black : Color.LightGray;
         }

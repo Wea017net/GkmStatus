@@ -1,4 +1,4 @@
-﻿using GkmStatus.src;
+using GkmStatus.src;
 using GkmStatus.src.native;
 using GkmStatus.src.ui;
 using System.Diagnostics;
@@ -328,6 +328,7 @@ namespace GkmStatus
 
             lblGameAppGuide = new Label
             {
+                Name = "lblGameAppGuide",
                 Location = new Point(S(240), y - S(7)),
                 AutoSize = true,
                 Visible = false,
@@ -428,6 +429,7 @@ namespace GkmStatus
 
             lblResetGuide = new Label
             {
+                Name = "lblResetGuide",
                 Text = I18n.T(Timestamp_Guide),
                 Location = new Point(S(300), y - S(38)),
                 AutoSize = true,
@@ -450,6 +452,7 @@ namespace GkmStatus
 
             lblBtnModeNote = new Label
             {
+                Name = "lblBtnModeNote",
                 Location = new Point(S(180), y + S(3)),
                 AutoSize = true,
                 Visible = false,
@@ -548,7 +551,7 @@ namespace GkmStatus
             btnDisconnect = CreateButton(new Point(S(240), y), S(100), COLOR_ERROR);
             btnDisconnect.Enabled = false; btnDisconnect.Click += (s, e) => DisposeRpc();
 
-            lblStatus = new Label { Text = I18n.T(Status_Disconnected), Location = new Point(S(352), y), AutoSize = true, ForeColor = Color.Gray, Font = _fontManager.AppFontMedium };
+            lblStatus = new Label { Name = "lblStatus", Text = I18n.T(Status_Disconnected), Location = new Point(S(352), y), AutoSize = true, ForeColor = Color.Gray, Font = _fontManager.AppFontMedium };
             statusToolTip = new ToolTip();
             statusToolTip.SetToolTip(lblStatus, lblStatus.Text);
             this.Controls.Add(btnConnect); this.Controls.Add(btnUpdate); this.Controls.Add(btnDisconnect); this.Controls.Add(lblStatus);
@@ -618,10 +621,10 @@ namespace GkmStatus
             themeDark = new ToolStripMenuItem(I18n.T(Menu_ThemeDark));
             themeOLED = new ToolStripMenuItem(I18n.T(Menu_ThemeOLED));
 
-            themeAuto.Click += (s, e) => { _themeManager.ApplyTheme(this, AppTheme.Auto); ThemeManager.UpdateThemeChecks(themeAuto, themeLight, themeDark, themeOLED); SaveSettings(); };
-            themeLight.Click += (s, e) => { _themeManager.ApplyTheme(this, AppTheme.Light); ThemeManager.UpdateThemeChecks(themeLight, themeAuto, themeDark, themeOLED); SaveSettings(); };
-            themeDark.Click += (s, e) => { _themeManager.ApplyTheme(this, AppTheme.Dark); ThemeManager.UpdateThemeChecks(themeDark, themeAuto, themeLight, themeOLED); SaveSettings(); };
-            themeOLED.Click += (s, e) => { _themeManager.ApplyTheme(this, AppTheme.OLED); ThemeManager.UpdateThemeChecks(themeOLED, themeAuto, themeLight, themeDark); SaveSettings(); };
+            themeAuto.Click += (s, e) => { ThemeManager.UpdateThemeChecks(themeAuto, themeLight, themeDark, themeOLED); ReapplyTheme(); SaveSettings(); };
+            themeLight.Click += (s, e) => { ThemeManager.UpdateThemeChecks(themeLight, themeAuto, themeDark, themeOLED); ReapplyTheme(); SaveSettings(); };
+            themeDark.Click += (s, e) => { ThemeManager.UpdateThemeChecks(themeDark, themeAuto, themeLight, themeOLED); ReapplyTheme(); SaveSettings(); };
+            themeOLED.Click += (s, e) => { ThemeManager.UpdateThemeChecks(themeOLED, themeAuto, themeLight, themeDark); ReapplyTheme(); SaveSettings(); };
 
             themeMenu.DropDownItems.AddRange([themeAuto, themeLight, themeDark, themeOLED]);
             themeMenu.DropDown.Closing += (s, e) =>

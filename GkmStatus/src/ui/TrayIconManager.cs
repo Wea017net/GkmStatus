@@ -1,4 +1,4 @@
-﻿using GkmStatus.src.native;
+using GkmStatus.src.native;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -90,6 +90,7 @@ namespace GkmStatus.src.ui
             _settingsSeparator.Visible = showSettings;
 
             _connectItem.Visible = !isConnected || isPaused;
+            _connectItem.Text = isPaused ? I18n.T(I18n.Text_List.Button_Resume) : I18n.T(I18n.Text_List.Button_Connect);
             _pauseItem.Visible = isConnected && !isPaused;
             _disconnectItem.Visible = isConnected;
         }
@@ -114,7 +115,7 @@ namespace GkmStatus.src.ui
 
         public void SetProduceMenuEnabled(bool enabled)
         {
-            _produceItem?.Enabled = enabled;
+            if (_produceItem != null) _produceItem.Enabled = enabled;
         }
 
         protected virtual void Dispose(bool disposing)
