@@ -45,6 +45,8 @@ namespace GkmStatus
         private readonly TrayIconManager _trayIconManager;
         private PresenceSettings CurrentPresence => _configManager.Config.Presence;
 
+        private CancellationTokenSource? _updateCts;
+
         public MainForm()
         {
             try
@@ -159,6 +161,8 @@ namespace GkmStatus
                 rpc.Dispose();
                 _processWatcher.Dispose();
                 _fontManager.Dispose();
+                _updateCts?.Cancel();
+                _updateCts?.Dispose();
                 _updateService.Dispose();
 
                 if (trayIcon != null)
@@ -345,7 +349,20 @@ namespace GkmStatus
             if (!manual && (DateTime.UtcNow - lastUpdateCheck).TotalHours < 24)
                 return;
 
-            var result = await _updateService.CheckForUpdatesAsync(Application.ProductVersion);
+            _updateCts?.Cancel();
+            _updateCts?.Dispose();
+            _updateCts = new CancellationTokenSource();
+            var token = _updateCts.Token;
+
+            UpdateCheckResult result;
+            try
+            {
+                result = await _updateService.CheckForUpdatesAsync(Application.ProductVersion, token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
 
             if (result.IsRateLimited)
             {

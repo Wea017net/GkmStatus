@@ -18,23 +18,26 @@ namespace GkmStatus.src
 
     public class UpdateService:IDisposable
     {
-        private readonly HttpClient _httpClient;
-        private bool _disposed;
-
+        private readonly HttpClient _httpClient = new()
+        {
+            Timeout = TimeSpan.FromSeconds(10)
+        };
 
         public UpdateService()
         {
-            _httpClient= new HttpClient();
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(AppConstants.HTTP_USER_AGENT);
         }
 
-        public async Task<UpdateCheckResult> CheckForUpdatesAsync(string currentVersion)
+        private bool _disposed;
+
+
+        public async Task<UpdateCheckResult> CheckForUpdatesAsync(string currentVersion, CancellationToken cancellationToken = default)
         {
             var result = new UpdateCheckResult();
 
             try
             {
-                using var response  = await _httpClient.GetAsync(AppConstants.GITHUB_REPO_URL);
+                using var response  = await _httpClient.GetAsync(AppConstants.GITHUB_REPO_URL, cancellationToken);
 
                 if(response.StatusCode == HttpStatusCode.Forbidden)
                 {
@@ -63,7 +66,13 @@ namespace GkmStatus.src
                         result.HasUpdate = latest > current;
                     }
                 }
-            } catch(Exception ex)
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                result.IsSuccess = false;
+                result.ErrorMessage = "The update check timed out.";
+            }
+            catch(Exception ex)
             {
                 result.IsSuccess = false;
                 result.ErrorMessage = ex.Message;
