@@ -69,6 +69,10 @@ namespace GkmStatus.src
                     }
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 result.IsSuccess = false;
