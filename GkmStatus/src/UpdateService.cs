@@ -18,14 +18,16 @@ namespace GkmStatus.src
 
     public class UpdateService:IDisposable
     {
-        private readonly HttpClient _httpClient = new()
-        {
-            Timeout = TimeSpan.FromSeconds(10)
-        };
+        private static readonly HttpClient _httpClient = CreateHttpClient();
 
-        public UpdateService()
+        private static HttpClient CreateHttpClient()
         {
-            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(AppConstants.HTTP_USER_AGENT);
+            var client = new HttpClient
+            {
+                Timeout = TimeSpan.FromSeconds(10)
+            };
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(AppConstants.HTTP_USER_AGENT);
+            return client;
         }
 
         private bool _disposed;
@@ -49,7 +51,7 @@ namespace GkmStatus.src
                     return result;
 
                 response.EnsureSuccessStatusCode();
-                var content = await response.Content.ReadAsStringAsync();
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
 
                 using var doc = JsonDocument.Parse(content);
 
@@ -100,10 +102,7 @@ namespace GkmStatus.src
         {
             if (_disposed) return;
 
-            if (disposing)
-            {
-                _httpClient.Dispose();
-            }
+            // _httpClient is static and shared for the process lifetime; it is intentionally not disposed here.
 
             _disposed = true;
         }
