@@ -18,23 +18,28 @@ namespace GkmStatus.src
 
     public class UpdateService:IDisposable
     {
-        private readonly HttpClient _httpClient;
+        private static readonly HttpClient _httpClient = CreateHttpClient();
+
+        private static HttpClient CreateHttpClient()
+        {
+            var client = new HttpClient
+            {
+                Timeout = TimeSpan.FromSeconds(10)
+            };
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(AppConstants.HTTP_USER_AGENT);
+            return client;
+        }
+
         private bool _disposed;
 
 
-        public UpdateService()
-        {
-            _httpClient= new HttpClient();
-            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(AppConstants.HTTP_USER_AGENT);
-        }
-
-        public async Task<UpdateCheckResult> CheckForUpdatesAsync(string currentVersion)
+        public async Task<UpdateCheckResult> CheckForUpdatesAsync(string currentVersion, CancellationToken cancellationToken = default)
         {
             var result = new UpdateCheckResult();
 
             try
             {
-                using var response  = await _httpClient.GetAsync(AppConstants.GITHUB_REPO_URL);
+                using var response  = await _httpClient.GetAsync(AppConstants.GITHUB_REPO_URL, cancellationToken);
 
                 if(response.StatusCode == HttpStatusCode.Forbidden)
                 {
@@ -46,7 +51,7 @@ namespace GkmStatus.src
                     return result;
 
                 response.EnsureSuccessStatusCode();
-                var content = await response.Content.ReadAsStringAsync();
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
 
                 using var doc = JsonDocument.Parse(content);
 
@@ -63,7 +68,17 @@ namespace GkmStatus.src
                         result.HasUpdate = latest > current;
                     }
                 }
-            } catch(Exception ex)
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                result.IsSuccess = false;
+                result.ErrorMessage = "The update check timed out.";
+            }
+            catch(Exception ex)
             {
                 result.IsSuccess = false;
                 result.ErrorMessage = ex.Message;
@@ -91,10 +106,7 @@ namespace GkmStatus.src
         {
             if (_disposed) return;
 
-            if (disposing)
-            {
-                _httpClient.Dispose();
-            }
+            // _httpClient is static and shared for the process lifetime; it is intentionally not disposed here.
 
             _disposed = true;
         }
