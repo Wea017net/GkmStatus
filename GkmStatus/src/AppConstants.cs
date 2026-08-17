@@ -23,6 +23,8 @@ namespace GkmStatus.src
         public const string GITHUB_REPO_URL = "https://api.github.com/repos/Wea017net/GkmStatus/releases/latest";
         public const string HTTP_USER_AGENT = "GkmStatus-UpdateChecker";
 
+        public const string RPC_ACTIVITY_URL = "https://discord.com/games/1442716949728727182";
+
         public const string REG_RUN_KEY = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
 
         public const string ProduceCharacter_Data_Path = RESOURCE_PREFIX + "produce_characters.json";
