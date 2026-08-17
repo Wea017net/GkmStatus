@@ -12,6 +12,7 @@ namespace GkmStatus.src
         public string Id { get; set; } = "";
         public string Display { get; set; } = "";
         public string NameEn { get; set; } = "";
+        public string Url { get; set; } = "";
     }
 
     internal static class Characters

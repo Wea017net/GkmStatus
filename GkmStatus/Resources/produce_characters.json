@@ -3,67 +3,80 @@
     {
       "Id": "hanami_saki",
       "Display": "花海咲季",
-      "NameEn": "Saki Hanami"
+      "NameEn": "Saki Hanami",
+      "Url": "https://gakuen.idolmaster-official.jp/idol/"
     },
     {
       "Id": "tsukimura_temari",
       "Display": "月村手毬",
-      "NameEn": "Temari Tsukimura"
+      "NameEn": "Temari Tsukimura",
+      "Url": "https://gakuen.idolmaster-official.jp/idol/temari/"
     },
     {
       "Id": "fujita_kotone",
       "Display": "藤田ことね",
-      "NameEn": "Kotone Fujita"
-    },
-    {
-      "Id": "amaya_tsubame",
-      "Display": "雨夜燕",
-      "NameEn": "Tsubame Amaya"
+      "NameEn": "Kotone Fujita",
+      "Url": "https://gakuen.idolmaster-official.jp/idol/kotone/"
     },
     {
       "Id": "arimura_mao",
       "Display": "有村麻央",
-      "NameEn": "Mao Arimura"
+      "NameEn": "Mao Arimura",
+      "Url": "https://gakuen.idolmaster-official.jp/idol/mao/"
     },
     {
       "Id": "katsuragi_lilja",
       "Display": "葛城リーリヤ",
-      "NameEn": "Lilja Katsuragi"
+      "NameEn": "Lilja Katsuragi",
+      "Url": "https://gakuen.idolmaster-official.jp/idol/lilja/"
     },
     {
       "Id": "kuramoto_china",
       "Display": "倉本千奈",
-      "NameEn": "China Kuramoto"
+      "NameEn": "China Kuramoto",
+      "Url": "https://gakuen.idolmaster-official.jp/idol/china/"
     },
     {
       "Id": "shiun_sumika",
       "Display": "紫雲清夏",
-      "NameEn": "Sumika Shiun"
+      "NameEn": "Sumika Shiun",
+      "Url": "https://gakuen.idolmaster-official.jp/idol/sumika/"
     },
     {
       "Id": "shinosawa_hiro",
       "Display": "篠澤広",
-      "NameEn": "Hiro Shinosawa"
-    },
-    {
-      "Id": "juo_sena",
-      "Display": "十王星南",
-      "NameEn": "Sena Juo"
-    },
-    {
-      "Id": "hataya_misuzu",
-      "Display": "秦谷美鈴",
-      "NameEn": "Misuzu Hataya"
-    },
-    {
-      "Id": "hanami_ume",
-      "Display": "花海佑芽",
-      "NameEn": "Ume Hanami"
+      "NameEn": "Hiro Shinosawa",
+      "Url": "https://gakuen.idolmaster-official.jp/idol/hiro/"
     },
     {
       "Id": "himesaki_rinami",
       "Display": "姫崎莉波",
-      "NameEn": "Rinami Himesaki"
+      "NameEn": "Rinami Himesaki",
+      "Url": "https://gakuen.idolmaster-official.jp/idol/rinami/"
+    },
+    {
+      "Id": "hanami_ume",
+      "Display": "花海佑芽",
+      "NameEn": "Ume Hanami",
+      "Url": "https://gakuen.idolmaster-official.jp/idol/ume/"
+    },
+    {
+      "Id": "juo_sena",
+      "Display": "十王星南",
+      "NameEn": "Sena Juo",
+      "Url": "https://gakuen.idolmaster-official.jp/idol/sena/"
+    },
+    {
+      "Id": "hataya_misuzu",
+      "Display": "秦谷美鈴",
+      "NameEn": "Misuzu Hataya",
+      "Url": "https://gakuen.idolmaster-official.jp/idol/misuzu/"
+    },
+    {
+      "Id": "amaya_tsubame",
+      "Display": "雨夜燕",
+      "NameEn": "Tsubame Amaya",
+      "Url": "https://gakuen.idolmaster-official.jp/idol/tsubame/"
     }
   ]
 }

@@ -87,7 +87,7 @@ namespace GkmStatus.src
                 Presence = new PresenceSettings
                 {
                     StateType = GetStateString(PresenceStateType.Idol),
-                    ButtonMode = GetButtonModeString(PresenceButtonMode.Store),
+                    ButtonMode = GetButtonModeString(PresenceButtonMode.App),
                     DetailsType = GetDetailsString(PresenceDetailsType.Both)
                 }
             };
@@ -104,7 +104,7 @@ namespace GkmStatus.src
     public class AppSettings
     {
         public bool StartMinimized { get; set; } = false;
-        public bool ConnectOnStart { get; set; } = false;
+        public bool ConnectOnStart { get; set; } = true;
         public bool AutoCheckUpdates { get; set; } = true;
         public bool ShowBackgroundNotifications { get; set; } = true;
         public bool NotifyOnMinimize { get; set; } = true;
@@ -126,7 +126,7 @@ namespace GkmStatus.src
         public string? SelectedProduceCharacterId { get; set; } = "hanami_saki";
         public Dictionary<string, string> StateHistory { get; set; } = [];
         public int GameAppIndex { get; set; } = 0;
-        public string ButtonMode { get; set; } = GetButtonModeString(PresenceButtonMode.Store);
+        public string ButtonMode { get; set; } = GetButtonModeString(PresenceButtonMode.App);
         public Dictionary<string, ButtonHistoryData> ButtonHistory { get; set; } = [];
     }
 

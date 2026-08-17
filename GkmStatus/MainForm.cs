@@ -71,9 +71,25 @@ namespace GkmStatus
             _processWatcher = new ProcessWatcher(PROCESS_NAME);
             _processWatcher.ProcessStarted += (s, e) =>
             {
-                startTime = DateTime.UtcNow;
-                UpdateTimestampLabel();
-                InitializeRpc();
+                // 一時停止中にプロセスが起動した場合のみ時間をリセット
+                if (isManualPaused && rpc.Status == RpcStatus.Paused)
+                {
+                    startTime = DateTime.UtcNow;
+                    UpdateTimestampLabel();
+                }
+                // ただし一時停止中の場合は自動再開
+                if (isManualPaused)
+                {
+                    isManualPaused = false;
+                    InitializeRpc();
+                }
+                else if (rpc.Status != RpcStatus.Connected)
+                {
+                    // 通常起動時は時間をリセット
+                    startTime = DateTime.UtcNow;
+                    UpdateTimestampLabel();
+                    InitializeRpc();
+                }
             };
 
             _processWatcher.ProcessStopped += (s, e) =>
@@ -112,6 +128,10 @@ namespace GkmStatus
             };
 
 
+            // 最初からウィンドウを非表示に設定して、UI初期化中の表示を防止
+            this.Visible = false;
+            this.ShowInTaskbar = false;
+
             isInitializing = true;
             _configManager.Load();
             LoadSettings();
@@ -119,9 +139,13 @@ namespace GkmStatus
             if (startMinimizedItem.Checked)
             {
                 this.WindowState = FormWindowState.Minimized;
-                this.ShowInTaskbar = false;
-                this.Visible = false;
                 trayIcon.Visible = true;
+            }
+            else
+            {
+                // 通常起動の場合のみ表示
+                this.ShowInTaskbar = true;
+                this.Visible = true;
             }
 
             UpdateDetailsInputs(null, EventArgs.Empty);
@@ -196,9 +220,20 @@ namespace GkmStatus
         private void RestoreFromTray()
         {
             _isFirstStartup = false;
-            this.ShowInTaskbar = true;
+            
+            // アイコンを明示的に再設定
+            if (this.Icon != null)
+            {
+                var tempIcon = this.Icon;
+                this.Icon = null;
+                this.Icon = tempIcon;
+            }
+            
+            this.ShowInTaskbar = false;  // 一度非表示に
+            this.ShowInTaskbar = true;   // 再度表示してタスクバーを更新
             this.Show();
             this.WindowState = FormWindowState.Normal;
+            this.Refresh();  // タスクバーのアイコン表示をリセット
             trayIcon.Visible = false;
             this.Activate();
             ReapplyTheme();
@@ -214,6 +249,14 @@ namespace GkmStatus
             _themeManager.ApplyTheme(this, theme);
             if (trayIcon.ContextMenuStrip != null)
                 _themeManager.ApplyThemeToContextMenu(trayIcon.ContextMenuStrip, theme);
+            
+            // Update button colors based on current theme
+            bool isBright = this.BackColor.GetBrightness() > 0.5;
+            Color disabledColor = isBright ? Color.FromArgb(200, 200, 200) : Color.FromArgb(60, 63, 65);
+            
+            if (!btnUpdate.Enabled) btnUpdate.BackColor = disabledColor;
+            if (!btnDisconnect.Enabled) btnDisconnect.BackColor = disabledColor;
+            if (!btnResetTime.Enabled) btnResetTime.BackColor = disabledColor;
         }
 
         private void ApplyLanguage()
@@ -766,6 +809,12 @@ namespace GkmStatus
             }
         }
 
+        private Color GetDisabledButtonColor()
+        {
+            bool isBright = this.BackColor.GetBrightness() > 0.5;
+            return isBright ? Color.FromArgb(200, 200, 200) : Color.FromArgb(60, 63, 65);
+        }
+
         private void UpdateUIForConnected(string username)
         {
             isManualPaused = false;
@@ -798,7 +847,7 @@ namespace GkmStatus
             btnConnect.BackColor = COLOR_CONNECT;
             btnConnect.Enabled = true;
             btnUpdate.Enabled = false;
-            btnUpdate.BackColor = COLOR_DISABLED;
+            btnUpdate.BackColor = GetDisabledButtonColor();
             btnDisconnect.Enabled = true;
             btnDisconnect.BackColor = COLOR_ERROR;
             btnResetTime.Enabled = true;
@@ -819,11 +868,11 @@ namespace GkmStatus
             btnConnect.BackColor = COLOR_CONNECT;
             btnConnect.Enabled = true;
             btnUpdate.Enabled = false;
-            btnUpdate.BackColor = COLOR_DISABLED;
+            btnUpdate.BackColor = GetDisabledButtonColor();
             btnDisconnect.Enabled = false;
-            btnDisconnect.BackColor = COLOR_DISABLED;
+            btnDisconnect.BackColor = GetDisabledButtonColor();
             btnResetTime.Enabled = false;
-            btnResetTime.BackColor = COLOR_DISABLED;
+            btnResetTime.BackColor = GetDisabledButtonColor();
             _trayIconManager?.UpdateStatusIcon(null);
             _trayIconManager?.UpdateMenuState(rpc.Status);
         }
@@ -843,6 +892,7 @@ namespace GkmStatus
                 case PresenceDetailsType.Both: details = $"{pName} | PLv{numPLevel.Value}"; break;
             }
             string? state = null;
+            string? stateUrl = null;
 
             var stateType = GetStateType(cmbStateType.SelectedIndex);
 
@@ -864,6 +914,11 @@ namespace GkmStatus
                     else
                     {
                         state = I18n.T(State_Idol_Format, name);
+                    }
+                    // Set StateUrl to the character's official page
+                    if (!string.IsNullOrEmpty(pc.Url))
+                    {
+                        stateUrl = pc.Url;
                     }
                 }
             }
@@ -888,10 +943,13 @@ namespace GkmStatus
                 {
                     Details = details ?? "",
                     State = state ?? "",
+                    StateUrl = stateUrl,
+                    DetailsUrl = RPC_ACTIVITY_URL,
                     Assets = new Assets
                     {
                         LargeImageKey = "app",
-                        LargeImageText = $"{I18n.T(App_Name)} v{Application.ProductVersion}"
+                        LargeImageText = $"{I18n.T(App_Name)} v{Application.ProductVersion}",
+                        LargeImageUrl = RPC_ACTIVITY_URL
                     },
                     Buttons = buttons,
                     Timestamps = new Timestamps(startTime)
