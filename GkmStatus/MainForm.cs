@@ -605,6 +605,9 @@ namespace GkmStatus
             presence.ButtonMode = GetButtonModeString(buttonMode);
             presence.CharNameLangIndex = cmbCharNameLang.SelectedIndex;
 
+            PresenceEditorHistory.SaveEditorHistory(presence, stateType, txtStateCustom.Text, buttonMode,
+                txtBtn1Label.Text, txtBtn1Url.Text, txtBtn2Label.Text, txtBtn2Url.Text);
+
             if (cmbProduceCharacter.SelectedIndex >= 0)
             {
                 string characterId = ProduceCharacters[cmbProduceCharacter.SelectedIndex].Id;
