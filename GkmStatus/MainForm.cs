@@ -140,7 +140,6 @@ namespace GkmStatus
 
             // 最初からウィンドウを非表示に設定して、UI初期化中の表示を防止
             this.Visible = false;
-            this.ShowInTaskbar = false;
 
             isInitializing = true;
             _configManager.Load();
