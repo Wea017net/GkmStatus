@@ -481,12 +481,15 @@ namespace GkmStatus
 
             void CheckBtnWarning(object sender, EventArgs e)
             {
-                bool labelOver = Encoding.UTF8.GetByteCount(txtBtn1Label.Text) > 32 || Encoding.UTF8.GetByteCount(txtBtn2Label.Text) > 32;
+                bool labelOver = Encoding.UTF8.GetByteCount(txtBtn1Label.Text) > 31 || Encoding.UTF8.GetByteCount(txtBtn2Label.Text) > 31;
                 bool urlJapanese = JapaneseRegex().IsMatch(txtBtn1Url.Text + txtBtn2Url.Text);
+                bool urlInvalid = (!string.IsNullOrWhiteSpace(txtBtn1Label.Text) && !IsValidRpcButtonUrl(txtBtn1Url.Text))
+                    || (!string.IsNullOrWhiteSpace(txtBtn2Label.Text) && !IsValidRpcButtonUrl(txtBtn2Url.Text));
 
                 var sb = new StringBuilder();
                 if (labelOver) sb.AppendLine(I18n.T(Button_Warning_LabelLength));
                 if (urlJapanese) sb.Append(I18n.T(Button_Warning_UrlJp));
+                else if (urlInvalid) sb.Append(I18n.T(Button_Warning_UrlInvalid));
 
                 string msg = sb.ToString().Trim();
                 lblBtnWarning.Text = msg;

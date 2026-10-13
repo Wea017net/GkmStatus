@@ -1,5 +1,6 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using System.Diagnostics;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using static GkmStatus.src.AppConstants;
@@ -114,8 +115,37 @@ namespace GkmStatus.src
 		public static string GetLangString(I18n.Language l) => l == I18n.Language.English ? "en" : "ja";
 		public static string GetLangString(int i) => GetLangString(GetLanguage(i));
 
-		public static bool IsValidRpcButtonUrl(string? url) => !string.IsNullOrEmpty(url)
-			&& (url.StartsWith("http://") || url.StartsWith("https://"))
-			&& !_japaneseRegex.IsMatch(url);
+		public static bool IsValidRpcButtonUrl(string? url)
+		{
+			if (string.IsNullOrWhiteSpace(url) || url.Any(char.IsControl) || url.Any(char.IsWhiteSpace))
+				return false;
+
+			if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+				return false;
+
+			return (uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+				|| uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+				&& !string.IsNullOrWhiteSpace(uri.Host)
+				&& !_japaneseRegex.IsMatch(url);
+		}
+
+		public static string TrimRpcButtonLabel(string? label, int maxBytes = 31)
+		{
+			if (string.IsNullOrEmpty(label) || maxBytes <= 0)
+				return string.Empty;
+
+			var builder = new StringBuilder();
+			int bytes = 0;
+			foreach (var rune in label.EnumerateRunes())
+			{
+				int runeBytes = rune.Utf8SequenceLength;
+				if (bytes + runeBytes > maxBytes)
+					break;
+				builder.Append(rune.ToString());
+				bytes += runeBytes;
+			}
+			return builder.ToString();
+		}
+
 	}
 }

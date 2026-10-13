@@ -256,6 +256,10 @@
       "key": "Button_Warning_UrlJp",
       "text": "URLに日本語を含めることはできません。\nパーセントエンコーディング後の文字列を使用してください。"
     },
+    {
+      "key": "Button_Warning_UrlInvalid",
+      "text": "URLは有効なhttp/httpsアドレスを指定してください。"
+    },
 
     {
       "key": "Status_Connected",

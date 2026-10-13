@@ -92,6 +92,7 @@ namespace GkmStatus.src.ui
             Placeholder_BtnUrl,
             Button_Warning_LabelLength,
             Button_Warning_UrlJp,
+            Button_Warning_UrlInvalid,
 
             Status_Connected,
             Status_Connected_Notify,

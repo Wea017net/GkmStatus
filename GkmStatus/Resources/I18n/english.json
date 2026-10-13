@@ -258,6 +258,10 @@
       "key": "Button_Warning_UrlJp",
       "text": "Japanese characters are not allowed in URLs.\nPlease use percent-encoded strings."
     },
+    {
+      "key": "Button_Warning_UrlInvalid",
+      "text": "Enter a valid HTTP or HTTPS URL."
+    },
 
     {
       "key": "Status_Disconnected",

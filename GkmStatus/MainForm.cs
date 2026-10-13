@@ -933,8 +933,8 @@ namespace GkmStatus
             if (GetButtonMode(cmbBtnMode.SelectedIndex) != PresenceButtonMode.None)
             {
 
-                var b1 = (!string.IsNullOrEmpty(txtBtn1Label.Text) && IsValidRpcButtonUrl(txtBtn1Url.Text)) ? new Button { Label = txtBtn1Label.Text, Url = txtBtn1Url.Text } : null;
-                var b2 = (!string.IsNullOrEmpty(txtBtn2Label.Text) && IsValidRpcButtonUrl(txtBtn2Url.Text)) ? new Button { Label = txtBtn2Label.Text, Url = txtBtn2Url.Text } : null;
+                var b1 = TryCreateRpcButton(txtBtn1Label.Text, txtBtn1Url.Text);
+                var b2 = TryCreateRpcButton(txtBtn2Label.Text, txtBtn2Url.Text);
                 if (b1 != null && b2 != null) buttons = [b1, b2]; else if (b1 != null) buttons = [b1]; else if (b2 != null) buttons = [b2];
             }
             if (!string.IsNullOrEmpty(details) && details.Length < 2) details = "";
@@ -961,6 +961,21 @@ namespace GkmStatus
             catch (Exception ex)
             {
                 Debug.WriteLine("RPC Update Error: " + ex.Message);
+            }
+        }
+
+        private static Button? TryCreateRpcButton(string? label, string? url)
+        {
+            if (string.IsNullOrWhiteSpace(label) || !IsValidRpcButtonUrl(url))
+                return null;
+
+            try
+            {
+                return new Button { Label = TrimRpcButtonLabel(label), Url = url };
+            }
+            catch (ArgumentException)
+            {
+                return null;
             }
         }
 
