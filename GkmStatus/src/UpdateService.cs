@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Text;
@@ -32,6 +32,9 @@ namespace GkmStatus.src
 
         private bool _disposed;
 
+        internal static bool ShouldCheckAutomatically(bool enabled, DateTime lastCheckUtc, DateTime nowUtc) =>
+            enabled && (nowUtc - lastCheckUtc) >= TimeSpan.FromHours(24);
+
 
         public async Task<UpdateCheckResult> CheckForUpdatesAsync(string currentVersion, CancellationToken cancellationToken = default)
         {
@@ -57,7 +60,7 @@ namespace GkmStatus.src
 
                 if(doc.RootElement.TryGetProperty("tag_name", out var tag))
                 {
-                    string latestStr = tag.GetString()?.TrimStart('v') ?? "";
+                    string latestStr = NormalizeVersion(tag.GetString() ?? "");
                     string currentStr = NormalizeVersion(currentVersion);
                     string htmlUrl = doc.RootElement.TryGetProperty("html_url", out var urlProp) ? urlProp.GetString() ?? "" : "";
 
@@ -87,17 +90,18 @@ namespace GkmStatus.src
             return result;
         }
 
-        private static string NormalizeVersion(string version)
+        internal static string NormalizeVersion(string version)
         {
             if(string.IsNullOrEmpty(version))
-                return version;
+                return string.Empty;
 
-            if(version.StartsWith("v",StringComparison.OrdinalIgnoreCase))
-                version = version[1..];
+            version = version.Trim();
+            if (version.StartsWith("Ver.", StringComparison.OrdinalIgnoreCase))
+                version = version[4..];
             else if(version.StartsWith("Ver",StringComparison.OrdinalIgnoreCase))
                 version = version[3..];
-            else if (version.StartsWith("Ver.", StringComparison.OrdinalIgnoreCase))
-                version = version[4..];
+            else if(version.StartsWith("v",StringComparison.OrdinalIgnoreCase))
+                version = version[1..];
 
             return version.Trim();
         }

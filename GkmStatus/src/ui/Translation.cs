@@ -29,6 +29,7 @@ namespace GkmStatus.src.ui
             Menu_Exit,
             Menu_Settings,
             Menu_RunAtStartup,
+            Startup_SettingFailed,
             Menu_StartMinimized,
             Menu_AutoConnect,
             Menu_CheckForUpdates,
@@ -50,6 +51,7 @@ namespace GkmStatus.src.ui
             Menu_OpenAppLocation,
             Menu_OpenConfigLocation,
             Tray_Open,
+            Tray_Idol,
             Tray_ProducingIdol,
             Tray_Exit,
 

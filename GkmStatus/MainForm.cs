@@ -20,14 +20,18 @@ namespace GkmStatus
         private readonly bool isInitializing = true;
         private int footerButtonsY;
         private bool _isFirstStartup = true;
-        private bool _isResettingDefaults;
+        private bool _syncingStartupSetting;
+        private int _updateDisplayVersion;
+        private bool _runtimeResourcesDisposed;
 
         private readonly DiscordRpcService rpc = new();
         private bool isManualPaused = false;
         private DateTime startTime;
         private System.Windows.Forms.Timer? connectionTimer;
+        private System.Windows.Forms.Timer? retryTimer;
         private System.Windows.Forms.Timer? clockTimer;
         private int connectionSeconds = 0;
+        private bool suppressAutomaticReconnect;
         private const int CONNECTION_TIMEOUT = 30;
 
         private int lastStateIdx = -1;
@@ -71,6 +75,8 @@ namespace GkmStatus
             _processWatcher = new ProcessWatcher(PROCESS_NAME);
             _processWatcher.ProcessStarted += (s, e) =>
             {
+                suppressAutomaticReconnect = false;
+                retryTimer?.Stop();
                 // 一時停止中にプロセスが起動した場合のみ時間をリセット
                 if (isManualPaused && rpc.Status == RpcStatus.Paused)
                 {
@@ -101,6 +107,8 @@ namespace GkmStatus
             {
                 SafeBeginInvoke(() =>
                 {
+                    if (isManualPaused || rpc.Status != RpcStatus.Connected)
+                        return;
                     if (startTime == default) startTime = DateTime.UtcNow;
                     connectionTimer?.Stop();
                     UpdateUIForConnected(username);
@@ -118,10 +126,12 @@ namespace GkmStatus
                 {
                     if (status == RpcStatus.Error)
                     {
+                        if (rpc.Status != RpcStatus.Error) return;
                         HandleConnectionError(rpc.LastErrorMessage ?? "Unknown RPC Error");
                     }
                     else if (status == RpcStatus.Disconnected)
                     {
+                        if (rpc.LastErrorMessage != null || rpc.Status != RpcStatus.Disconnected) return;
                         UpdateUIForDisconnect();
                     }
                 });
@@ -154,6 +164,12 @@ namespace GkmStatus
 
             isInitializing = false;
             InitializeLogic();
+            if (_processWatcher.Enabled)
+                _processWatcher.ForceCheck();
+            if (autoConnectItem.Checked)
+                InitializeRpc();
+            if (checkForUpdatesItem.Checked)
+                _ = CheckForUpdatesAsync(manual: false);
 
 
             this.FormClosing += (s, e) =>
@@ -174,26 +190,38 @@ namespace GkmStatus
 
                 SaveSettings();
 
-                connectionTimer?.Stop();
-                connectionTimer?.Dispose();
-                connectionTimer = null;
-
-                clockTimer?.Stop();
-                clockTimer?.Dispose();
-                clockTimer = null;
-
-                rpc.Dispose();
-                _processWatcher.Dispose();
-                _fontManager.Dispose();
-                _updateCts?.Cancel();
-                _updateCts?.Dispose();
-                _updateService.Dispose();
-
-                if (trayIcon != null)
-                    trayIcon.Visible = false;
-                _trayIconManager?.Dispose();
+                DisposeRuntimeResources();
             };
 
+        }
+
+        private void DisposeRuntimeResources()
+        {
+            if (_runtimeResourcesDisposed) return;
+            _runtimeResourcesDisposed = true;
+
+            Interlocked.Increment(ref _updateDisplayVersion);
+            foreach (var timer in new[] { connectionTimer, retryTimer, clockTimer, gameAppGuideTimer, resetGuideTimer })
+            {
+                timer?.Stop();
+                timer?.Dispose();
+            }
+            connectionTimer = null;
+            retryTimer = null;
+            clockTimer = null;
+
+            _updateCts?.Cancel();
+            _updateCts?.Dispose();
+            _updateCts = null;
+            rpc.Dispose();
+            _processWatcher?.Dispose();
+            _fontManager.Dispose();
+            _updateService.Dispose();
+            statusToolTip?.Dispose();
+            if (trayIcon != null)
+                trayIcon.Visible = false;
+            _trayIconManager?.Dispose();
+            trayIcon?.ContextMenuStrip?.Dispose();
         }
 
         private void SafeBeginInvoke(Action action)
@@ -307,7 +335,11 @@ namespace GkmStatus
                 trayIcon.ContextMenuStrip.Items[0].Text = I18n.T(Tray_Open);
                 if (trayMenuDetails != null) trayMenuDetails.Text = I18n.T(Header_Details);
                 if (trayMenuState != null) trayMenuState.Text = I18n.T(Header_State);
-                if (trayMenuProduce != null) trayMenuProduce.Text = I18n.T(Tray_ProducingIdol);
+                if (trayMenuProduce != null)
+                {
+                    var stateType = GetStateType(cmbStateType?.SelectedIndex ?? -1);
+                    trayMenuProduce.Text = I18n.T(stateType == PresenceStateType.Idol ? Tray_Idol : Tray_ProducingIdol);
+                }
                 trayMenuConnect.Text = I18n.T(Button_Connect);
                 trayMenuPause.Text = I18n.T(Button_Pause);
                 trayMenuDisconnect.Text = I18n.T(Button_Disconnect);
@@ -358,10 +390,10 @@ namespace GkmStatus
                 cb.SelectedIndex = Math.Min(idx, cb.Items.Count - 1);
             }
 
-            RefreshCombo(cmbDetailsType, [I18n.T(Details_None), I18n.T(Details_PName), I18n.T(Details_PLv), I18n.T(Details_Both)]);
-            RefreshCombo(cmbStateType, [I18n.T(State_None), I18n.T(State_PID), I18n.T(State_Idol), I18n.T(State_Producing), I18n.T(State_Custom)]);
-            RefreshCombo(cmbBtnMode, [I18n.T(Button_ModeNone), I18n.T(Button_ModeStore), I18n.T(Button_ModeApp), I18n.T(Button_ModeCustom)]);
-            RefreshCombo(cmbCharNameLang, [I18n.T(CharName_JP), I18n.T(CharName_EN)]);
+            RefreshCombo(cmbDetailsType!, [I18n.T(Details_None), I18n.T(Details_PName), I18n.T(Details_PLv), I18n.T(Details_Both)]);
+            RefreshCombo(cmbStateType!, [I18n.T(State_None), I18n.T(State_PID), I18n.T(State_Idol), I18n.T(State_Producing), I18n.T(State_Custom)]);
+            RefreshCombo(cmbBtnMode!, [I18n.T(Button_ModeNone), I18n.T(Button_ModeStore), I18n.T(Button_ModeApp), I18n.T(Button_ModeCustom)]);
+            RefreshCombo(cmbCharNameLang!, [I18n.T(CharName_JP), I18n.T(CharName_EN)]);
 
             CmbStateType_SelectedIndexChanged(null, EventArgs.Empty);
             CmbBtnMode_SelectedIndexChanged(null, EventArgs.Empty);
@@ -389,7 +421,7 @@ namespace GkmStatus
 
         private async Task CheckForUpdatesAsync(bool manual = false)
         {
-            if (!manual && (DateTime.UtcNow - lastUpdateCheck).TotalHours < 24)
+            if (!manual && !UpdateService.ShouldCheckAutomatically(checkForUpdatesItem.Checked, lastUpdateCheck, DateTime.UtcNow))
                 return;
 
             _updateCts?.Cancel();
@@ -450,6 +482,8 @@ namespace GkmStatus
             int idx = cmbStateType.SelectedIndex;
             if (idx == -1) return;
             var stateType = GetStateType(idx);
+            if (trayMenuProduce != null)
+                trayMenuProduce.Text = I18n.T(stateType == PresenceStateType.Idol ? Tray_Idol : Tray_ProducingIdol);
 
             if (!isInitializing && lastStateIdx != -1)
             {
@@ -635,10 +669,6 @@ namespace GkmStatus
                 monitorItem.Checked = settings.AutoDetectGakumas;
 
                 _processWatcher.Enabled = settings.AutoDetectGakumas;
-                if (_processWatcher.Enabled)
-                {
-                    _processWatcher.ForceCheck();
-                }
 
                 var theme = GetTheme(settings.SelectedTheme);
                 switch (theme)
@@ -690,31 +720,11 @@ namespace GkmStatus
 
                 cmbBtnMode.SelectedIndex = GetButtonModeIndex(GetButtonMode(presence.ButtonMode ?? GetButtonModeString(PresenceButtonMode.Store)));
 
-                if (settings.ConnectOnStart) InitializeRpc();
                 ApplyLanguage();
             }
             catch (Exception ex)
             {
                 Debug.WriteLine("UI Load Error: " + ex.Message);
-                if (!_isResettingDefaults)
-                    SetDefaultSettings();
-            }
-        }
-
-        private void SetDefaultSettings()
-        {
-            if (_isResettingDefaults)
-                return;
-
-            _isResettingDefaults = true;
-            try
-            {
-                _configManager.ResetToDefault();
-                LoadSettings();
-            }
-            finally
-            {
-                _isResettingDefaults = false;
             }
         }
 
@@ -731,9 +741,16 @@ namespace GkmStatus
             };
         }
 
-        private void InitializeRpc()
+        private void InitializeRpc(bool automaticRetry = false)
         {
-            if (rpc.Status == RpcStatus.Paused)
+            if (!automaticRetry)
+            {
+                suppressAutomaticReconnect = false;
+                isManualPaused = false;
+            }
+
+            retryTimer?.Stop();
+            if (rpc.Status == RpcStatus.Paused && rpc.IsInitialized)
             {
                 rpc.Resume();
                 isManualPaused = false;
@@ -782,16 +799,26 @@ namespace GkmStatus
             btnUpdate.Enabled = false; btnUpdate.BackColor = COLOR_DISABLED;
             btnDisconnect.Enabled = false; btnDisconnect.BackColor = COLOR_DISABLED;
             _trayIconManager?.UpdateStatusIcon(null);
-            rpc.Deinitialize();
+            rpc.Deinitialize(preserveError: true);
             _trayIconManager?.UpdateMenuState(rpc.Status);
+            ScheduleAutomaticRetry();
         }
 
         private void PauseRpc()
         {
-            if (rpc.IsInitialized == true)
-                rpc.Clear();
+            retryTimer?.Stop();
             isManualPaused = true;
-            UpdateUIForPause();
+            if (rpc.IsInitialized == true)
+            {
+                rpc.Clear();
+                UpdateUIForPause();
+            }
+            else
+            {
+                if (rpc.Status == RpcStatus.Connecting)
+                    rpc.Deinitialize();
+                UpdateUIForDisconnect();
+            }
             if (this.WindowState == FormWindowState.Minimized && (notifyInBackgroundItem?.Checked == true))
             {
                 trayIcon.Tag = null;
@@ -801,6 +828,8 @@ namespace GkmStatus
 
         private void DisposeRpc()
         {
+            suppressAutomaticReconnect = true;
+            retryTimer?.Stop();
             connectionTimer?.Stop();
             rpc.Deinitialize();
             isManualPaused = false;
@@ -837,6 +866,27 @@ namespace GkmStatus
             btnResetTime.BackColor = COLOR_PRIMARY;
             _trayIconManager?.UpdateStatusIcon(COLOR_CONNECT, I18n.T(Tray_Status_Connected));
             _trayIconManager?.UpdateMenuState(rpc.Status);
+        }
+
+        private void ScheduleAutomaticRetry()
+        {
+            if (_runtimeResourcesDisposed || suppressAutomaticReconnect || isManualPaused
+                || !monitorItem.Checked || !_processWatcher.IsRunning)
+                return;
+
+            retryTimer ??= new System.Windows.Forms.Timer { Interval = 15000 };
+            retryTimer.Stop();
+            retryTimer.Tick -= AutomaticRetryTick;
+            retryTimer.Tick += AutomaticRetryTick;
+            retryTimer.Start();
+        }
+
+        private void AutomaticRetryTick(object? sender, EventArgs e)
+        {
+            retryTimer?.Stop();
+            if (!_runtimeResourcesDisposed && !suppressAutomaticReconnect && !isManualPaused
+                && monitorItem.Checked && _processWatcher.IsRunning)
+                InitializeRpc(automaticRetry: true);
         }
 
         private void UpdateUIForPause()
@@ -973,8 +1023,9 @@ namespace GkmStatus
             {
                 return new Button { Label = TrimRpcButtonLabel(label), Url = url };
             }
-            catch (ArgumentException)
+            catch (Exception ex) when (ex is ArgumentException or FormatException)
             {
+                Debug.WriteLine("Invalid RPC button was skipped: " + ex.Message);
                 return null;
             }
         }

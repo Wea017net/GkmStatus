@@ -21,6 +21,10 @@
       "text": "システム起動時に実行"
     },
     {
+      "key": "Startup_SettingFailed",
+      "text": "スタートアップ設定を変更できませんでした。権限と設定を確認してください。"
+    },
+    {
       "key": "Menu_StartMinimized",
       "text": "最小化した状態(システムトレイ内)で起動"
     },
@@ -103,6 +107,10 @@
     {
       "key": "Tray_Open",
       "text": "開く"
+    },
+    {
+      "key": "Tray_Idol",
+      "text": "担当アイドル"
     },
     {
       "key": "Tray_ProducingIdol",

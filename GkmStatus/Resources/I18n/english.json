@@ -22,6 +22,10 @@
       "text": "Run at system startup"
     },
     {
+      "key": "Startup_SettingFailed",
+      "text": "Could not change the startup setting. Check permissions and settings."
+    },
+    {
       "key": "Menu_StartMinimized",
       "text": "Start minimized in tray"
     },
@@ -104,6 +108,10 @@
     {
       "key": "Tray_Open",
       "text": "Open"
+    },
+    {
+      "key": "Tray_Idol",
+      "text": "Favorite Idol"
     },
     {
       "key": "Tray_ProducingIdol",

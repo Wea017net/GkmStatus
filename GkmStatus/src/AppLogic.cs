@@ -45,20 +45,22 @@ namespace GkmStatus.src
 			catch { return false; }
 		}
 
-		public static void SetRunAtStartup(bool run)
+		public static bool SetRunAtStartup(bool run)
 		{
 			try
 			{
-				using RegistryKey? key = Registry.CurrentUser.OpenSubKey(REG_RUN_KEY, true);
-				if (key != null)
+				using RegistryKey? key = Registry.CurrentUser.CreateSubKey(REG_RUN_KEY, writable: true);
+				if (key == null) return false;
+				if (run)
 				{
-					if (run) key.SetValue(APP_NAME, Application.ExecutablePath);
-					else key.DeleteValue(APP_NAME, false);
+					key.SetValue(APP_NAME, $"\"{Application.ExecutablePath}\"");
 				}
+				else key.DeleteValue(APP_NAME, false);
+				return IsRunAtStartup() == run;
 			}
-			catch (Exception ex)
+			catch
 			{
-				MessageBox.Show("スタートアップ設定の変更に失敗しました: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+				return false;
 			}
 		}
 
@@ -83,28 +85,28 @@ namespace GkmStatus.src
 		public static Regex JapaneseRegex() => _japaneseRegex;
 
 		public static PresenceStateType GetStateType(int i) => Enum.IsDefined(typeof(PresenceStateType), i) ? (PresenceStateType)i : PresenceStateType.Producing;
-		public static PresenceStateType GetStateType(string? s) => Enum.TryParse<PresenceStateType>(s, out var t) ? t : PresenceStateType.Producing;
+		public static PresenceStateType GetStateType(string? s) => Enum.TryParse<PresenceStateType>(s, out var t) && Enum.IsDefined(t) ? t : PresenceStateType.Producing;
 		public static string GetStateString(PresenceStateType t) => t.ToString();
 		public static int GetStateIndex(PresenceStateType t) => (int)t;
 		public static string GetStateString(int i) => GetStateString(GetStateType(i));
 		public static int GetStateIndex(string s) => GetStateIndex(GetStateType(s));
 
 		public static PresenceDetailsType GetDetailsType(int i) => Enum.IsDefined(typeof(PresenceDetailsType), i) ? (PresenceDetailsType)i : PresenceDetailsType.Both;
-		public static PresenceDetailsType GetDetailsType(string? s) => Enum.TryParse<PresenceDetailsType>(s, out var t) ? t : PresenceDetailsType.Both;
+		public static PresenceDetailsType GetDetailsType(string? s) => Enum.TryParse<PresenceDetailsType>(s, out var t) && Enum.IsDefined(t) ? t : PresenceDetailsType.Both;
 		public static string GetDetailsString(PresenceDetailsType t) => t.ToString();
 		public static int GetDetailsIndex(PresenceDetailsType t) => (int)t;
 		public static string GetDetailsString(int i) => GetDetailsString(GetDetailsType(i));
 		public static int GetDetailsIndex(string s) => GetDetailsIndex(GetDetailsType(s));
 
 		public static PresenceButtonMode GetButtonMode(int i) => Enum.IsDefined(typeof(PresenceButtonMode), i) ? (PresenceButtonMode)i : PresenceButtonMode.None;
-		public static PresenceButtonMode GetButtonMode(string? s) => Enum.TryParse<PresenceButtonMode>(s, out var t) ? t : PresenceButtonMode.None;
+		public static PresenceButtonMode GetButtonMode(string? s) => Enum.TryParse<PresenceButtonMode>(s, out var t) && Enum.IsDefined(t) ? t : PresenceButtonMode.None;
 		public static string GetButtonModeString(PresenceButtonMode t) => t.ToString();
 		public static int GetButtonModeIndex(PresenceButtonMode t) => (int)t;
 		public static string GetButtonModeString(int i) => GetButtonModeString(GetButtonMode(i));
 		public static int GetButtonModeIndex(string s) => GetButtonModeIndex(GetButtonMode(s));
 
 		public static AppTheme GetTheme(int i) => Enum.IsDefined(typeof(AppTheme), i) ? (AppTheme)i : AppTheme.Auto;
-		public static AppTheme GetTheme(string? s) => Enum.TryParse<AppTheme>(s, out var t) ? t : AppTheme.Auto;
+		public static AppTheme GetTheme(string? s) => Enum.TryParse<AppTheme>(s, out var t) && Enum.IsDefined(t) ? t : AppTheme.Auto;
 		public static string GetThemeString(AppTheme t) => t.ToString();
 		public static string GetThemeString(int i) => GetThemeString(GetTheme(i));
 		public static int GetThemeIndex(string s) => GetThemeIndex(GetTheme(s));

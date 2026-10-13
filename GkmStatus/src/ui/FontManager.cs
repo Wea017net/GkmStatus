@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing.Text;
@@ -14,9 +14,14 @@ namespace GkmStatus.src
     {
         [LibraryImport("gdi32.dll")]
         private static partial IntPtr AddFontMemResourceEx(IntPtr pbFont, uint cbFont, IntPtr pdv, out uint pcFonts);
+        [LibraryImport("gdi32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool RemoveFontMemResourceEx(IntPtr fh);
 
         private PrivateFontCollection? _pfc;
         private readonly List<IntPtr> _fontPointers = [];
+        private readonly List<IntPtr> _fontResourceHandles = [];
+        private bool _disposed;
 
         public Font AppFont { get; private set; } = null!;
         public Font AppFontBold { get; private set; } = null!;
@@ -54,18 +59,28 @@ namespace GkmStatus.src
                     using Stream? stream = assembly.GetManifestResourceStream(resourceName);
                     if (stream != null)
                     {
+                        IntPtr fontPtr = IntPtr.Zero;
                         try
                         {
                             byte[] fontData = new byte[stream.Length];
                             stream.ReadExactly(fontData, 0, (int)stream.Length);
-                            IntPtr fontPtr = Marshal.AllocCoTaskMem(fontData.Length);
+                            fontPtr = Marshal.AllocCoTaskMem(fontData.Length);
                             Marshal.Copy(fontData, 0, fontPtr, fontData.Length);
 
                             _pfc.AddMemoryFont(fontPtr, fontData.Length);
-                            AddFontMemResourceEx(fontPtr, (uint)fontData.Length, IntPtr.Zero, out uint _);
                             _fontPointers.Add(fontPtr);
+                            fontPtr = IntPtr.Zero;
+                            IntPtr registeredPtr = _fontPointers[^1];
+                            IntPtr resourceHandle = AddFontMemResourceEx(registeredPtr, (uint)fontData.Length, IntPtr.Zero, out uint _);
+                            if (resourceHandle != IntPtr.Zero)
+                                _fontResourceHandles.Add(resourceHandle);
                         }
                         catch (Exception ex) { Debug.WriteLine($"Failed loading font '{resourceName}': {ex.Message}"); }
+                        finally
+                        {
+                            if (fontPtr != IntPtr.Zero)
+                                Marshal.FreeCoTaskMem(fontPtr);
+                        }
                     }
                 }
 
@@ -132,14 +147,20 @@ namespace GkmStatus.src
 
         public void Dispose()
         {
+            if (_disposed) return;
+            _disposed = true;
+
             AppFont?.Dispose();
             AppFontBold?.Dispose();
             AppFontMedium?.Dispose();
             MenuFont?.Dispose();
 
+            foreach (var handle in _fontResourceHandles) RemoveFontMemResourceEx(handle);
+            _fontResourceHandles.Clear();
+            _pfc?.Dispose();
+            _pfc = null;
             foreach (var ptr in _fontPointers) Marshal.FreeCoTaskMem(ptr);
             _fontPointers.Clear();
-            _pfc?.Dispose();
 
             GC.SuppressFinalize(this);
         }
