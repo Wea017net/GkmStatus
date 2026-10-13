@@ -5,8 +5,8 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "GakumasRPC",
-            "program": "${workspaceFolder}/bin/Debug/net10.0-windows/GakumasRPC.exe",
+            "name": "GkmStatus",
+            "program": "${workspaceFolder}/bin/Debug/net10.0-windows/GkmStatus.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
