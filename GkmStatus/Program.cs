@@ -9,8 +9,11 @@ namespace GkmStatus
     internal static partial class Program
     {
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
+            if (GkmStatus.src.UpdaterService.TryRunUpdaterMode(args))
+                return;
+
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
             ApplicationConfiguration.Initialize();
 
@@ -20,9 +23,13 @@ namespace GkmStatus
                 MessageBox.Show("すでに起動しています。", "GkmStatus", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+            GkmStatus.src.UpdaterService.CleanupTemporaryUpdaterFromArguments(args);
+            GkmStatus.src.UpdaterService.CleanupStaleTemporaryUpdaters();
+
             try
             {
-                MainForm mainForm = new();
+                bool showAfterUpdate = args.Any(argument => argument.Equals("--show-after-update", StringComparison.Ordinal));
+                MainForm mainForm = new(showAfterUpdate);
                 Application.Run(mainForm);
             }
             catch (Exception ex)

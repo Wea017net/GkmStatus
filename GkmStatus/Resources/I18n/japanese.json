@@ -409,11 +409,11 @@
     },
     {
       "key": "Update_NotificationBody",
-      "text": "新しいバージョン {0} が公開されています。\nクリックしてダウンロードページを開きます。"
+      "text": "新しいバージョン {0} が公開されています。\nクリックしてダウンロードとインストールを開始します。"
     },
     {
       "key": "Update_NewAvailable",
-      "text": "新しいバージョン {0} が公開されています。\nダウンロードページを開きますか？"
+      "text": "新しいバージョン {0} が公開されています。\nダウンロードしてインストールしますか？アプリを終了します。"
     },
     {
       "key": "Update_NoUpdate",
@@ -422,6 +422,22 @@
     {
       "key": "Update_RateLimit",
       "text": "GitHub APIの回数制限に達しました。しばらく時間をおいてから再度お試しください。"
+    },
+    {
+      "key": "Update_Downloading",
+      "text": "更新ファイルをダウンロードしています..."
+    },
+    {
+      "key": "Update_Installing",
+      "text": "最新バージョンをダウンロードして適用しています..."
+    },
+    {
+      "key": "Update_DownloadComplete",
+      "text": "更新が完了しました。"
+    },
+    {
+      "key": "Update_DownloadFailed",
+      "text": "更新に失敗しました: {0}"
     },
     {
       "key": "Notify_Minimized",

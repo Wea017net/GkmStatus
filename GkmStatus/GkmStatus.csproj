@@ -20,6 +20,10 @@
     <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(GkmStatusUpdaterTestMode)' == 'true'">
+    <DefineConstants>$(DefineConstants);GKMSTATUS_UPDATER_TEST_MODE</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <None Remove="app.manifest" />
   </ItemGroup>
