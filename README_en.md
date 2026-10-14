@@ -52,24 +52,17 @@ We hope that displaying player information in the activity will encourage commun
 ## System Requirements
 
 * Windows 10 64-bit / Windows 11 64-bit
-* [.NET 10.0 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
 
 > [!NOTE]
 > Running on Windows on ARM, macOS, or Linux is not supported.
 
-## Edition Differences
+## Available Edition
 
-> [!TIP]
-> GkmStatus is available in two editions: Standard and Lite.
-> Please choose the edition that best fits your environment.
+Starting with v1.2.0, only the Windows x64 self-contained edition is distributed. The Lite edition is discontinued.
 
-### Standard Edition (`GkmStatus_win-x64_vx.x.x.zip`)
+### Windows x64 Edition (`GkmStatus_win-x64_vx.x.x.zip`)
 
-Contains only the `GkmStatus.exe` file. Since the .NET Runtime 10.0 is built-in (Self-contained), you can use it immediately without any additional installations.
-
-### Lite Edition (`GkmStatus_win-x64_vx.x.x_lite.zip`)
-
-Contains `GkmStatus.exe` and several supporting files. This edition has a smaller file size, but since the .NET Runtime 10.0 is not included, you must have it pre-installed on your PC.
+Run `GkmStatus.exe` directly without installing .NET Runtime 10.0 separately; the runtime is included. If you use the Lite edition, download the Standard edition from v1.2.0 onward. Your existing settings will be preserved.
 
 ## Supported Languages
 
