@@ -12,8 +12,9 @@
 
 ## ダウンロード
 
-- 通常版: `GkmStatus_win-x64_v1.2.0.zip`
-- Lite版 (.NET 10 Runtimeが別途必要): `GkmStatus_win-x64_v1.2.0_lite.zip`
+- Windows x64版（.NET Runtime 10.0同梱）: `GkmStatus_win-x64_v1.2.0.zip`
+
+Ver.1.2.0以降はLite版の配布を終了します。旧Lite版からアプリ内アップデートした場合は、この自己完結型の通常版へ移行します。
 
 ## English
 
@@ -27,5 +28,6 @@
 
 ### Downloads
 
-- Standard: `GkmStatus_win-x64_v1.2.0.zip`
-- Lite (requires .NET 10 Runtime): `GkmStatus_win-x64_v1.2.0_lite.zip`
+- Windows x64 (includes .NET Runtime 10.0): `GkmStatus_win-x64_v1.2.0.zip`
+
+The Lite edition is discontinued starting with v1.2.0. Existing Lite installations are converted to this self-contained edition when updated in-app.
