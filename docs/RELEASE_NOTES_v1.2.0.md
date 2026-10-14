@@ -30,4 +30,4 @@ Ver.1.2.0以降はLite版の配布を終了します。Lite版をご利用中の
 
 - Windows x64 (includes .NET Runtime 10.0): `GkmStatus_win-x64_v1.2.0.zip`
 
-The Lite edition is discontinued starting with v1.2.0. Existing Lite installations are converted to this self-contained edition when updated in-app.
+The Lite edition is discontinued starting with v1.2.0. If you use the Lite edition, download the Standard edition; your existing settings will be preserved.
