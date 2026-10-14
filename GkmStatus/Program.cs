@@ -23,17 +23,11 @@ namespace GkmStatus
                 MessageBox.Show("すでに起動しています。", "GkmStatus", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+            GkmStatus.src.UpdaterService.CleanupTemporaryUpdaterFromArguments(args);
+            GkmStatus.src.UpdaterService.CleanupStaleTemporaryUpdaters();
+
             try
             {
-                try
-                {
-                    GkmStatus.src.UpdaterService.EnsureInstalled();
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine("Could not prepare the updater: " + ex.Message);
-                }
-
                 bool showAfterUpdate = args.Any(argument => argument.Equals("--show-after-update", StringComparison.Ordinal));
                 MainForm mainForm = new(showAfterUpdate);
                 Application.Run(mainForm);
