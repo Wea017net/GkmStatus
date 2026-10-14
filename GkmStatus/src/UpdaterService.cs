@@ -305,6 +305,7 @@ internal static class UpdaterService
         string stageDirectory = Path.Combine(workDirectory, "stage");
         string backupDirectory = Path.Combine(workDirectory, "backup");
         List<(string Destination, string? Backup)> changedFiles = [];
+        bool preserveWorkDirectory = false;
 
         try
         {
@@ -319,17 +320,26 @@ internal static class UpdaterService
 
             CopyVerifiedArchive(downloadedArchivePath, archivePath, request.Sha256);
             ExtractAndValidate(archivePath, stageDirectory);
-            changedFiles = ReplaceFiles(stageDirectory, request.InstallDirectory, backupDirectory);
-
+            ReplaceFiles(stageDirectory, request.InstallDirectory, backupDirectory, changedFiles);
         }
-        catch
+        catch (Exception updateException)
         {
-            RestoreChangedFiles(changedFiles);
+            Exception? rollbackException = RollbackChangedFilesAndCleanup(changedFiles, workDirectory);
+            if (rollbackException != null)
+            {
+                preserveWorkDirectory = true;
+                throw new AggregateException(
+                    $"The update failed and rollback was incomplete. Recovery files were kept at: {workDirectory}",
+                    updateException,
+                    rollbackException);
+            }
+
             throw;
         }
         finally
         {
-            TryDeleteDirectory(workDirectory);
+            if (!preserveWorkDirectory)
+                TryDeleteDirectory(workDirectory);
             TryDeleteFile(downloadedArchivePath);
         }
 
@@ -553,14 +563,20 @@ internal static class UpdaterService
             throw new InvalidDataException("The staged update failed its SHA-256 verification.");
     }
 
-    private static List<(string Destination, string? Backup)> ReplaceFiles(string stageDirectory, string installDirectory, string backupDirectory)
+    private static void ReplaceFiles(
+        string stageDirectory,
+        string installDirectory,
+        string backupDirectory,
+        List<(string Destination, string? Backup)> changedFiles,
+        Action<string, string, bool>? copyFile = null)
     {
-        var files = Directory.GetFiles(stageDirectory, "*", SearchOption.AllDirectories);
-        if (files.Length == 0)
+        var files = Directory.GetFiles(stageDirectory, "*", SearchOption.AllDirectories)
+            .OrderBy(path => Path.GetRelativePath(stageDirectory, path), StringComparer.Ordinal);
+        if (!files.Any())
             throw new InvalidDataException("The update package is empty.");
 
         Directory.CreateDirectory(backupDirectory);
-        var changedFiles = new List<(string Destination, string? Backup)>();
+        copyFile ??= CopyFileWithRetry;
         foreach (string sourcePath in files)
         {
             string relativePath = Path.GetRelativePath(stageDirectory, sourcePath);
@@ -576,13 +592,13 @@ internal static class UpdaterService
             {
                 backupPath = Path.Combine(backupDirectory, relativePath);
                 Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
-                CopyFileWithRetry(destinationPath, backupPath, overwrite: true);
+                copyFile(destinationPath, backupPath, true);
             }
 
+            // Record the target before copying so a failed or partial copy is also rolled back.
             changedFiles.Add((destinationPath, backupPath));
-            CopyFileWithRetry(sourcePath, destinationPath, overwrite: true);
+            copyFile(sourcePath, destinationPath, true);
         }
-        return changedFiles;
     }
 
     private static void CopyFileWithRetry(string sourcePath, string destinationPath, bool overwrite)
@@ -612,6 +628,22 @@ internal static class UpdaterService
                 File.Copy(changedFile.Backup, changedFile.Destination, overwrite: true);
             else if (File.Exists(changedFile.Destination))
                 File.Delete(changedFile.Destination);
+        }
+    }
+
+    private static Exception? RollbackChangedFilesAndCleanup(
+        IEnumerable<(string Destination, string? Backup)> changedFiles,
+        string workDirectory)
+    {
+        try
+        {
+            RestoreChangedFiles(changedFiles);
+            TryDeleteDirectory(workDirectory);
+            return null;
+        }
+        catch (Exception exception)
+        {
+            return exception;
         }
     }
 

@@ -228,6 +228,64 @@ public sealed class RegressionTests
     }
 
     [TestMethod]
+    public void UpdaterRollsBackEarlierReplacementsWhenALaterCopyFails()
+    {
+        string testRoot = Path.Combine(Path.GetTempPath(), "GkmStatus.Updater.Tests", Guid.NewGuid().ToString("N"));
+        string workDirectory = Path.Combine(testRoot, "work");
+        string stageDirectory = Path.Combine(workDirectory, "stage");
+        string installDirectory = Path.Combine(testRoot, "install");
+        string backupDirectory = Path.Combine(workDirectory, "backup");
+        Directory.CreateDirectory(stageDirectory);
+        Directory.CreateDirectory(installDirectory);
+
+        File.WriteAllText(Path.Combine(stageDirectory, "GkmStatus.exe"), "new executable");
+        File.WriteAllText(Path.Combine(stageDirectory, "a.dll"), "new library a");
+        File.WriteAllText(Path.Combine(stageDirectory, "b.dll"), "new library b");
+        File.WriteAllText(Path.Combine(stageDirectory, "c.dll"), "new library c");
+        File.WriteAllText(Path.Combine(installDirectory, "GkmStatus.exe"), "old executable");
+        File.WriteAllText(Path.Combine(installDirectory, "a.dll"), "old library a");
+        File.WriteAllText(Path.Combine(installDirectory, "b.dll"), "old library b");
+
+        var changedFiles = new List<(string Destination, string? Backup)>();
+        string failedDestination = Path.Combine(installDirectory, "b.dll");
+        Action<string, string, bool> failOnLaterTarget = (source, destination, overwrite) =>
+        {
+            if (destination.Equals(failedDestination, StringComparison.OrdinalIgnoreCase))
+                throw new IOException("Injected replacement failure.");
+
+            File.Copy(source, destination, overwrite);
+        };
+
+        try
+        {
+            var updaterType = typeof(UpdateService).Assembly.GetType("GkmStatus.src.UpdaterService");
+            Assert.IsNotNull(updaterType);
+            var replaceMethod = updaterType.GetMethod("ReplaceFiles", BindingFlags.Static | BindingFlags.NonPublic);
+            var rollbackMethod = updaterType.GetMethod("RollbackChangedFilesAndCleanup", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.IsNotNull(replaceMethod);
+            Assert.IsNotNull(rollbackMethod);
+
+            var replacementFailure = Assert.ThrowsException<TargetInvocationException>(() =>
+                replaceMethod.Invoke(null, [stageDirectory, installDirectory, backupDirectory, changedFiles, failOnLaterTarget]));
+            Assert.IsInstanceOfType<IOException>(replacementFailure.InnerException);
+            Assert.AreEqual(3, changedFiles.Count);
+
+            Assert.IsNull(rollbackMethod.Invoke(null, [changedFiles, workDirectory]));
+
+            Assert.AreEqual("old executable", File.ReadAllText(Path.Combine(installDirectory, "GkmStatus.exe")));
+            Assert.AreEqual("old library a", File.ReadAllText(Path.Combine(installDirectory, "a.dll")));
+            Assert.AreEqual("old library b", File.ReadAllText(Path.Combine(installDirectory, "b.dll")));
+            Assert.IsFalse(File.Exists(Path.Combine(installDirectory, "c.dll")));
+            Assert.IsFalse(Directory.Exists(workDirectory), "Successful rollback should remove staged and backup files.");
+        }
+        finally
+        {
+            if (Directory.Exists(testRoot))
+                Directory.Delete(testRoot, recursive: true);
+        }
+    }
+
+    [TestMethod]
     public void TemporaryUpdaterCleanupOnlyAcceptsItsGeneratedDirectChildFolder()
     {
         string tempDirectory = Path.Combine(Path.GetTempPath(), "GkmStatus.Updater.Tests", Guid.NewGuid().ToString("N"));
