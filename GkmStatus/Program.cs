@@ -9,8 +9,11 @@ namespace GkmStatus
     internal static partial class Program
     {
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
+            if (GkmStatus.src.UpdaterService.TryRunUpdaterMode(args))
+                return;
+
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
             ApplicationConfiguration.Initialize();
 
@@ -22,7 +25,17 @@ namespace GkmStatus
             }
             try
             {
-                MainForm mainForm = new();
+                try
+                {
+                    GkmStatus.src.UpdaterService.EnsureInstalled();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine("Could not prepare the updater: " + ex.Message);
+                }
+
+                bool showAfterUpdate = args.Any(argument => argument.Equals("--show-after-update", StringComparison.Ordinal));
+                MainForm mainForm = new(showAfterUpdate);
                 Application.Run(mainForm);
             }
             catch (Exception ex)

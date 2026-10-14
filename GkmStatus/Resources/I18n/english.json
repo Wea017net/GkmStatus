@@ -411,11 +411,11 @@
     },
     {
       "key": "Update_NotificationBody",
-      "text": "Version {0} is now available.\nClick here to open the download page."
+      "text": "Version {0} is now available.\nClick here to download and install it."
     },
     {
       "key": "Update_NewAvailable",
-      "text": "A new version {0} is available.\nWould you like to open the download page?"
+      "text": "A new version {0} is available.\nDownload and install it now? The app will close."
     },
     {
       "key": "Update_NoUpdate",
@@ -424,6 +424,22 @@
     {
       "key": "Update_RateLimit",
       "text": "GitHub API rate limit exceeded. Please try again later."
+    },
+    {
+      "key": "Update_Downloading",
+      "text": "Downloading the update..."
+    },
+    {
+      "key": "Update_Installing",
+      "text": "Downloading and installing the latest version..."
+    },
+    {
+      "key": "Update_DownloadComplete",
+      "text": "The update completed successfully."
+    },
+    {
+      "key": "Update_DownloadFailed",
+      "text": "Update failed: {0}"
     },
     {
       "key": "Notify_Minimized",

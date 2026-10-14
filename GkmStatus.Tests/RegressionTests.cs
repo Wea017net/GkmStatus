@@ -1,4 +1,6 @@
 using System.Text;
+using System.Text.Json;
+using System.IO.Compression;
 using GkmStatus.src;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Reflection;
@@ -81,6 +83,151 @@ public sealed class RegressionTests
     }
 
     [TestMethod]
+    public void UpdateAssetSelectionChoosesTheFullWindowsX64Package()
+    {
+        using var release = JsonDocument.Parse("""
+            {
+              "assets": [
+                { "name": "GkmStatus_win-x64_v1.2.0_lite.zip", "browser_download_url": "https://github.com/Wea017net/GkmStatus/releases/download/v1.2.0/GkmStatus_win-x64_v1.2.0_lite.zip", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+                { "name": "GkmStatus_win-x64_v1.2.0.zip", "browser_download_url": "https://github.com/Wea017net/GkmStatus/releases/download/v1.2.0/GkmStatus_win-x64_v1.2.0.zip", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+                { "name": "GkmStatus_win-arm64_v1.2.0.zip", "browser_download_url": "https://github.com/Wea017net/GkmStatus/releases/download/v1.2.0/GkmStatus_win-arm64_v1.2.0.zip", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+              ]
+            }
+            """);
+
+        var selected = InvokeStatic<(string Name, string Url, string Sha256)>(typeof(UpdateService), "SelectWindowsReleaseAsset", release.RootElement, "1.2.0");
+
+        Assert.AreEqual("GkmStatus_win-x64_v1.2.0.zip", selected.Name);
+        Assert.AreEqual("https://github.com/Wea017net/GkmStatus/releases/download/v1.2.0/GkmStatus_win-x64_v1.2.0.zip", selected.Url);
+        Assert.AreEqual(new string('a', 64), selected.Sha256);
+    }
+
+    [TestMethod]
+    public void UpdateAssetSelectionRejectsUnexpectedDownloadHosts()
+    {
+        using var release = JsonDocument.Parse("""
+            {
+              "assets": [
+                { "name": "GkmStatus_win-x64_v1.2.0.zip", "browser_download_url": "https://example.com/GkmStatus_win-x64_v1.2.0.zip", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+              ]
+            }
+            """);
+
+        var method = typeof(UpdateService).GetMethod("SelectWindowsReleaseAsset", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+        Assert.IsNotNull(method);
+        Assert.IsNull(method.Invoke(null, [release.RootElement, "1.2.0"]));
+    }
+
+    [TestMethod]
+    public void UpdateChecksumMustBeASha256Digest()
+    {
+        var method = typeof(UpdateService).GetMethod("TryParseSha256", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+        Assert.IsNotNull(method);
+        object?[] validArguments = ["sha256:" + new string('a', 64), null];
+        Assert.IsTrue((bool)method.Invoke(null, validArguments)!);
+        Assert.AreEqual(new string('a', 64), validArguments[1]);
+
+        object?[] invalidArguments = ["sha1:" + new string('a', 64), null];
+        Assert.IsFalse((bool)method.Invoke(null, invalidArguments)!);
+    }
+
+    [TestMethod]
+    public void UpdaterRejectsZipEntriesThatEscapeTheStagingFolder()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "GkmStatus.Updater.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string archivePath = Path.Combine(directory, "update.zip");
+        string stagePath = Path.Combine(directory, "stage");
+        try
+        {
+            using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+            using (var writer = new StreamWriter(archive.CreateEntry("../escaped.exe").Open()))
+                writer.Write("unexpected");
+
+            var updaterType = typeof(UpdateService).Assembly.GetType("GkmStatus.src.UpdaterService");
+            Assert.IsNotNull(updaterType);
+            var extractMethod = updaterType.GetMethod("ExtractAndValidate", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.IsNotNull(extractMethod);
+
+            var exception = Assert.ThrowsException<TargetInvocationException>(() => extractMethod.Invoke(null, [archivePath, stagePath]));
+            Assert.IsInstanceOfType<InvalidDataException>(exception.InnerException);
+            Assert.IsFalse(File.Exists(Path.Combine(directory, "escaped.exe")));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    public void UpdaterRejectsArchivesWithTooManyEntries()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "GkmStatus.Updater.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string archivePath = Path.Combine(directory, "update.zip");
+        string stagePath = Path.Combine(directory, "stage");
+        try
+        {
+            using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+            {
+                for (int index = 0; index < 257; index++)
+                    archive.CreateEntry($"file-{index}.txt");
+            }
+
+            var updaterType = typeof(UpdateService).Assembly.GetType("GkmStatus.src.UpdaterService");
+            Assert.IsNotNull(updaterType);
+            var extractMethod = updaterType.GetMethod("ExtractAndValidate", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.IsNotNull(extractMethod);
+
+            var exception = Assert.ThrowsException<TargetInvocationException>(() => extractMethod.Invoke(null, [archivePath, stagePath]));
+            Assert.IsInstanceOfType<InvalidDataException>(exception.InnerException);
+            Assert.AreEqual(0, Directory.GetFiles(stagePath).Length);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    public async Task UpdaterRetriesReplacementWhenDestinationIsTemporarilyLocked()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "GkmStatus.Updater.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string sourcePath = Path.Combine(directory, "new.exe");
+        string destinationPath = Path.Combine(directory, "GkmStatus.exe");
+        File.WriteAllText(sourcePath, "new version");
+        File.WriteAllText(destinationPath, "old version");
+
+        var destinationLock = new FileStream(destinationPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        try
+        {
+            Task unlockDestination = Task.Run(async () =>
+            {
+                await Task.Delay(750);
+                destinationLock.Dispose();
+            });
+
+            var updaterType = typeof(UpdateService).Assembly.GetType("GkmStatus.src.UpdaterService");
+            Assert.IsNotNull(updaterType);
+            var copyMethod = updaterType.GetMethod("CopyFileWithRetry", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.IsNotNull(copyMethod);
+            copyMethod.Invoke(null, [sourcePath, destinationPath, true]);
+            await unlockDestination;
+
+            Assert.AreEqual("new version", File.ReadAllText(destinationPath));
+        }
+        finally
+        {
+            destinationLock.Dispose();
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [TestMethod]
     public void DisconnectedRpcCannotBeFalselyResumed()
     {
         using var rpc = new DiscordRpcService();
@@ -121,9 +268,8 @@ public sealed class RegressionTests
         {
             DeleteTemporaryConfigPath(path);
         }
-    }
-
-    [TestMethod]
+    }`r
+[TestMethod]
     public void ConfigSaveRoundTripsThroughSameDirectoryReplacement()
     {
         string path = CreateTemporaryConfigPath();
