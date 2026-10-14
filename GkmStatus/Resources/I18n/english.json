@@ -43,7 +43,7 @@
     },
     {
       "key": "UsageTelemetry_ConsentBody",
-      "text": "Allow anonymous usage data to be sent to TelemetryDeck?\n\nThe data contains app launch events, manual Discord connection start events, Discord connection start events triggered by monitoring gakumas.exe, app version, and a SHA-256 hash of a randomly generated installation ID. Your name, producer level, Discord ID, game information, and settings are not sent. If allowed, events are sent in the background when they occur.\n\nYou can stop sending at any time in Settings. Data already sent is not automatically deleted from TelemetryDeck. TelemetryDeck may retain events for an extended period (currently estimated at 7–10 years).\n\nDetails: https://telemetrydeck.com/privacy/\n\nAllow sending usage data?"
+      "text": "Allow anonymous usage data to be sent?\nYou can change this anytime in Settings."
     },
     {
       "key": "Menu_CheckForUpdates",
