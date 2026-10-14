@@ -246,7 +246,7 @@ namespace GkmStatus.src
     public class AppSettings
     {
         public bool StartMinimized { get; set; } = false;
-        public bool ConnectOnStart { get; set; } = true;
+        public bool ConnectOnStart { get; set; } = false;
         public bool AutoCheckUpdates { get; set; } = true;
         public bool ShowBackgroundNotifications { get; set; } = true;
         public bool NotifyOnMinimize { get; set; } = true;
