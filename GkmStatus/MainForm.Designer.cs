@@ -588,6 +588,9 @@ namespace GkmStatus
             autoConnectItem = new(I18n.T(Menu_AutoConnect)) { CheckOnClick = true };
             autoConnectItem.CheckedChanged += (s, e) => SaveSettings();
 
+            usageTelemetryItem = new(I18n.T(Menu_UsageTelemetry)) { CheckOnClick = true };
+            usageTelemetryItem.CheckedChanged += UsageTelemetryItem_CheckedChanged;
+
             checkForUpdatesItem = new(I18n.T(Menu_CheckForUpdates)) { CheckOnClick = true, Checked = true };
             checkForUpdatesItem.CheckedChanged += (s, e) => SaveSettings();
 
@@ -622,6 +625,7 @@ namespace GkmStatus
                 checkForUpdatesItem,
                 separatorSettings,
                 monitorItem,
+                usageTelemetryItem,
                 notifyInBackgroundItem,
                 notifyOnMinimizeItem,
                 minimizeToTrayItem
@@ -742,6 +746,7 @@ namespace GkmStatus
         private ToolStripMenuItem runAtStartupItem;
         private ToolStripMenuItem startMinimizedItem;
         private ToolStripMenuItem autoConnectItem;
+        private ToolStripMenuItem usageTelemetryItem;
         private ToolStripMenuItem checkForUpdatesItem;
         private ToolStripMenuItem monitorItem;
         private ToolStripMenuItem notifyInBackgroundItem;
