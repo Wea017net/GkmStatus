@@ -52,7 +52,6 @@ We hope that displaying player information in the activity will encourage commun
 ## System Requirements
 
 * Windows 10 64-bit / Windows 11 64-bit
-* [.NET 10.0 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
 
 > [!NOTE]
 > Running on Windows on ARM, macOS, or Linux is not supported.
