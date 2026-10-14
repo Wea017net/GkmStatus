@@ -1,4 +1,4 @@
-﻿using GkmStatus.src.ui;
+using GkmStatus.src.ui;
 
 namespace GkmStatus
 {
@@ -50,10 +50,12 @@ namespace GkmStatus
                 using Stream stream = assembly.GetManifestResourceStream("GkmStatus.Resources.app_icon_2048px.png");
                 if (stream != null)
                 {
-                    iconBox.Image = Image.FromStream(stream);
+                    using var sourceImage = Image.FromStream(stream);
+                    SetOwnedIconImage(sourceImage);
+                    iconBox.Image = _iconImage!;
                 }
                 using Stream icoStream = assembly.GetManifestResourceStream("GkmStatus.Resources.app.ico");
-                if (icoStream != null) this.Icon = new Icon(icoStream);
+                if (icoStream != null) SetOwnedIcon(new Icon(icoStream));
             }
             catch { }
             this.Controls.Add(iconBox);
@@ -96,7 +98,7 @@ namespace GkmStatus
             var lblFont = new Label
             {
                 Text = I18n.T(I18n.Text_List.About_FontAttribution),
-                Font = new Font(_mainFont.FontFamily, 8f, GraphicsUnit.Point),
+                Font = CreateOwnedFont(_mainFont.FontFamily, 8f),
                 TextAlign = ContentAlignment.MiddleCenter,
                 Location = new Point(0, S(172)),
                 Size = new Size(this.ClientSize.Width, S(15)),
@@ -107,7 +109,7 @@ namespace GkmStatus
             var lnkLicense = new LinkLabel
             {
                 Text = I18n.T(I18n.Text_List.About_FontLicense),
-                Font = new Font(_mainFont.FontFamily, 8f, GraphicsUnit.Point),
+                Font = CreateOwnedFont(_mainFont.FontFamily, 8f),
                 TextAlign = ContentAlignment.MiddleCenter,
                 Location = new Point(0, S(187)),
                 Size = new Size(this.ClientSize.Width, S(15)),

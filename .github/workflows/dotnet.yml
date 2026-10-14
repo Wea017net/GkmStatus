@@ -23,7 +23,7 @@ jobs:
     - name: Build
       run: dotnet build --no-restore -c Release
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test GkmStatus.slnx -c Release --no-build --verbosity normal
 
   publish:
     if: startsWith(github.ref, 'refs/tags/v')

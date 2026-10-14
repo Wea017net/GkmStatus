@@ -18,9 +18,10 @@ namespace GkmStatus
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing && (components != null))
+            if (disposing)
             {
-                components.Dispose();
+                DisposeRuntimeResources();
+                components?.Dispose();
             }
             base.Dispose(disposing);
         }
@@ -167,10 +168,10 @@ namespace GkmStatus
             };
             trayIcon.BalloonTipClicked += (s, e) =>
             {
-                if (trayIcon.Tag is string url && !string.IsNullOrEmpty(url))
+                if (trayIcon.Tag is UpdateCheckResult updateResult)
                 {
-                    try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
                     trayIcon.Tag = null;
+                    _ = DownloadUpdateAsync(updateResult, manual: false);
                 }
                 else
                 {
@@ -481,12 +482,15 @@ namespace GkmStatus
 
             void CheckBtnWarning(object sender, EventArgs e)
             {
-                bool labelOver = Encoding.UTF8.GetByteCount(txtBtn1Label.Text) > 32 || Encoding.UTF8.GetByteCount(txtBtn2Label.Text) > 32;
+                bool labelOver = Encoding.UTF8.GetByteCount(txtBtn1Label.Text) > 31 || Encoding.UTF8.GetByteCount(txtBtn2Label.Text) > 31;
                 bool urlJapanese = JapaneseRegex().IsMatch(txtBtn1Url.Text + txtBtn2Url.Text);
+                bool urlInvalid = (!string.IsNullOrWhiteSpace(txtBtn1Label.Text) && !IsValidRpcButtonUrl(txtBtn1Url.Text))
+                    || (!string.IsNullOrWhiteSpace(txtBtn2Label.Text) && !IsValidRpcButtonUrl(txtBtn2Url.Text));
 
                 var sb = new StringBuilder();
                 if (labelOver) sb.AppendLine(I18n.T(Button_Warning_LabelLength));
                 if (urlJapanese) sb.Append(I18n.T(Button_Warning_UrlJp));
+                else if (urlInvalid) sb.Append(I18n.T(Button_Warning_UrlInvalid));
 
                 string msg = sb.ToString().Trim();
                 lblBtnWarning.Text = msg;
@@ -519,8 +523,7 @@ namespace GkmStatus
             btnUpdate.Enabled = false; btnUpdate.Click += async (s, e) =>
             {
                 UpdateRpc();
-                string originalText = lblStatus.Text;
-                Color originalColor = lblStatus.ForeColor;
+                int displayVersion = Interlocked.Increment(ref _updateDisplayVersion);
 
                 string updatedText = I18n.T(Status_Updated);
                 lblStatus.Text = updatedText;
@@ -530,23 +533,16 @@ namespace GkmStatus
 
                 await System.Threading.Tasks.Task.Delay(2000);
 
-                if (this.IsDisposed) return;
+                if (this.IsDisposed || displayVersion != Volatile.Read(ref _updateDisplayVersion)) return;
 
                 if (rpc.Status == RpcStatus.Connected && !isManualPaused)
-                {
-                    lblStatus.ForeColor = originalColor;
-                    lblStatus.Text = originalText;
-                    statusToolTip.SetToolTip(lblStatus, originalText.Replace("\n", " "));
-                    AdjustStatusVerticalPosition();
-                }
-                else if (rpc.Status == RpcStatus.Paused || isManualPaused)
-                {
+                    UpdateUIForConnected(rpc.CurrentUsername ?? "Unknown");
+                else if (rpc.Status == RpcStatus.Paused)
                     UpdateUIForPause();
-                }
+                else if (rpc.Status == RpcStatus.Error)
+                    HandleConnectionError(rpc.LastErrorMessage ?? I18n.T(Status_Error));
                 else
-                {
                     UpdateUIForDisconnect();
-                }
             };
             btnDisconnect = CreateButton(new Point(S(240), y), S(100), COLOR_ERROR);
             btnDisconnect.Enabled = false; btnDisconnect.Click += (s, e) => DisposeRpc();
@@ -567,7 +563,24 @@ namespace GkmStatus
 
             settingsMenu = new(I18n.T(Menu_Settings));
             runAtStartupItem = new(I18n.T(Menu_RunAtStartup)) { CheckOnClick = true, Checked = IsRunAtStartup() };
-            runAtStartupItem.CheckedChanged += (s, e) => SetRunAtStartup(runAtStartupItem.Checked);
+            runAtStartupItem.CheckedChanged += (s, e) =>
+            {
+                if (_syncingStartupSetting) return;
+                bool requested = runAtStartupItem.Checked;
+                if (!SetRunAtStartup(requested))
+                {
+                    try
+                    {
+                        _syncingStartupSetting = true;
+                        runAtStartupItem.Checked = IsRunAtStartup();
+                    }
+                    finally
+                    {
+                        _syncingStartupSetting = false;
+                    }
+                    MessageBox.Show(I18n.T(Startup_SettingFailed), I18n.T(App_Name), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
 
             startMinimizedItem = new(I18n.T(Menu_StartMinimized)) { CheckOnClick = true };
             startMinimizedItem.CheckedChanged += (s, e) => SaveSettings();
@@ -590,6 +603,11 @@ namespace GkmStatus
             monitorItem = new(I18n.T(Menu_MonitorProcess)) { CheckOnClick = true, Checked = true };
             monitorItem.CheckedChanged += (s, e) => {
                 _processWatcher.Enabled = monitorItem.Checked;
+                if (isInitializing) return;
+                if (!monitorItem.Checked)
+                {
+                    retryTimer?.Stop();
+                }
                 if (_processWatcher.Enabled) _processWatcher.ForceCheck();
 
                 if (rpc.IsInitialized != true) UpdateUIForDisconnect();
