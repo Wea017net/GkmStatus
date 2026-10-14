@@ -89,6 +89,11 @@ Run `GkmStatus.exe` directly without installing .NET Runtime 10.0 separately; th
 
 Due to Discord's specifications, you cannot click or verify your own external link buttons on your own profile. If you want to check how your custom buttons look and work, you will need to view your profile from a different Discord account.
 
+## Anonymous Usage Data
+
+Usage data sharing is requested on first launch and remains disabled unless you allow it. The app sends app launch, manual Discord connection start, and Discord connection start triggered by gakumas.exe monitoring events, the app version, and a SHA-256 hash of a randomly generated installation ID. It does not send your name, producer level, Discord ID, game information, or settings. Data is sent to the third-party service [TelemetryDeck](https://telemetrydeck.com/privacy/).
+
+You can disable sharing in Settings at any time. The local installation ID is then deleted and future events stop. Data already sent is not automatically deleted from TelemetryDeck.
 ## For Developers
 
 ### Build Instructions

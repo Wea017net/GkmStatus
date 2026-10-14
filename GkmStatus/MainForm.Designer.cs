@@ -295,7 +295,7 @@ namespace GkmStatus
             var traySepSettings = new ToolStripSeparator { Tag = "SepSettings" };
             trayMenu.Items.Add(traySepSettings);
 
-            trayMenuConnect = new ToolStripMenuItem(I18n.T(Button_Connect), null, (s, e) => InitializeRpc())
+            trayMenuConnect = new ToolStripMenuItem(I18n.T(Button_Connect), null, (s, e) => InitializeRpc(ConnectionTrigger.Manual))
             {
                 Name = "trayMenuConnect"
             };
@@ -517,7 +517,7 @@ namespace GkmStatus
                 if (rpc.Status == RpcStatus.Connected && !isManualPaused)
                     PauseRpc();
                 else
-                    InitializeRpc();
+                    InitializeRpc(ConnectionTrigger.Manual);
             };
             btnUpdate = CreateButton(new Point(S(130), y), S(100), COLOR_PRIMARY);
             btnUpdate.Enabled = false; btnUpdate.Click += async (s, e) =>
@@ -588,6 +588,9 @@ namespace GkmStatus
             autoConnectItem = new(I18n.T(Menu_AutoConnect)) { CheckOnClick = true };
             autoConnectItem.CheckedChanged += (s, e) => SaveSettings();
 
+            usageTelemetryItem = new(I18n.T(Menu_UsageTelemetry)) { CheckOnClick = true };
+            usageTelemetryItem.CheckedChanged += UsageTelemetryItem_CheckedChanged;
+
             checkForUpdatesItem = new(I18n.T(Menu_CheckForUpdates)) { CheckOnClick = true, Checked = true };
             checkForUpdatesItem.CheckedChanged += (s, e) => SaveSettings();
 
@@ -622,6 +625,7 @@ namespace GkmStatus
                 checkForUpdatesItem,
                 separatorSettings,
                 monitorItem,
+                usageTelemetryItem,
                 notifyInBackgroundItem,
                 notifyOnMinimizeItem,
                 minimizeToTrayItem
@@ -742,6 +746,7 @@ namespace GkmStatus
         private ToolStripMenuItem runAtStartupItem;
         private ToolStripMenuItem startMinimizedItem;
         private ToolStripMenuItem autoConnectItem;
+        private ToolStripMenuItem usageTelemetryItem;
         private ToolStripMenuItem checkForUpdatesItem;
         private ToolStripMenuItem monitorItem;
         private ToolStripMenuItem notifyInBackgroundItem;

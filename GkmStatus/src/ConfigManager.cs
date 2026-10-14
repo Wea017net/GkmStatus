@@ -109,6 +109,8 @@ namespace GkmStatus.src
                 config.Settings.SelectedTheme = GetThemeString(GetTheme(Read(settings, "SelectedTheme", config.Settings.SelectedTheme)));
                 config.Settings.SelectedLanguage = GetLangString(GetLanguage(Read(settings, "SelectedLanguage", config.Settings.SelectedLanguage)));
                 config.Settings.LastUpdateCheck = Read(settings, "LastUpdateCheck", config.Settings.LastUpdateCheck);
+                config.Settings.UsageTelemetryAllowed = Read(settings, "UsageTelemetryAllowed", config.Settings.UsageTelemetryAllowed);
+                config.Settings.TelemetryInstallationId = Read(settings, "TelemetryInstallationId", config.Settings.TelemetryInstallationId);
                 if (config.Settings.LastUpdateCheck > DateTime.UtcNow)
                     config.Settings.LastUpdateCheck = DateTime.MinValue;
             }
@@ -255,6 +257,8 @@ namespace GkmStatus.src
         public string SelectedTheme { get; set; } = GetThemeString(0);
         public string SelectedLanguage { get; set; } = GetLangString(I18n.Language.Japanese);
         public DateTime LastUpdateCheck { get; set; } = DateTime.MinValue;
+        public bool? UsageTelemetryAllowed { get; set; }
+        public string? TelemetryInstallationId { get; set; }
     }
 
     public class PresenceSettings

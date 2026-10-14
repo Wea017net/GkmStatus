@@ -17,6 +17,14 @@ namespace GkmStatus
     [SupportedOSPlatform("windows")]
     public partial class MainForm : Form
     {
+        private enum ConnectionTrigger
+        {
+            Manual,
+            GameProcessMonitor,
+            StartupSetting,
+            AutomaticRetry
+        }
+
         private readonly bool isInitializing = true;
         private int footerButtonsY;
         private bool _isFirstStartup = true;
@@ -44,6 +52,8 @@ namespace GkmStatus
         private readonly float uiScale = 1.0f;
 
         private readonly UpdateService _updateService = new();
+        private readonly UsageTelemetryClient _usageTelemetry = new();
+        private bool _usageTelemetrySent;
         private readonly ConfigManager _configManager = new();
         private readonly FontManager _fontManager = new();
         private readonly ThemeManager _themeManager;
@@ -90,14 +100,14 @@ namespace GkmStatus
                 if (isManualPaused)
                 {
                     isManualPaused = false;
-                    InitializeRpc();
+                    InitializeRpc(ConnectionTrigger.GameProcessMonitor);
                 }
                 else if (rpc.Status != RpcStatus.Connected)
                 {
                     // 通常起動時は時間をリセット
                     startTime = DateTime.UtcNow;
                     UpdateTimestampLabel();
-                    InitializeRpc();
+                    InitializeRpc(ConnectionTrigger.GameProcessMonitor);
                 }
             };
 
@@ -147,6 +157,7 @@ namespace GkmStatus
             isInitializing = true;
             _configManager.Load();
             LoadSettings();
+            PromptForUsageTelemetryConsentIfNeeded();
 
             if (!_forceVisibleOnStartup && startMinimizedItem.Checked)
             {
@@ -175,9 +186,11 @@ namespace GkmStatus
             if (_processWatcher.Enabled)
                 _processWatcher.ForceCheck();
             if (autoConnectItem.Checked)
-                InitializeRpc();
+                InitializeRpc(ConnectionTrigger.StartupSetting);
             if (checkForUpdatesItem.Checked)
                 _ = CheckForUpdatesAsync(manual: false);
+
+            SendStartupUsageTelemetry();
 
 
             this.FormClosing += (s, e) =>
@@ -203,6 +216,69 @@ namespace GkmStatus
 
         }
 
+        private void PromptForUsageTelemetryConsentIfNeeded()
+        {
+            var settings = _configManager.Config.Settings;
+            if (settings.UsageTelemetryAllowed.HasValue)
+            {
+                if (settings.UsageTelemetryAllowed.Value && string.IsNullOrWhiteSpace(settings.TelemetryInstallationId))
+                {
+                    settings.TelemetryInstallationId = UsageTelemetryClient.CreateInstallationId();
+                    _configManager.Save();
+                }
+                else if (!settings.UsageTelemetryAllowed.Value && settings.TelemetryInstallationId != null)
+                {
+                    settings.TelemetryInstallationId = null;
+                    _configManager.Save();
+                }
+
+                usageTelemetryItem.Checked = settings.UsageTelemetryAllowed.Value;
+                return;
+            }
+
+            var result = MessageBox.Show(
+                I18n.T(UsageTelemetry_ConsentBody),
+                I18n.T(UsageTelemetry_ConsentTitle),
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Information,
+                MessageBoxDefaultButton.Button2);
+
+            settings.UsageTelemetryAllowed = result == DialogResult.Yes;
+            settings.TelemetryInstallationId = settings.UsageTelemetryAllowed == true
+                ? UsageTelemetryClient.CreateInstallationId()
+                : null;
+            usageTelemetryItem.Checked = settings.UsageTelemetryAllowed == true;
+            _configManager.Save();
+        }
+
+        private void UsageTelemetryItem_CheckedChanged(object? sender, EventArgs e)
+        {
+            if (isInitializing)
+                return;
+
+            var settings = _configManager.Config.Settings;
+            settings.UsageTelemetryAllowed = usageTelemetryItem.Checked;
+            settings.TelemetryInstallationId = usageTelemetryItem.Checked
+                ? settings.TelemetryInstallationId ?? UsageTelemetryClient.CreateInstallationId()
+                : null;
+            _configManager.Save();
+
+            if (usageTelemetryItem.Checked)
+                SendStartupUsageTelemetry();
+        }
+
+        private void SendStartupUsageTelemetry()
+        {
+#if !DEBUG
+            var settings = _configManager.Config.Settings;
+            if (_usageTelemetrySent || settings.UsageTelemetryAllowed != true ||
+                string.IsNullOrWhiteSpace(settings.TelemetryInstallationId) || !_usageTelemetry.IsConfigured)
+                return;
+
+            _usageTelemetrySent = true;
+            _ = _usageTelemetry.SendAppStartedAsync(settings.TelemetryInstallationId, Application.ProductVersion);
+#endif
+        }
         private void DisposeRuntimeResources()
         {
             if (_runtimeResourcesDisposed) return;
@@ -299,6 +375,7 @@ namespace GkmStatus
                 runAtStartupItem.Text = I18n.T(Menu_RunAtStartup);
                 startMinimizedItem.Text = I18n.T(Menu_StartMinimized);
                 autoConnectItem.Text = I18n.T(Menu_AutoConnect);
+                usageTelemetryItem.Text = I18n.T(Menu_UsageTelemetry);
                 checkForUpdatesItem.Text = I18n.T(Menu_CheckForUpdates);
                 notifyInBackgroundItem.Text = I18n.T(Menu_NotifyInBackground);
                 notifyOnMinimizeItem.Text = I18n.T(Menu_NotifyOnMinimize);
@@ -777,9 +854,9 @@ namespace GkmStatus
             };
         }
 
-        private void InitializeRpc(bool automaticRetry = false)
+        private void InitializeRpc(ConnectionTrigger trigger = ConnectionTrigger.Manual)
         {
-            if (!automaticRetry)
+            if (trigger != ConnectionTrigger.AutomaticRetry)
             {
                 suppressAutomaticReconnect = false;
                 isManualPaused = false;
@@ -788,6 +865,7 @@ namespace GkmStatus
             retryTimer?.Stop();
             if (rpc.Status == RpcStatus.Paused && rpc.IsInitialized)
             {
+                SendConnectionTelemetry(trigger);
                 rpc.Resume();
                 isManualPaused = false;
                 UpdateUIForConnected(rpc.CurrentUsername ?? "Unknown");
@@ -822,6 +900,7 @@ namespace GkmStatus
             connectionTimer.Start();
 
             string appId = GameApps[cmbGameName.SelectedIndex].AppId;
+            SendConnectionTelemetry(trigger);
             rpc.Initialize(appId);
         }
 
@@ -922,7 +1001,23 @@ namespace GkmStatus
             retryTimer?.Stop();
             if (!_runtimeResourcesDisposed && !suppressAutomaticReconnect && !isManualPaused
                 && monitorItem.Checked && _processWatcher.IsRunning)
-                InitializeRpc(automaticRetry: true);
+                InitializeRpc(ConnectionTrigger.AutomaticRetry);
+        }
+
+        private void SendConnectionTelemetry(ConnectionTrigger trigger)
+        {
+#if !DEBUG
+            var settings = _configManager.Config.Settings;
+            if (settings.UsageTelemetryAllowed != true ||
+                string.IsNullOrWhiteSpace(settings.TelemetryInstallationId) || !_usageTelemetry.IsConfigured)
+                return;
+
+            string version = Application.ProductVersion;
+            if (trigger == ConnectionTrigger.Manual)
+                _ = _usageTelemetry.SendManualDiscordConnectStartedAsync(settings.TelemetryInstallationId, version);
+            else if (trigger is ConnectionTrigger.GameProcessMonitor or ConnectionTrigger.AutomaticRetry)
+                _ = _usageTelemetry.SendMonitoredDiscordConnectStartedAsync(settings.TelemetryInstallationId, version);
+#endif
         }
 
         private void UpdateUIForPause()
