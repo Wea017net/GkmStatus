@@ -152,6 +152,12 @@ namespace GkmStatus
             {
                 this.WindowState = FormWindowState.Minimized;
                 trayIcon.Visible = true;
+
+                if (notifyOnMinimizeItem.Checked)
+                {
+                    trayIcon.Tag = null;
+                    trayIcon.ShowBalloonTip(3000, I18n.T(App_Name), I18n.T(Notify_Minimized), ToolTipIcon.Info);
+                }
             }
             else
             {
