@@ -286,6 +286,91 @@ public sealed class RegressionTests
     }
 
     [TestMethod]
+    public void UpdaterReplacesFilesAndCreatesBackupsOnSuccess()
+    {
+        string testRoot = Path.Combine(Path.GetTempPath(), "GkmStatus.Updater.Tests", Guid.NewGuid().ToString("N"));
+        string workDirectory = Path.Combine(testRoot, "work");
+        string stageDirectory = Path.Combine(workDirectory, "stage");
+        string installDirectory = Path.Combine(testRoot, "install");
+        string backupDirectory = Path.Combine(workDirectory, "backup");
+        Directory.CreateDirectory(stageDirectory);
+        Directory.CreateDirectory(installDirectory);
+        File.WriteAllText(Path.Combine(stageDirectory, "GkmStatus.exe"), "new executable");
+        File.WriteAllText(Path.Combine(stageDirectory, "settings.dll"), "new settings");
+        File.WriteAllText(Path.Combine(installDirectory, "GkmStatus.exe"), "old executable");
+        File.WriteAllText(Path.Combine(installDirectory, "settings.dll"), "old settings");
+
+        try
+        {
+            var updaterType = typeof(UpdateService).Assembly.GetType("GkmStatus.src.UpdaterService");
+            Assert.IsNotNull(updaterType);
+            var replaceMethod = updaterType.GetMethod("ReplaceFiles", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.IsNotNull(replaceMethod);
+            var changedFiles = new List<(string Destination, string? Backup)>();
+
+            replaceMethod.Invoke(null, [stageDirectory, installDirectory, backupDirectory, changedFiles, null]);
+
+            Assert.AreEqual("new executable", File.ReadAllText(Path.Combine(installDirectory, "GkmStatus.exe")));
+            Assert.AreEqual("new settings", File.ReadAllText(Path.Combine(installDirectory, "settings.dll")));
+            Assert.AreEqual("old executable", File.ReadAllText(Path.Combine(backupDirectory, "GkmStatus.exe")));
+            Assert.AreEqual("old settings", File.ReadAllText(Path.Combine(backupDirectory, "settings.dll")));
+            Assert.AreEqual(2, changedFiles.Count);
+        }
+        finally
+        {
+            if (Directory.Exists(testRoot))
+                Directory.Delete(testRoot, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    public void UpdaterDoesNotChangeDestinationWhenBackupCreationFails()
+    {
+        string testRoot = Path.Combine(Path.GetTempPath(), "GkmStatus.Updater.Tests", Guid.NewGuid().ToString("N"));
+        string workDirectory = Path.Combine(testRoot, "work");
+        string stageDirectory = Path.Combine(workDirectory, "stage");
+        string installDirectory = Path.Combine(testRoot, "install");
+        string backupDirectory = Path.Combine(workDirectory, "backup");
+        Directory.CreateDirectory(stageDirectory);
+        Directory.CreateDirectory(installDirectory);
+        File.WriteAllText(Path.Combine(stageDirectory, "GkmStatus.exe"), "new executable");
+        string destinationPath = Path.Combine(installDirectory, "GkmStatus.exe");
+        string backupPath = Path.Combine(backupDirectory, "GkmStatus.exe");
+        File.WriteAllText(destinationPath, "old executable");
+        Action<string, string, bool> failBackup = (_, destination, _) =>
+        {
+            if (destination.Equals(backupPath, StringComparison.OrdinalIgnoreCase))
+                throw new IOException("Injected backup failure.");
+
+            Assert.Fail("No install file should be copied before its backup is complete.");
+        };
+        var changedFiles = new List<(string Destination, string? Backup)>();
+
+        try
+        {
+            var updaterType = typeof(UpdateService).Assembly.GetType("GkmStatus.src.UpdaterService");
+            Assert.IsNotNull(updaterType);
+            var replaceMethod = updaterType.GetMethod("ReplaceFiles", BindingFlags.Static | BindingFlags.NonPublic);
+            var rollbackMethod = updaterType.GetMethod("RollbackChangedFilesAndCleanup", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.IsNotNull(replaceMethod);
+            Assert.IsNotNull(rollbackMethod);
+
+            var failure = Assert.ThrowsException<TargetInvocationException>(() =>
+                replaceMethod.Invoke(null, [stageDirectory, installDirectory, backupDirectory, changedFiles, failBackup]));
+            Assert.IsInstanceOfType<IOException>(failure.InnerException);
+            Assert.AreEqual(0, changedFiles.Count);
+            Assert.AreEqual("old executable", File.ReadAllText(destinationPath));
+            Assert.IsNull(rollbackMethod.Invoke(null, [changedFiles, workDirectory]));
+            Assert.IsFalse(Directory.Exists(workDirectory));
+        }
+        finally
+        {
+            if (Directory.Exists(testRoot))
+                Directory.Delete(testRoot, recursive: true);
+        }
+    }
+
+    [TestMethod]
     public void TemporaryUpdaterCleanupOnlyAcceptsItsGeneratedDirectChildFolder()
     {
         string tempDirectory = Path.Combine(Path.GetTempPath(), "GkmStatus.Updater.Tests", Guid.NewGuid().ToString("N"));
