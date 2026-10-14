@@ -53,7 +53,6 @@ DMM GAMES版学園アイドルマスターは Discord の認証済みゲーム�
 ## 動作環境
 
 *   Windows 10 64-bit / Windows 11 64-bit
-*   [.NET 10.0 Runtime](https://dotnet.microsoft.com/ja-jp/download/dotnet/10.0)
 
 > [!NOTE]
 > ARM 版 Windows、macOS、Linuxでの動作はサポート対象外です。
