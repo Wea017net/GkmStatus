@@ -58,19 +58,13 @@ DMM GAMES版学園アイドルマスターは Discord の認証済みゲーム�
 > [!NOTE]
 > ARM 版 Windows、macOS、Linuxでの動作はサポート対象外です。
 
-## エディションの違い
+## 配布版
 
-> [!TIP]
-> GkmStatus では通常版とLite版の2つのエディションを用意しています。
-> 環境に合わせてエディションを選択してください。
+Ver.1.2.0以降は、.NET Runtime 10.0を同梱したWindows x64版のみを配布します。Lite版の新規配布は終了します。
 
-### 通常版 (`GkmStatus_win-x64_vx.x.x.zip`)
+### Windows x64版 (`GkmStatus_win-x64_vx.x.x.zip`)
 
-`GkmStatus.exe` 単体のみが含まれます。アプリ内に .NET Runtime 10.0 が同梱されているため、別途インストールすることなく即座に利用できます。
-
-### Lite版 (`GkmStatus_win-x64_vx.x.x_lite.zip`)
-
-`GkmStatus.exe` といくつかのファイルが含まれます。ファイルサイズが小さいですが、アプリ内に .NET Runtime 10.0 が同梱されていないため、あらかじめ PC にインストールしておく必要があります。
+`GkmStatus.exe` 単体で起動でき、.NET Runtime 10.0を別途インストールする必要はありません。Ver.1.1.x以前のLite版をご利用の場合、アプリ内アップデートでVer.1.2.0へ更新すると通常版へ移行します。
 
 ## 対応言語
 
