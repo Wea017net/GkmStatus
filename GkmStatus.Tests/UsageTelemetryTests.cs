@@ -88,6 +88,37 @@ public sealed class UsageTelemetryTests
     }
 
     [TestMethod]
+    public async Task ManualAndGameMonitorConnectionsUseDistinctEvents()
+    {
+        var handler = new RecordingHandler(HttpStatusCode.Accepted);
+        using var http = new HttpClient(handler);
+        var client = new UsageTelemetryClient(http, "test-namespace", "test-app-id");
+        string installationId = UsageTelemetryClient.CreateInstallationId();
+
+        bool manualSent = await client.SendManualDiscordConnectStartedAsync(installationId, "1.2.0");
+        using var manualDocument = JsonDocument.Parse(handler.Body!);
+        var manualSignal = manualDocument.RootElement[0];
+        string? manualType = manualSignal.GetProperty("type").GetString();
+        Assert.AreEqual(UsageTelemetryClient.HashInstallationId(installationId), manualSignal.GetProperty("clientUser").GetString());
+        Assert.AreEqual("1.2.0", manualSignal.GetProperty("payload").GetProperty("App.version").GetString());
+        Assert.AreEqual(4, manualSignal.EnumerateObject().Count());
+
+        bool monitoredSent = await client.SendMonitoredDiscordConnectStartedAsync(installationId, "1.2.0");
+        using var monitoredDocument = JsonDocument.Parse(handler.Body!);
+        var monitoredSignal = monitoredDocument.RootElement[0];
+        string? monitoredType = monitoredSignal.GetProperty("type").GetString();
+        Assert.AreEqual(UsageTelemetryClient.HashInstallationId(installationId), monitoredSignal.GetProperty("clientUser").GetString());
+        Assert.AreEqual("1.2.0", monitoredSignal.GetProperty("payload").GetProperty("App.version").GetString());
+        Assert.AreEqual(4, monitoredSignal.EnumerateObject().Count());
+
+        Assert.IsTrue(manualSent);
+        Assert.IsTrue(monitoredSent);
+        Assert.AreEqual(UsageTelemetryClient.ManualDiscordConnectStartedEvent, manualType);
+        Assert.AreEqual(UsageTelemetryClient.MonitoredDiscordConnectStartedEvent, monitoredType);
+        Assert.AreNotEqual(manualType, monitoredType);
+    }
+
+    [TestMethod]
     public async Task StartupSignalIsSkippedWhenTelemetryIsNotConfigured()
     {
         var handler = new RecordingHandler(HttpStatusCode.Accepted);

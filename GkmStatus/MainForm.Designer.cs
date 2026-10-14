@@ -295,7 +295,7 @@ namespace GkmStatus
             var traySepSettings = new ToolStripSeparator { Tag = "SepSettings" };
             trayMenu.Items.Add(traySepSettings);
 
-            trayMenuConnect = new ToolStripMenuItem(I18n.T(Button_Connect), null, (s, e) => InitializeRpc())
+            trayMenuConnect = new ToolStripMenuItem(I18n.T(Button_Connect), null, (s, e) => InitializeRpc(ConnectionTrigger.Manual))
             {
                 Name = "trayMenuConnect"
             };
@@ -517,7 +517,7 @@ namespace GkmStatus
                 if (rpc.Status == RpcStatus.Connected && !isManualPaused)
                     PauseRpc();
                 else
-                    InitializeRpc();
+                    InitializeRpc(ConnectionTrigger.Manual);
             };
             btnUpdate = CreateButton(new Point(S(130), y), S(100), COLOR_PRIMARY);
             btnUpdate.Enabled = false; btnUpdate.Click += async (s, e) =>

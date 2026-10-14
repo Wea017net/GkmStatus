@@ -17,6 +17,14 @@ namespace GkmStatus
     [SupportedOSPlatform("windows")]
     public partial class MainForm : Form
     {
+        private enum ConnectionTrigger
+        {
+            Manual,
+            GameProcessMonitor,
+            StartupSetting,
+            AutomaticRetry
+        }
+
         private readonly bool isInitializing = true;
         private int footerButtonsY;
         private bool _isFirstStartup = true;
@@ -92,14 +100,14 @@ namespace GkmStatus
                 if (isManualPaused)
                 {
                     isManualPaused = false;
-                    InitializeRpc();
+                    InitializeRpc(ConnectionTrigger.GameProcessMonitor);
                 }
                 else if (rpc.Status != RpcStatus.Connected)
                 {
                     // 通常起動時は時間をリセット
                     startTime = DateTime.UtcNow;
                     UpdateTimestampLabel();
-                    InitializeRpc();
+                    InitializeRpc(ConnectionTrigger.GameProcessMonitor);
                 }
             };
 
@@ -172,7 +180,7 @@ namespace GkmStatus
             if (_processWatcher.Enabled)
                 _processWatcher.ForceCheck();
             if (autoConnectItem.Checked)
-                InitializeRpc();
+                InitializeRpc(ConnectionTrigger.StartupSetting);
             if (checkForUpdatesItem.Checked)
                 _ = CheckForUpdatesAsync(manual: false);
 
@@ -840,9 +848,9 @@ namespace GkmStatus
             };
         }
 
-        private void InitializeRpc(bool automaticRetry = false)
+        private void InitializeRpc(ConnectionTrigger trigger = ConnectionTrigger.Manual)
         {
-            if (!automaticRetry)
+            if (trigger != ConnectionTrigger.AutomaticRetry)
             {
                 suppressAutomaticReconnect = false;
                 isManualPaused = false;
@@ -851,6 +859,7 @@ namespace GkmStatus
             retryTimer?.Stop();
             if (rpc.Status == RpcStatus.Paused && rpc.IsInitialized)
             {
+                SendConnectionTelemetry(trigger);
                 rpc.Resume();
                 isManualPaused = false;
                 UpdateUIForConnected(rpc.CurrentUsername ?? "Unknown");
@@ -885,6 +894,7 @@ namespace GkmStatus
             connectionTimer.Start();
 
             string appId = GameApps[cmbGameName.SelectedIndex].AppId;
+            SendConnectionTelemetry(trigger);
             rpc.Initialize(appId);
         }
 
@@ -985,7 +995,23 @@ namespace GkmStatus
             retryTimer?.Stop();
             if (!_runtimeResourcesDisposed && !suppressAutomaticReconnect && !isManualPaused
                 && monitorItem.Checked && _processWatcher.IsRunning)
-                InitializeRpc(automaticRetry: true);
+                InitializeRpc(ConnectionTrigger.AutomaticRetry);
+        }
+
+        private void SendConnectionTelemetry(ConnectionTrigger trigger)
+        {
+#if !DEBUG
+            var settings = _configManager.Config.Settings;
+            if (settings.UsageTelemetryAllowed != true ||
+                string.IsNullOrWhiteSpace(settings.TelemetryInstallationId) || !_usageTelemetry.IsConfigured)
+                return;
+
+            string version = Application.ProductVersion;
+            if (trigger == ConnectionTrigger.Manual)
+                _ = _usageTelemetry.SendManualDiscordConnectStartedAsync(settings.TelemetryInstallationId, version);
+            else if (trigger is ConnectionTrigger.GameProcessMonitor or ConnectionTrigger.AutomaticRetry)
+                _ = _usageTelemetry.SendMonitoredDiscordConnectStartedAsync(settings.TelemetryInstallationId, version);
+#endif
         }
 
         private void UpdateUIForPause()

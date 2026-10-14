@@ -7,6 +7,10 @@ namespace GkmStatus.src;
 
 public sealed class UsageTelemetryClient
 {
+    public const string AppLaunchedEvent = "App.launched";
+    public const string ManualDiscordConnectStartedEvent = "Discord.connectionStartedManually";
+    public const string MonitoredDiscordConnectStartedEvent = "Discord.connectionStartedByGameMonitor";
+
     private const string IngestBaseUrl = "https://nom.telemetrydeck.com/v2/namespace/";
     private static readonly HttpClient SharedHttpClient = new()
     {
@@ -45,7 +49,26 @@ public sealed class UsageTelemetryClient
     public async Task<bool> SendAppStartedAsync(
         string installationId,
         string appVersion,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        await SendEventAsync(AppLaunchedEvent, installationId, appVersion, cancellationToken).ConfigureAwait(false);
+
+    public async Task<bool> SendManualDiscordConnectStartedAsync(
+        string installationId,
+        string appVersion,
+        CancellationToken cancellationToken = default) =>
+        await SendEventAsync(ManualDiscordConnectStartedEvent, installationId, appVersion, cancellationToken).ConfigureAwait(false);
+
+    public async Task<bool> SendMonitoredDiscordConnectStartedAsync(
+        string installationId,
+        string appVersion,
+        CancellationToken cancellationToken = default) =>
+        await SendEventAsync(MonitoredDiscordConnectStartedEvent, installationId, appVersion, cancellationToken).ConfigureAwait(false);
+
+    private async Task<bool> SendEventAsync(
+        string eventType,
+        string installationId,
+        string appVersion,
+        CancellationToken cancellationToken)
     {
         if (!IsConfigured || string.IsNullOrWhiteSpace(installationId))
             return false;
@@ -53,7 +76,7 @@ public sealed class UsageTelemetryClient
         var signal = new Signal(
             _appId,
             HashInstallationId(installationId),
-            "App.launched",
+            eventType,
             new Dictionary<string, string> { ["App.version"] = appVersion });
 
         string url = IngestBaseUrl + Uri.EscapeDataString(_namespace) + "/";

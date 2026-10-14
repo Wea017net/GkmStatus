@@ -42,7 +42,7 @@
     },
     {
       "key": "UsageTelemetry_ConsentBody",
-      "text": "匿名の利用状況データをTelemetryDeckへ送信しますか？\n\n送信内容はアプリの起動イベント、アプリのバージョン、ランダムなインストールIDのSHA-256ハッシュです。名前、PLv、Discord ID、ゲーム内情報、設定内容は送信しません。許可後は起動ごとに1回、バックグラウンドで送信します。\n\n送信は設定からいつでも停止できます。停止後、既に送信されたデータはTelemetryDeckから自動削除されません。TelemetryDeckはイベントを長期間（現在の説明では7〜10年）保持する場合があります。\n\n詳細: https://telemetrydeck.com/privacy/\n\n送信を許可しますか？"
+      "text": "匿名の利用状況データをTelemetryDeckへ送信しますか？\n\n送信内容はアプリの起動、手動でのDiscord接続開始、gakumas.exeの監視によるDiscord接続開始の各イベント、アプリのバージョン、ランダムなインストールIDのSHA-256ハッシュです。名前、PLv、Discord ID、ゲーム内情報、設定内容は送信しません。許可後は各イベント発生時にバックグラウンドで送信します。\n\n送信は設定からいつでも停止できます。停止後、既に送信されたデータはTelemetryDeckから自動削除されません。TelemetryDeckはイベントを長期間（現在の説明では7〜10年）保持する場合があります。\n\n詳細: https://telemetrydeck.com/privacy/\n\n送信を許可しますか？"
     },
     {
       "key": "Menu_CheckForUpdates",
