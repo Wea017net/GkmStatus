@@ -83,7 +83,7 @@ public sealed class UsageTelemetryTests
         Assert.AreEqual("test-app-id", signal.GetProperty("appID").GetString());
         Assert.AreEqual("App.launched", signal.GetProperty("type").GetString());
         Assert.AreEqual(UsageTelemetryClient.HashInstallationId(installationId), signal.GetProperty("clientUser").GetString());
-        Assert.AreEqual("1.2.0", signal.GetProperty("payload").GetProperty("App.version").GetString());
+        Assert.AreEqual("1.2.0", signal.GetProperty("payload").GetProperty("TelemetryDeck.AppInfo.version").GetString());
         Assert.AreEqual(4, signal.EnumerateObject().Count());
     }
 
@@ -100,7 +100,7 @@ public sealed class UsageTelemetryTests
         var manualSignal = manualDocument.RootElement[0];
         string? manualType = manualSignal.GetProperty("type").GetString();
         Assert.AreEqual(UsageTelemetryClient.HashInstallationId(installationId), manualSignal.GetProperty("clientUser").GetString());
-        Assert.AreEqual("1.2.0", manualSignal.GetProperty("payload").GetProperty("App.version").GetString());
+        Assert.AreEqual("1.2.0", manualSignal.GetProperty("payload").GetProperty("TelemetryDeck.AppInfo.version").GetString());
         Assert.AreEqual(4, manualSignal.EnumerateObject().Count());
 
         bool monitoredSent = await client.SendMonitoredDiscordConnectStartedAsync(installationId, "1.2.0");
@@ -108,7 +108,7 @@ public sealed class UsageTelemetryTests
         var monitoredSignal = monitoredDocument.RootElement[0];
         string? monitoredType = monitoredSignal.GetProperty("type").GetString();
         Assert.AreEqual(UsageTelemetryClient.HashInstallationId(installationId), monitoredSignal.GetProperty("clientUser").GetString());
-        Assert.AreEqual("1.2.0", monitoredSignal.GetProperty("payload").GetProperty("App.version").GetString());
+        Assert.AreEqual("1.2.0", monitoredSignal.GetProperty("payload").GetProperty("TelemetryDeck.AppInfo.version").GetString());
         Assert.AreEqual(4, monitoredSignal.EnumerateObject().Count());
 
         Assert.IsTrue(manualSent);

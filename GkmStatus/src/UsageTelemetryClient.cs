@@ -77,7 +77,7 @@ public sealed class UsageTelemetryClient
             _appId,
             HashInstallationId(installationId),
             eventType,
-            new Dictionary<string, string> { ["App.version"] = appVersion });
+            new Dictionary<string, string> { ["TelemetryDeck.AppInfo.version"] = appVersion });
 
         string url = IngestBaseUrl + Uri.EscapeDataString(_namespace) + "/";
         using var content = new StringContent(
