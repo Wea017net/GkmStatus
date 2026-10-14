@@ -140,7 +140,6 @@ namespace GkmStatus
 
             // 最初からウィンドウを非表示に設定して、UI初期化中の表示を防止
             this.Visible = false;
-            this.ShowInTaskbar = false;
 
             isInitializing = true;
             _configManager.Load();
@@ -239,29 +238,20 @@ namespace GkmStatus
 
         private void MinimizeToTray()
         {
-            this.WindowState = FormWindowState.Minimized;
+            // Hide the form directly instead of briefly minimizing it, which can
+            // leave a stale entry in the Windows task switcher.
             this.Hide();
-            this.ShowInTaskbar = false;
             if (trayIcon != null) trayIcon.Visible = true;
         }
 
         private void RestoreFromTray()
         {
             _isFirstStartup = false;
-            
-            // アイコンを明示的に再設定
-            if (this.Icon != null)
-            {
-                var tempIcon = this.Icon;
-                this.Icon = null;
-                this.Icon = tempIcon;
-            }
-            
-            this.ShowInTaskbar = false;  // 一度非表示に
-            this.ShowInTaskbar = true;   // 再度表示してタスクバーを更新
-            this.Show();
+
+            // Ensure start-minimized launches use a taskbar button before showing.
+            this.ShowInTaskbar = true;
             this.WindowState = FormWindowState.Normal;
-            this.Refresh();  // タスクバーのアイコン表示をリセット
+            this.Show();
             trayIcon.Visible = false;
             this.Activate();
             ReapplyTheme();
