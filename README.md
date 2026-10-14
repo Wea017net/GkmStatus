@@ -63,7 +63,7 @@ Ver.1.2.0以降は、.NET Runtime 10.0を同梱したWindows x64版のみを配�
 
 ### Windows x64版 (`GkmStatus_win-x64_vx.x.x.zip`)
 
-`GkmStatus.exe` 単体で起動でき、.NET Runtime 10.0を別途インストールする必要はありません。Ver.1.1.x以前のLite版をご利用の場合、アプリ内アップデートでVer.1.2.0へ更新すると通常版へ移行します。
+`GkmStatus.exe` 単体で起動でき、.NET Runtime 10.0を別途インストールする必要はありません。Lite版をご利用中の方はVer.1.2.0以降の通常版をダウンロードしてください。設定はそのまま引き継がれます。
 
 ## 対応言語
 
