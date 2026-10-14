@@ -62,7 +62,7 @@ Starting with v1.2.0, only the Windows x64 self-contained edition is distributed
 
 ### Windows x64 Edition (`GkmStatus_win-x64_vx.x.x.zip`)
 
-Run `GkmStatus.exe` directly without installing .NET Runtime 10.0 separately; the runtime is included. Existing Lite installations from v1.1.x and earlier are converted to the self-contained edition when updated in-app to v1.2.0.
+Run `GkmStatus.exe` directly without installing .NET Runtime 10.0 separately; the runtime is included. If you use the Lite edition, download the Standard edition from v1.2.0 onward. Your existing settings will be preserved.
 
 ## Supported Languages
 
