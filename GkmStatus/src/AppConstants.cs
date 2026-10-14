@@ -30,7 +30,19 @@ namespace GkmStatus.src
         public const string ProduceCharacter_Data_Path = RESOURCE_PREFIX + "produce_characters.json";
         public const string Localization_Data_Path = RESOURCE_PREFIX + "I18n";
 
-        public static readonly string CONFIG_PATH = Path.Combine(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GkmStatus"), "config.json");
+        public static readonly string APP_DATA_DIRECTORY = GetAppDataDirectory();
+
+        public static readonly string CONFIG_PATH = Path.Combine(APP_DATA_DIRECTORY, "config.json");
+
+        private static string GetAppDataDirectory()
+        {
+#if GKMSTATUS_UPDATER_TEST_MODE
+            string? testDirectory = Environment.GetEnvironmentVariable("GKMSTATUS_TEST_DATA_DIR");
+            if (!string.IsNullOrWhiteSpace(testDirectory))
+                return Path.GetFullPath(testDirectory);
+#endif
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GkmStatus");
+        }
 
         public const string WINDOWS_THEME_REG_KEY = @"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
 

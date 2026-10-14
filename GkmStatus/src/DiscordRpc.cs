@@ -36,14 +36,16 @@ namespace GkmStatus.src
             CurrentUsername = null;
             LastErrorMessage = null;
 
-            client = new DiscordRpcClient(appId)
+            var session = new DiscordRpcClient(appId)
             {
                 Logger = new ConsoleLogger() { Level = LogLevel.Warning },
                 SkipIdenticalPresence = false
             };
+            client = session;
 
-            client.OnReady += (s, e) =>
+            session.OnReady += (s, e) =>
             {
+                if (!ReferenceEquals(client, session)) return;
                 Status= RpcStatus.Connected;
                 CurrentUsername = e.User.Username;
                 LastErrorMessage = null;
@@ -51,22 +53,25 @@ namespace GkmStatus.src
                 StatusChanged?.Invoke(this, Status);
             };
 
-            client.OnError += (s, e) =>
+            session.OnError += (s, e) =>
             {
+                if (!ReferenceEquals(client, session)) return;
                 Status = RpcStatus.Error;
                 LastErrorMessage = e.Message;
                 StatusChanged?.Invoke(this, Status);
             };
 
-            client.OnClose += (s, e) =>
+            session.OnClose += (s, e) =>
             {
+                if (!ReferenceEquals(client, session)) return;
                 Status = RpcStatus.Disconnected;
                 CurrentUsername = null;
                 StatusChanged?.Invoke(this, Status);
             };
 
-            client.OnConnectionFailed += (s, e) =>
+            session.OnConnectionFailed += (s, e) =>
             {
+                if (!ReferenceEquals(client, session)) return;
                 Status = RpcStatus.Error;
                 LastErrorMessage = "Discord connection failed.";
                 StatusChanged?.Invoke(this, Status);
@@ -77,7 +82,7 @@ namespace GkmStatus.src
 
             try
             {
-                if(!client.Initialize())
+                if(!session.Initialize())
                 {
                     Status = RpcStatus.Error;
                     LastErrorMessage = "Failed to initialize Discord RPC client.";
@@ -91,24 +96,31 @@ namespace GkmStatus.src
             }
         }
 
-        public void Deinitialize()
+        public void Deinitialize(bool preserveError = false)
         {
-            if(client != null)
+            var oldClient = client;
+            client = null;
+            if(oldClient != null)
             {
-                client.ClearPresence();
-                client.Deinitialize();
-                client.Dispose();
-                client = null;
+                try { oldClient.ClearPresence(); }
+                catch { }
+                try { oldClient.Deinitialize(); }
+                catch { }
+                try { oldClient.Dispose(); }
+                catch { }
             }
 
             Status = RpcStatus.Disconnected;
             CurrentUsername = null;
-            LastErrorMessage = null;
+            if (!preserveError)
+                LastErrorMessage = null;
             StatusChanged?.Invoke(this, Status);
         }
 
         public void Clear()
         {
+            if (!IsInitialized)
+                return;
             client?.ClearPresence();
             Status = RpcStatus.Paused;
             StatusChanged?.Invoke(this, Status);
@@ -116,7 +128,7 @@ namespace GkmStatus.src
 
         public void Resume()
         {
-            if (Status == RpcStatus.Paused)
+            if (Status == RpcStatus.Paused && IsInitialized)
             {
                 Status = RpcStatus.Connected;
                 StatusChanged?.Invoke(this, Status);
@@ -142,28 +154,24 @@ namespace GkmStatus.src
             client.SetPresence(presence);
         }
 
-        private static string SafeTrimUtf8(string? text, int maxBytes)
+        internal static string SafeTrimUtf8(string? text, int maxBytes)
         {
             if (string.IsNullOrEmpty(text))
                 return "";
 
-            var enc = Encoding.UTF8;
-
-            if(enc.GetByteCount(text) <= maxBytes)
-                return text;
-
-            int lo = 0, hi = text.Length;
-            while (lo < hi)
+            var builder = new StringBuilder(text.Length);
+            int bytes = 0;
+            foreach (var rune in text.EnumerateRunes())
             {
-                int mid = (lo + hi + 1) / 2;
+                int runeBytes = rune.Utf8SequenceLength;
+                if (bytes + runeBytes > maxBytes)
+                    break;
 
-                if (enc.GetByteCount(text[..mid]) <= maxBytes)
-                    lo = mid;
-                else
-                    hi = mid - 1;
+                builder.Append(rune.ToString());
+                bytes += runeBytes;
             }
 
-            return text[..lo];
+            return builder.ToString();
         }
 
         protected virtual void Dispose(bool disposing)

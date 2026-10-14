@@ -13,6 +13,9 @@ namespace GkmStatus
         private readonly Font _mainFont;
         private readonly Font _titleFont;
         private readonly float _scale;
+        private readonly List<Font> _ownedFonts = [];
+        private Image? _iconImage;
+        private Icon? _ownedIcon;
 
         public AboutForm(Color backColor, Color foreColor, Font mainFont, float scale)
         {
@@ -21,6 +24,16 @@ namespace GkmStatus
             _mainFont = mainFont;
             _scale = scale;
             _titleFont = new Font(mainFont.FontFamily, 14f, FontStyle.Bold, GraphicsUnit.Point);
+            _ownedFonts.Add(_titleFont);
+
+            this.Disposed += (s, e) =>
+            {
+                _iconImage?.Dispose();
+                _ownedIcon?.Dispose();
+                foreach (var font in _ownedFonts)
+                    font.Dispose();
+                _ownedFonts.Clear();
+            };
 
             //SetupInitializeComponent();
 
@@ -54,6 +67,7 @@ namespace GkmStatus
                         MinimizeBox = false,
                         MaximizeBox = false
                     };
+                    using var licenseFont = new Font(FontFamily.GenericMonospace, 9f, GraphicsUnit.Point);
                     var txt = new TextBox
                     {
                         Multiline = true,
@@ -64,7 +78,7 @@ namespace GkmStatus
                         BackColor = _backColor,
                         ForeColor = _foreColor,
                         BorderStyle = BorderStyle.None,
-                        Font = new Font(FontFamily.GenericMonospace, 9f, GraphicsUnit.Point)
+                        Font = licenseFont
                     };
                     licenseForm.Controls.Add(txt);
                     licenseForm.ShowDialog(this);
@@ -99,6 +113,28 @@ namespace GkmStatus
         private void Close(object sender, EventArgs e)
         {
             this.Close();
+        }
+
+        private Font CreateOwnedFont(FontFamily family, float size, FontStyle style = FontStyle.Regular)
+        {
+            var font = new Font(family, size, style, GraphicsUnit.Point);
+            _ownedFonts.Add(font);
+            return font;
+        }
+
+        private Font CreateOwnedFont(string family, float size, FontStyle style = FontStyle.Regular)
+        {
+            var font = new Font(family, size, style, GraphicsUnit.Point);
+            _ownedFonts.Add(font);
+            return font;
+        }
+
+        private void SetOwnedIconImage(Image image) => _iconImage = new Bitmap(image);
+        private void SetOwnedIcon(Icon icon)
+        {
+            _ownedIcon?.Dispose();
+            _ownedIcon = icon;
+            this.Icon = icon;
         }
     }
 }
