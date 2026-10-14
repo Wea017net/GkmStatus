@@ -21,6 +21,8 @@ namespace GkmStatus
         private int footerButtonsY;
         private bool _isFirstStartup = true;
         private bool _syncingStartupSetting;
+        private bool _isUpdating;
+        private readonly bool _forceVisibleOnStartup;
         private int _updateDisplayVersion;
         private bool _runtimeResourcesDisposed;
 
@@ -51,8 +53,9 @@ namespace GkmStatus
 
         private CancellationTokenSource? _updateCts;
 
-        public MainForm()
+        public MainForm(bool forceVisibleOnStartup = false)
         {
+            _forceVisibleOnStartup = forceVisibleOnStartup;
             try
             {
                 uiScale = (float)this.DeviceDpi / 96f;
@@ -145,7 +148,7 @@ namespace GkmStatus
             _configManager.Load();
             LoadSettings();
 
-            if (startMinimizedItem.Checked)
+            if (!_forceVisibleOnStartup && startMinimizedItem.Checked)
             {
                 this.WindowState = FormWindowState.Minimized;
                 trayIcon.Visible = true;
@@ -173,7 +176,7 @@ namespace GkmStatus
 
             this.FormClosing += (s, e) =>
             {
-                if (minimizeToTrayItem?.Checked == true && e.CloseReason == CloseReason.UserClosing)
+                if (!_isUpdating && minimizeToTrayItem?.Checked == true && e.CloseReason == CloseReason.UserClosing)
                 {
                     e.Cancel = true;
                     MinimizeToTray();
@@ -452,19 +455,56 @@ namespace GkmStatus
                     {
                         if (MessageBox.Show(this, I18n.T(Update_NewAvailable, result.LatestVersion), "Update", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
                         {
-                            _ = StartupManager.OpenUrl(result.ReleaseUrl);
+                            _ = DownloadUpdateAsync(result, manual: true);
                         }
                     }
                     else
                     {
                         trayIcon.Visible = true;
-                        trayIcon.Tag = result.ReleaseUrl;
+                        trayIcon.Tag = result;
                         trayIcon.ShowBalloonTip(5000, I18n.T(Update_NotificationTitle), I18n.T(Update_NotificationBody, result.LatestVersion), ToolTipIcon.Info);
                     }
                 });
             }
             else if (manual)
                 SafeBeginInvoke(() => MessageBox.Show(this, I18n.T(Update_NoUpdate), "Update", MessageBoxButtons.OK, MessageBoxIcon.Information));
+        }
+
+        private async Task DownloadUpdateAsync(UpdateCheckResult result, bool manual)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(result.DownloadUrl))
+                    throw new InvalidOperationException("The latest release does not include a supported Windows x64 package.");
+
+                if (!manual)
+                    trayIcon.ShowBalloonTip(3000, I18n.T(Update_NotificationTitle), I18n.T(Update_Downloading), ToolTipIcon.Info);
+
+                string? applicationPath = Environment.ProcessPath;
+                if (string.IsNullOrEmpty(applicationPath))
+                    throw new InvalidOperationException("Could not locate GkmStatus.exe.");
+
+                await Task.Run(() => UpdaterService.StartUpdate(result, applicationPath));
+                SafeBeginInvoke(() =>
+                {
+                    _isUpdating = true;
+                    SaveSettings();
+                    Close();
+                });
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                SafeBeginInvoke(() =>
+                {
+                    if (manual)
+                        MessageBox.Show(this, I18n.T(Update_DownloadFailed, ex.Message), "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    else
+                        trayIcon.ShowBalloonTip(5000, I18n.T(Update_NotificationTitle), I18n.T(Update_DownloadFailed, ex.Message), ToolTipIcon.Error);
+                });
+            }
         }
 
         private void CmbStateType_SelectedIndexChanged(object? sender, EventArgs e)
@@ -1061,7 +1101,7 @@ namespace GkmStatus
         }
         protected override void SetVisibleCore(bool value)
         {
-            if (_isFirstStartup && startMinimizedItem?.Checked == true)
+            if (_isFirstStartup && !_forceVisibleOnStartup && startMinimizedItem?.Checked == true)
             {
                 if (!IsHandleCreated) CreateHandle();
                 value = false;

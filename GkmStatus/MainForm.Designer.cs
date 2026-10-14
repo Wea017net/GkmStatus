@@ -168,10 +168,10 @@ namespace GkmStatus
             };
             trayIcon.BalloonTipClicked += (s, e) =>
             {
-                if (trayIcon.Tag is string url && !string.IsNullOrEmpty(url))
+                if (trayIcon.Tag is UpdateCheckResult updateResult)
                 {
-                    try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
                     trayIcon.Tag = null;
+                    _ = DownloadUpdateAsync(updateResult, manual: false);
                 }
                 else
                 {
