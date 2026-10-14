@@ -228,6 +228,53 @@ public sealed class RegressionTests
     }
 
     [TestMethod]
+    public void TemporaryUpdaterCleanupOnlyAcceptsItsGeneratedDirectChildFolder()
+    {
+        string tempDirectory = Path.Combine(Path.GetTempPath(), "GkmStatus.Updater.Tests", Guid.NewGuid().ToString("N"));
+        string validDirectory = Path.Combine(tempDirectory, "Updater-" + Guid.NewGuid().ToString("N"));
+        string nestedDirectory = Path.Combine(validDirectory, "nested");
+        string invalidName = Path.Combine(tempDirectory, "Updater-not-a-guid");
+
+        var updaterType = typeof(UpdateService).Assembly.GetType("GkmStatus.src.UpdaterService");
+        Assert.IsNotNull(updaterType);
+        var validateMethod = updaterType.GetMethod("IsValidTemporaryUpdaterDirectory", BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.IsNotNull(validateMethod);
+
+        Assert.IsTrue((bool)validateMethod.Invoke(null, [validDirectory, tempDirectory])!);
+        Assert.IsFalse((bool)validateMethod.Invoke(null, [nestedDirectory, tempDirectory])!);
+        Assert.IsFalse((bool)validateMethod.Invoke(null, [invalidName, tempDirectory])!);
+        Assert.IsFalse((bool)validateMethod.Invoke(null, [Path.Combine(Path.GetTempPath(), Path.GetFileName(validDirectory)), tempDirectory])!);
+    }
+
+
+    [TestMethod]
+    public void TemporaryUpdaterIsCreatedOnlyInsideTheRequestedTempFolder()
+    {
+        string tempDirectory = Path.Combine(Path.GetTempPath(), "GkmStatus.Updater.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDirectory);
+        try
+        {
+            var updaterType = typeof(UpdateService).Assembly.GetType("GkmStatus.src.UpdaterService");
+            Assert.IsNotNull(updaterType);
+            var createMethod = updaterType.GetMethod("CreateTemporaryUpdater", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.IsNotNull(createMethod);
+
+            var (executablePath, directoryPath) = ((string ExecutablePath, string DirectoryPath))createMethod.Invoke(null, [tempDirectory])!;
+
+            Assert.IsTrue(File.Exists(executablePath));
+            Assert.IsTrue(Directory.Exists(directoryPath));
+            Assert.IsTrue(directoryPath.StartsWith(Path.GetFullPath(tempDirectory) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+            Assert.AreEqual("Updater.exe", Path.GetFileName(executablePath));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDirectory))
+                Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
+
+    [TestMethod]
     public void DisconnectedRpcCannotBeFalselyResumed()
     {
         using var rpc = new DiscordRpcService();
