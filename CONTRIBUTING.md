@@ -51,7 +51,7 @@ GkmStatus は Windows 向けの .NET アプリケーションです。
 2. Fork したリポジトリをクローンします。
 
 ```bash
-   git clone https://github.com/<YOUR\_USERNAME>/GkmStatus.git
+   git clone https://github.com/YOUR_USERNAME/GkmStatus.git
    cd GkmStatus
    ```
 
