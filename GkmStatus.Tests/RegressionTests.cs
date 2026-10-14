@@ -467,6 +467,26 @@ public sealed class RegressionTests
     }
 
     [TestMethod]
+    public void NotifyOnMinimizeDefaultsToEnabledForNewAndLegacyConfigs()
+    {
+        Assert.IsTrue(ConfigManager.CreateDefaultConfig().Settings.NotifyOnMinimize);
+
+        string path = CreateTemporaryConfigPath();
+        try
+        {
+            File.WriteAllText(path, "{\"ConfigVersion\":1,\"Settings\":{}}");
+            var manager = new ConfigManager(path);
+            manager.Load();
+
+            Assert.IsTrue(manager.Config.Settings.NotifyOnMinimize);
+        }
+        finally
+        {
+            DeleteTemporaryConfigPath(path);
+        }
+    }
+
+    [TestMethod]
     public void ConfigSaveRoundTripsThroughSameDirectoryReplacement()
     {
         string path = CreateTemporaryConfigPath();
