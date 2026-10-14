@@ -446,7 +446,7 @@ public sealed class RegressionTests
             manager.Load();
 
             Assert.IsTrue(manager.Config.Settings.StartMinimized);
-            Assert.IsTrue(manager.Config.Settings.ConnectOnStart);
+            Assert.IsFalse(manager.Config.Settings.ConnectOnStart);
             Assert.AreEqual(AppTheme.Auto.ToString(), manager.Config.Settings.SelectedTheme);
             Assert.AreEqual("Producer", manager.Config.Presence.ProducerName);
             Assert.AreEqual(1, manager.Config.Presence.ProducerLevel);
@@ -458,8 +458,15 @@ public sealed class RegressionTests
         {
             DeleteTemporaryConfigPath(path);
         }
-    }`r
-[TestMethod]
+    }
+
+    [TestMethod]
+    public void DefaultConfigDoesNotConnectOnStartup()
+    {
+        Assert.IsFalse(ConfigManager.CreateDefaultConfig().Settings.ConnectOnStart);
+    }
+
+    [TestMethod]
     public void ConfigSaveRoundTripsThroughSameDirectoryReplacement()
     {
         string path = CreateTemporaryConfigPath();
