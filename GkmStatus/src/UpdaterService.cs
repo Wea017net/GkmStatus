@@ -11,9 +11,10 @@ namespace GkmStatus.src;
 
 internal static class UpdaterService
 {
-    private const string UpdaterFolderName = "Updater";
+    private const string TemporaryUpdaterFolderPrefix = "Updater-";
     private const string ApplyUpdateArgument = "--apply-update";
     private const string ShowAfterUpdateArgument = "--show-after-update";
+    private const string CleanupTemporaryUpdaterArgument = "--cleanup-update-helper";
     private const int MaxRequestArgumentLength = 16 * 1024;
     private const int MaxArchiveEntries = 256;
     private const long MaxArchiveUncompressedBytes = 512L * 1024 * 1024;
@@ -24,6 +25,7 @@ internal static class UpdaterService
         public string InstallDirectory { get; set; } = string.Empty;
         public string ApplicationPath { get; set; } = string.Empty;
         public string DataDirectory { get; set; } = string.Empty;
+        public string UpdaterDirectory { get; set; } = string.Empty;
         public string DownloadUrl { get; set; } = string.Empty;
         public string FileName { get; set; } = string.Empty;
         public string Sha256 { get; set; } = string.Empty;
@@ -36,42 +38,108 @@ internal static class UpdaterService
 
     public static string TempDirectory => Path.Combine(AppConstants.APP_DATA_DIRECTORY, "Temp");
 
-    public static string EnsureInstalled()
+    internal static (string ExecutablePath, string DirectoryPath) CreateTemporaryUpdater(string tempDirectory)
     {
-        string updaterDirectory = Path.Combine(AppConstants.APP_DATA_DIRECTORY, UpdaterFolderName);
-        Directory.CreateDirectory(updaterDirectory);
-
         string? currentExecutable = Environment.ProcessPath;
         if (string.IsNullOrEmpty(currentExecutable) || !File.Exists(currentExecutable))
             throw new InvalidOperationException("Could not locate the running application executable.");
 
-        string updaterPath = Path.Combine(updaterDirectory, "Updater.exe");
-        File.Copy(currentExecutable, updaterPath, overwrite: true);
+        string updaterDirectory = Path.Combine(Path.GetFullPath(tempDirectory), TemporaryUpdaterFolderPrefix + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(updaterDirectory);
 
-        string sourceDirectory = AppContext.BaseDirectory;
-        foreach (string sourceFile in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.TopDirectoryOnly))
+        try
         {
-            string extension = Path.GetExtension(sourceFile);
-            if (!extension.Equals(".dll", StringComparison.OrdinalIgnoreCase) &&
-                !extension.Equals(".json", StringComparison.OrdinalIgnoreCase))
-                continue;
+            string updaterPath = Path.Combine(updaterDirectory, "Updater.exe");
+            File.Copy(currentExecutable, updaterPath, overwrite: true);
 
-            string targetPath = Path.Combine(updaterDirectory, Path.GetFileName(sourceFile));
-            if (!Path.GetFullPath(sourceFile).Equals(Path.GetFullPath(targetPath), StringComparison.OrdinalIgnoreCase))
-                File.Copy(sourceFile, targetPath, overwrite: true);
+            string sourceDirectory = AppContext.BaseDirectory;
+            foreach (string sourceFile in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.TopDirectoryOnly))
+            {
+                string extension = Path.GetExtension(sourceFile);
+                if (!extension.Equals(".dll", StringComparison.OrdinalIgnoreCase) &&
+                    !extension.Equals(".json", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                string targetPath = Path.Combine(updaterDirectory, Path.GetFileName(sourceFile));
+                if (!Path.GetFullPath(sourceFile).Equals(Path.GetFullPath(targetPath), StringComparison.OrdinalIgnoreCase))
+                    File.Copy(sourceFile, targetPath, overwrite: true);
+            }
+
+            return (updaterPath, updaterDirectory);
         }
+        catch
+        {
+            TryDeleteDirectory(updaterDirectory);
+            throw;
+        }
+    }
 
-        return updaterPath;
+    internal static bool IsValidTemporaryUpdaterDirectory(string updaterDirectory, string tempDirectory)
+    {
+        try
+        {
+            string fullDirectory = Path.GetFullPath(updaterDirectory);
+            string fullTempDirectory = Path.GetFullPath(tempDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string? parentDirectory = Path.GetDirectoryName(fullDirectory);
+            string directoryName = Path.GetFileName(fullDirectory);
+            return string.Equals(parentDirectory, fullTempDirectory, StringComparison.OrdinalIgnoreCase) &&
+                directoryName.StartsWith(TemporaryUpdaterFolderPrefix, StringComparison.Ordinal) &&
+                Guid.TryParseExact(directoryName[TemporaryUpdaterFolderPrefix.Length..], "N", out _);
+        }
+        catch (ArgumentException) { return false; }
+        catch (NotSupportedException) { return false; }
+        catch (PathTooLongException) { return false; }
+    }
+
+    public static void CleanupTemporaryUpdaterFromArguments(string[] args)
+    {
+        int argumentIndex = Array.IndexOf(args, CleanupTemporaryUpdaterArgument);
+        if (argumentIndex < 0 || args.Length <= argumentIndex + 2 ||
+            !int.TryParse(args[argumentIndex + 2], out int updaterProcessId) || updaterProcessId <= 0)
+            return;
+
+        string updaterDirectory = Path.Combine(TempDirectory, args[argumentIndex + 1]);
+        if (!IsValidTemporaryUpdaterDirectory(updaterDirectory, TempDirectory))
+            return;
+
+        try
+        {
+            using var updaterProcess = Process.GetProcessById(updaterProcessId);
+            if (!updaterProcess.WaitForExit((int)TimeSpan.FromSeconds(30).TotalMilliseconds))
+                return;
+        }
+        catch (ArgumentException) { }
+
+        TryDeleteDirectory(updaterDirectory);
+    }
+
+    public static void CleanupStaleTemporaryUpdaters()
+    {
+        try
+        {
+            if (!Directory.Exists(TempDirectory))
+                return;
+
+            DateTime staleBefore = DateTime.UtcNow.AddDays(-1);
+            foreach (string directory in Directory.EnumerateDirectories(TempDirectory, TemporaryUpdaterFolderPrefix + "*", SearchOption.TopDirectoryOnly))
+            {
+                if (IsValidTemporaryUpdaterDirectory(directory, TempDirectory) && Directory.GetCreationTimeUtc(directory) < staleBefore)
+                    TryDeleteDirectory(directory);
+            }
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 
     public static Process StartUpdate(UpdateCheckResult release, string applicationPath)
     {
-        string updaterPath = EnsureInstalled();
         string installDirectory = Path.GetDirectoryName(Path.GetFullPath(applicationPath))
             ?? throw new InvalidOperationException("Could not determine the application folder.");
         string fileName = Path.GetFileName(applicationPath);
         if (!fileName.Equals("GkmStatus.exe", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Automatic update is only supported for GkmStatus.exe installations.");
+
+        var (updaterPath, updaterDirectory) = CreateTemporaryUpdater(TempDirectory);
 
         var request = new UpdateRequest
         {
@@ -79,6 +147,7 @@ internal static class UpdaterService
             InstallDirectory = installDirectory,
             ApplicationPath = Path.GetFullPath(applicationPath),
             DataDirectory = AppConstants.APP_DATA_DIRECTORY,
+            UpdaterDirectory = updaterDirectory,
             DownloadUrl = release.DownloadUrl,
             FileName = release.DownloadFileName,
             Sha256 = release.DownloadSha256,
@@ -92,7 +161,10 @@ internal static class UpdaterService
         };
         string requestArgument = Convert.ToBase64String(JsonSerializer.SerializeToUtf8Bytes(request));
         if (requestArgument.Length > MaxRequestArgumentLength)
+        {
+            TryDeleteDirectory(updaterDirectory);
             throw new InvalidOperationException("The update request is too large.");
+        }
 
         var startInfo = new ProcessStartInfo(updaterPath)
         {
@@ -103,7 +175,15 @@ internal static class UpdaterService
         startInfo.ArgumentList.Add(ApplyUpdateArgument);
         startInfo.ArgumentList.Add(requestArgument);
 
-        return Process.Start(startInfo) ?? throw new InvalidOperationException("Could not start the updater.");
+        try
+        {
+            return Process.Start(startInfo) ?? throw new InvalidOperationException("Could not start the updater.");
+        }
+        catch
+        {
+            TryDeleteDirectory(updaterDirectory);
+            throw;
+        }
     }
 
     public static bool TryRunUpdaterMode(string[] args)
@@ -193,6 +273,7 @@ internal static class UpdaterService
                     WorkingDirectory = completedRequest.InstallDirectory
                 };
                 startInfo.ArgumentList.Add(ShowAfterUpdateArgument);
+                AddCleanupTemporaryUpdaterArguments(startInfo, completedRequest);
 #if GKMSTATUS_UPDATER_TEST_MODE
                 startInfo.Environment["GKMSTATUS_TEST_DATA_DIR"] = completedRequest.DataDirectory;
                 startInfo.Environment["GKMSTATUS_TEST_ROOT"] = completedRequest.TestRoot;
@@ -259,6 +340,8 @@ internal static class UpdaterService
     {
         if (!Path.GetFullPath(request.DataDirectory).Equals(Path.GetFullPath(AppConstants.APP_DATA_DIRECTORY), StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("The updater data folder is invalid.");
+        if (!IsValidTemporaryUpdaterDirectory(request.UpdaterDirectory, TempDirectory))
+            throw new InvalidOperationException("The temporary updater folder is invalid.");
 
         string installDirectory = Path.GetFullPath(request.InstallDirectory);
         string applicationPath = Path.GetFullPath(request.ApplicationPath);
@@ -327,11 +410,13 @@ internal static class UpdaterService
 
             if (File.Exists(request.ApplicationPath))
             {
-                Process.Start(new ProcessStartInfo(request.ApplicationPath)
+                var startInfo = new ProcessStartInfo(request.ApplicationPath)
                 {
                     UseShellExecute = true,
                     WorkingDirectory = request.InstallDirectory
-                });
+                };
+                AddCleanupTemporaryUpdaterArguments(startInfo, request);
+                Process.Start(startInfo);
             }
         }
         catch (Exception ex)
@@ -540,6 +625,13 @@ internal static class UpdaterService
         Environment.SetEnvironmentVariable("GKMSTATUS_TEST_PACKAGE", request.TestPackage);
         Environment.SetEnvironmentVariable("GKMSTATUS_TEST_LATEST_VERSION", request.TestLatestVersion);
 #endif
+    }
+
+    private static void AddCleanupTemporaryUpdaterArguments(ProcessStartInfo startInfo, UpdateRequest request)
+    {
+        startInfo.ArgumentList.Add(CleanupTemporaryUpdaterArgument);
+        startInfo.ArgumentList.Add(Path.GetFileName(request.UpdaterDirectory));
+        startInfo.ArgumentList.Add(Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
     private static void TryDeleteDirectory(string path)
