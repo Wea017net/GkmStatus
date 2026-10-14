@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -18,6 +18,10 @@
     <Description>A Discord Rich Presence App for Gakumas</Description>
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(GkmStatusUpdaterTestMode)' == 'true'">
+    <DefineConstants>$(DefineConstants);GKMSTATUS_UPDATER_TEST_MODE</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
