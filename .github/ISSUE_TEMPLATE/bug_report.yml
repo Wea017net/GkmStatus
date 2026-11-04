@@ -1,0 +1,65 @@
+name: 不具合報告 / Bug Report
+description: GkmStatus の不具合を報告する / Report a bug in GkmStatus
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        不具合の報告ありがとうございます。分かる範囲で詳しく記入してください。
+        ログやスクリーンショットを添付する場合は、個人情報や認証情報を伏せてください。
+  - type: checkboxes
+    id: existing-issues
+    attributes:
+      label: 投稿前の確認
+      options:
+        - label: 同じ内容の Issue がないことを確認しました。
+          required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: 不具合の内容
+      description: どのような問題が起きたかを説明してください。
+      placeholder: 例：接続ボタンを押しても Discord のアクティビティに表示されない。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      description: 問題が起きるまでの操作を順番に記入してください。再現条件が分からない場合は、その旨を記入してください。
+      placeholder: |
+        1. Discord と GkmStatus を起動する
+        2. …を設定する
+        3. 接続ボタンを押す
+        4. …が起きる
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: 期待する動作
+      description: 本来どのように動作することを期待していましたか？
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: GkmStatus のバージョン
+      placeholder: 例：v1.2.0（不明な場合は「不明」）
+    validations:
+      required: true
+  - type: input
+    id: windows-version
+    attributes:
+      label: Windows のバージョン
+      description: 分かる場合はバージョンや OS ビルドも記入してください（winver コマンドで確認できます）。
+      placeholder: 例：Windows 11 25H2 / Windows 10 22H2
+    validations:
+      required: true
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 補足情報・エラーメッセージ・ログ・スクリーンショット
+      description: 関連する設定、発生頻度、Discord のバージョン、エラーなどがあれば記入してください。画像も添付できます。個人情報や認証情報は伏せてください。
+    validations:
+      required: false
