@@ -1,0 +1,43 @@
+name: 機能提案 / Feature Request
+description: GkmStatus の新機能や改善を提案する / Propose a new feature or improvement for GkmStatus
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        機能の提案ありがとうございます。どのような場面で役立つかも教えてください。
+  - type: checkboxes
+    id: existing-issues
+    attributes:
+      label: 投稿前の確認
+      options:
+        - label: 同じ内容の Issue がないことを確認しました。
+          required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: 背景・目的
+      description: 現在困っていることや、改善したい点を説明してください。
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-feature
+    attributes:
+      label: 提案する機能・改善内容
+      description: 追加・改善したい機能と、想定する利用方法を具体的に説明してください。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 代替案
+      description: 検討した別の方法や、現在の回避方法があれば記入してください。
+    validations:
+      required: false
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 補足情報
+      description: 実装案、参考リンク、イメージ画像などがあれば共有してください。個人情報や認証情報は伏せてください。
+    validations:
+      required: false
