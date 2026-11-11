@@ -35,14 +35,12 @@ namespace GkmStatus.src
             bool isBright = bg.GetBrightness() > 0.5;
             Color menuBg = isBright ? Color.FromArgb(235, 233, 233) : (bg.R == 0 ? Color.Black : Color.FromArgb(45, 47, 51));
 
-            menu.BackColor = menuBg;
-            menu.Font = _fontManager.MenuFont;
-            menu.Renderer = new MyRenderer(isBright, new CustomColorTable(isBright));
-
+            // メインウィンドウのメニューバーのドロップダウンと同じ描画にする
+            ProfessionalColorTable colorTable = CreateMenuColorTable(menuBg, isBright);
+            ApplyDropDownTheme(menu, colorTable, isBright ? null : menuBg);
             foreach (ToolStripItem item in menu.Items)
             {
-                if (item is ToolStripMenuItem tsmi) ApplyThemeToMenuItems(tsmi, menuBg, isBright);
-                else item.Font = _fontManager.MenuFont;
+                ApplyMenuItemTheme(item, colorTable, isBright ? null : menuBg);
             }
         }
 
@@ -100,13 +98,7 @@ namespace GkmStatus.src
             }
             else if (c is MenuStrip ms)
             {
-                ms.BackColor = menuBg;
-                ms.Font = _fontManager.MenuFont;
-                ms.Renderer = new MyRenderer(isBright, new CustomColorTable(isBright));
-                foreach (ToolStripItem item in ms.Items)
-                {
-                    if (item is ToolStripMenuItem tsmi) ApplyThemeToMenuItems(tsmi, menuBg, isBright);
-                }
+                ApplyMenuStripTheme(ms, menuBg, isBright);
             }
             else if (c is ComboBox cb)
             {
@@ -159,20 +151,58 @@ namespace GkmStatus.src
                 lbl.ForeColor = isBright ? Color.Black : Color.LightGray;
         }
 
-        private void ApplyThemeToMenuItems(ToolStripMenuItem item, Color menuBg, bool isBright)
+        // メインウィンドウのメニューバー: 標準の ToolStripProfessionalRenderer をベースに、テーマに合わせた ColorTable を渡す。
+        // フォントはシステムのメニューフォント（ToolStripManager.DefaultFont）。
+        // 全テーマ共通で、チェック欄とホバーはアクセント色（#ff7609）、チェックマークは独自画像、矢印は文字色。
+        private static void ApplyMenuStripTheme(MenuStrip ms, Color menuBg, bool isBright)
         {
-            item.Font = _fontManager.MenuFont;
-            if (item.DropDown != null)
+            // ライトテーマはシステム色、ダーク/OLED テーマはテーマの暗い色。
+            // MenuStrip の BackColor/ForeColor はフォームの値を継承してしまうため、ライトでも明示する。
+            ms.BackColor = isBright ? SystemColors.MenuBar : menuBg;
+            ms.ForeColor = isBright ? SystemColors.MenuText : ThemedProfessionalColorTable.DarkText;
+            ms.ResetFont();
+
+            ProfessionalColorTable colorTable = CreateMenuColorTable(menuBg, isBright);
+            ms.Renderer = new ThemedProfessionalRenderer(colorTable);
+            foreach (ToolStripItem item in ms.Items)
             {
-                item.DropDown.BackColor = menuBg;
-                item.DropDown.Font = _fontManager.MenuFont;
-                item.DropDown.Renderer = new MyRenderer(isBright, new CustomColorTable(isBright));
+                ApplyMenuItemTheme(item, colorTable, isBright ? null : menuBg);
             }
-            foreach (ToolStripItem subItem in item.DropDownItems)
+        }
+
+        // ライトテーマは標準の配色にアクセント色を加えたもの、ダーク/OLED テーマは暗い配色
+        private static ProfessionalColorTable CreateMenuColorTable(Color menuBg, bool isBright)
+            => isBright ? new AccentColorTable() : new ThemedProfessionalColorTable(menuBg);
+
+        private static void ApplyMenuItemTheme(ToolStripItem item, ProfessionalColorTable colorTable, Color? darkBg)
+        {
+            item.ResetBackColor();
+            item.ResetForeColor();
+            item.ResetFont();
+            if (item is not ToolStripMenuItem menuItem) return;
+
+            if (menuItem.HasDropDown) ApplyDropDownTheme(menuItem.DropDown, colorTable, darkBg);
+            foreach (ToolStripItem subItem in menuItem.DropDownItems)
             {
-                if (subItem is ToolStripMenuItem subMenu) ApplyThemeToMenuItems(subMenu, menuBg, isBright);
-                else subItem.Font = _fontManager.MenuFont;
+                ApplyMenuItemTheme(subItem, colorTable, darkBg);
             }
+        }
+
+        // ドロップダウン（メニューバーのサブメニュー / トレイのコンテキストメニュー）。darkBg が null ならシステム色。
+        private static void ApplyDropDownTheme(ToolStripDropDown dropDown, ProfessionalColorTable colorTable, Color? darkBg)
+        {
+            if (darkBg is Color bg)
+            {
+                dropDown.BackColor = bg;
+                dropDown.ForeColor = ThemedProfessionalColorTable.DarkText;
+            }
+            else
+            {
+                dropDown.ResetBackColor();
+                dropDown.ResetForeColor();
+            }
+            dropDown.ResetFont();
+            dropDown.Renderer = new ThemedProfessionalRenderer(colorTable);
         }
 
         private static void UpdatePanelBorder(Panel p, Color bg, Color border)

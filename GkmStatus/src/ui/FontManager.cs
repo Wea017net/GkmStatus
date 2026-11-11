@@ -26,7 +26,6 @@ namespace GkmStatus.src
         public Font AppFont { get; private set; } = null!;
         public Font AppFontBold { get; private set; } = null!;
         public Font AppFontMedium { get; private set; } = null!;
-        public Font MenuFont { get; private set; } = null!;
 
         public void Initialize(float uiScale)
         {
@@ -105,7 +104,6 @@ namespace GkmStatus.src
                     AppFont = new Font(regular, basePx, GraphicsUnit.Pixel);
                     AppFontBold = bold != null ? new Font(bold, basePx, GraphicsUnit.Pixel) : new Font(regular, basePx, FontStyle.Bold, GraphicsUnit.Pixel);
                     AppFontMedium = medium != null ? new Font(medium, basePx, GraphicsUnit.Pixel) : new Font(regular, basePx, GraphicsUnit.Pixel);
-                    SetupMenuFont(uiScale);
                     return;
                 }
             }
@@ -119,30 +117,6 @@ namespace GkmStatus.src
             AppFont = new Font("Meiryo UI", fallbackPx, GraphicsUnit.Pixel);
             AppFontBold = new Font("Meiryo UI", fallbackPx, FontStyle.Bold, GraphicsUnit.Pixel);
             AppFontMedium = new Font("Meiryo UI", fallbackPx, GraphicsUnit.Pixel);
-            SetupMenuFont(uiScale);
-        }
-
-        private void SetupMenuFont(float uiScale)
-        {
-            float menuPx = 12f * uiScale;
-            try
-            {
-                using var testFont = new Font("Yu Gothic UI", menuPx, GraphicsUnit.Pixel);
-                if (testFont.Name == "Yu Gothic UI")
-                {
-                    MenuFont = new Font("Yu Gothic UI", menuPx, GraphicsUnit.Pixel);
-                }
-                else
-                {
-                    var family = SystemFonts.MessageBoxFont?.FontFamily ?? FontFamily.GenericSansSerif;
-                    MenuFont = new Font(family, menuPx, GraphicsUnit.Pixel);
-                }
-            }
-            catch
-            {
-                var family = SystemFonts.MessageBoxFont?.FontFamily ?? FontFamily.GenericSansSerif;
-                MenuFont = new Font(family, menuPx, GraphicsUnit.Pixel);
-            }
         }
 
         public void Dispose()
@@ -153,7 +127,6 @@ namespace GkmStatus.src
             AppFont?.Dispose();
             AppFontBold?.Dispose();
             AppFontMedium?.Dispose();
-            MenuFont?.Dispose();
 
             foreach (var handle in _fontResourceHandles) RemoveFontMemResourceEx(handle);
             _fontResourceHandles.Clear();
