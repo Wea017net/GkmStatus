@@ -784,13 +784,19 @@ namespace GkmStatus
                 _processWatcher.Enabled = settings.AutoDetectGakumas;
 
                 var theme = GetTheme(settings.SelectedTheme);
-                switch (theme)
+                ToolStripMenuItem selectedThemeItem = theme switch
                 {
-                    case AppTheme.Light: themeLight.PerformClick(); break;
-                    case AppTheme.Dark: themeDark.PerformClick(); break;
-                    case AppTheme.OLED: themeOLED.PerformClick(); break;
-                    default: themeAuto.PerformClick(); break;
-                }
+                    AppTheme.Light => themeLight,
+                    AppTheme.Dark => themeDark,
+                    AppTheme.OLED => themeOLED,
+                    _ => themeAuto
+                };
+                // PerformClick() は使わない。閉じたままのサブメニューで ItemClicked を起こすと、WinForms 内部に
+                // 「クリックで閉じる」理由が残る。そのせいで、後でホバーでテーマ→言語へ移ったときにテーマのサブメニューが
+                // ItemClicked で閉じられ、DropDown.Closing の取り消しにかかって開いたまま重なってしまうため。
+                ThemeManager.UpdateThemeChecks(selectedThemeItem,
+                    [.. new[] { themeAuto, themeLight, themeDark, themeOLED }.Where(item => item != selectedThemeItem)]);
+                ReapplyTheme();
 
                 var language = GetLanguage(settings.SelectedLanguage ?? (System.Globalization.CultureInfo.CurrentUICulture.Name.StartsWith("ja") ? "ja" : "en"));
                 if (language == I18n.Language.English)
