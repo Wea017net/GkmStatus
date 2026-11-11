@@ -19,6 +19,19 @@ namespace GkmStatus.src.ui
             base.OnRenderArrow(e);
         }
 
+        protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
+        {
+            // メニューを開いたまま隣の項目へ移ると、新しい項目は「選択済み・未展開」の状態で一瞬描かれてから
+            // ドロップダウンが開く。この間にホバー色が出てちらつくので、切り替え中は何も描かない。
+            if (e.Item is ToolStripMenuItem { Selected: true, Pressed: false, HasDropDown: true } item
+                && item.Owner is MenuStrip menuStrip
+                && MenuBarSwitchTracker.IsSwitching(menuStrip))
+            {
+                return;
+            }
+            base.OnRenderMenuItemBackground(e);
+        }
+
         protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
         {
             Color color = e.Item is { Enabled: true } item ? item.ForeColor : SystemColors.GrayText;
@@ -30,6 +43,41 @@ namespace GkmStatus.src.ui
             }
             // 背景と枠は標準の処理で描き、画像だけ差し替える
             base.OnRenderItemCheck(new ToolStripItemImageRenderEventArgs(e.Graphics, e.Item, glyph, e.ImageRectangle));
+        }
+    }
+
+    /// <summary>
+    /// メニューバーで「開いているメニューから隣の項目へ移っている途中」かどうかを追跡する。
+    /// ・隣へ移るとき: 前のドロップダウンが閉じ（理由 AppFocusChange）、前の項目の選択が外れ、別の項目が選択されている
+    /// ・Esc で閉じたとき: 理由 Keyboard で、閉じた項目は選択されたまま（キーボード操作の強調は残す必要がある）
+    /// 次のドロップダウンが開いた時点、またはメニュー操作が終わった時点で解除する。
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    internal static class MenuBarSwitchTracker
+    {
+        private sealed class State { public bool Switching; }
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<MenuStrip, State> States = new();
+
+        public static bool IsSwitching(MenuStrip menuStrip)
+            => States.TryGetValue(menuStrip, out State? state) && state.Switching;
+
+        /// <summary>MenuStrip とその直下の項目にイベントを付ける。テーマの再適用で何度呼ばれても 1 回だけ付ける。</summary>
+        public static void Attach(MenuStrip menuStrip)
+        {
+            if (States.TryGetValue(menuStrip, out _)) return;
+            var state = new State();
+            States.Add(menuStrip, state);
+
+            menuStrip.MenuDeactivate += (s, e) => state.Switching = false;
+            foreach (ToolStripMenuItem item in menuStrip.Items.OfType<ToolStripMenuItem>())
+            {
+                item.DropDownOpened += (s, e) => state.Switching = false;
+                item.DropDownClosed += (s, e) =>
+                {
+                    state.Switching = !item.Selected
+                        && menuStrip.Items.OfType<ToolStripMenuItem>().Any(other => other != item && other.Selected && other.HasDropDown);
+                };
+            }
         }
     }
 

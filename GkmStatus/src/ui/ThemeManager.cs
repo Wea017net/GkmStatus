@@ -164,6 +164,7 @@ namespace GkmStatus.src
 
             ProfessionalColorTable colorTable = CreateMenuColorTable(menuBg, isBright);
             ms.Renderer = new ThemedProfessionalRenderer(colorTable);
+            MenuBarSwitchTracker.Attach(ms);
             foreach (ToolStripItem item in ms.Items)
             {
                 ApplyMenuItemTheme(item, colorTable, isBright ? null : menuBg);
