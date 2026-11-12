@@ -32,6 +32,7 @@
     <EmbeddedResource Include="Resources\app.ico" />
     <EmbeddedResource Include="Resources\app_icon_2048px.png" />
     <EmbeddedResource Include="Resources\menu_check.png" />
+    <EmbeddedResource Include="Resources\menu_radio.png" />
 	<EmbeddedResource Include="Resources\produce_characters.json" />
 	<EmbeddedResource Include="Resources\I18n\japanese.json" />
 	<EmbeddedResource Include="Resources\I18n\english.json" />

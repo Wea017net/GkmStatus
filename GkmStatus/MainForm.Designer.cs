@@ -178,7 +178,7 @@ namespace GkmStatus
                 for (int i = 0; i < cmbDetailsType.Items.Count; i++)
                 {
                     string text = cmbDetailsType.Items[i]?.ToString() ?? "";
-                    var item = new ToolStripMenuItem(text);
+                    var item = new RadioMenuItem(text);
                     if (cmbDetailsType.SelectedIndex == i) item.Checked = true;
                     int index = i;
                     item.Click += (sender, ev) =>
@@ -206,7 +206,7 @@ namespace GkmStatus
                 for (int i = 0; i < cmbStateType.Items.Count; i++)
                 {
                     string text = cmbStateType.Items[i]?.ToString() ?? "";
-                    var item = new ToolStripMenuItem(text);
+                    var item = new RadioMenuItem(text);
                     if (cmbStateType.SelectedIndex == i) item.Checked = true;
                     int index = i;
                     item.Click += (sender, ev) =>
@@ -243,7 +243,7 @@ namespace GkmStatus
                 {
                     var pc = ProduceCharacters[i];
                     string displayName = CurrentPresence.CharNameLangIndex == 1 ? pc.NameEn : pc.Display;
-                    var item = new ToolStripMenuItem(displayName);
+                    var item = new RadioMenuItem(displayName);
                     if (currentId == pc.Id) item.Checked = true;
 
                     int index = i;
@@ -620,9 +620,9 @@ namespace GkmStatus
                 startMinimizedItem,
                 autoConnectItem,
                 checkForUpdatesItem,
+                usageTelemetryItem,
                 separatorSettings,
                 monitorItem,
-                usageTelemetryItem,
                 notifyInBackgroundItem,
                 notifyOnMinimizeItem,
                 minimizeToTrayItem
@@ -635,10 +635,10 @@ namespace GkmStatus
 
             viewMenu = new ToolStripMenuItem(I18n.T(Menu_View));
             themeMenu = new ToolStripMenuItem(I18n.T(Menu_Theme));
-            themeAuto = new ToolStripMenuItem(I18n.T(Menu_ThemeAuto));
-            themeLight = new ToolStripMenuItem(I18n.T(Menu_ThemeLight));
-            themeDark = new ToolStripMenuItem(I18n.T(Menu_ThemeDark));
-            themeOLED = new ToolStripMenuItem(I18n.T(Menu_ThemeOLED));
+            themeAuto = new RadioMenuItem(I18n.T(Menu_ThemeAuto));
+            themeLight = new RadioMenuItem(I18n.T(Menu_ThemeLight));
+            themeDark = new RadioMenuItem(I18n.T(Menu_ThemeDark));
+            themeOLED = new RadioMenuItem(I18n.T(Menu_ThemeOLED));
 
             themeAuto.Click += (s, e) => { ThemeManager.UpdateThemeChecks(themeAuto, themeLight, themeDark, themeOLED); ReapplyTheme(); SaveSettings(); };
             themeLight.Click += (s, e) => { ThemeManager.UpdateThemeChecks(themeLight, themeAuto, themeDark, themeOLED); ReapplyTheme(); SaveSettings(); };
@@ -654,8 +654,8 @@ namespace GkmStatus
 
             var separator2 = new ToolStripSeparator();
             langMenu = new ToolStripMenuItem(I18n.T(Menu_Language));
-            langEnglish = new ToolStripMenuItem("English");
-            langJapanese = new ToolStripMenuItem("日本語");
+            langEnglish = new RadioMenuItem("English");
+            langJapanese = new RadioMenuItem("日本語");
 
             langEnglish.Click += (s, e) => { I18n.CurrentLanguage = I18n.Language.English; ThemeManager.UpdateThemeChecks(langEnglish, langJapanese); ApplyLanguage(); SaveSettings(); };
             langJapanese.Click += (s, e) => { I18n.CurrentLanguage = I18n.Language.Japanese; ThemeManager.UpdateThemeChecks(langJapanese, langEnglish); ApplyLanguage(); SaveSettings(); };
