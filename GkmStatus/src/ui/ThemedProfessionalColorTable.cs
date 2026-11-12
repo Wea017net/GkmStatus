@@ -8,7 +8,8 @@ namespace GkmStatus.src.ui
     /// 標準の ToolStripProfessionalRenderer をベースに、次の 2 点だけを変える（メインウィンドウのメニューバー用）。
     /// ・サブメニュー矢印の色を項目の文字色に合わせる（既定ではダーク背景でも黒で描かれて見えないため）
     /// ・チェックマークの形を独自画像（Resources/menu_check.png）にし、項目の文字色で塗って描く
-    /// チェック欄の背景・枠は標準どおり ColorTable の色で描く。
+    /// ・択一の項目（RadioMenuItem）は、チェックの代わりにラジオボタンの画像（Resources/menu_radio.png）を描く
+    /// チェック欄の背景・枠は標準どおり ColorTable の色で描く（ラジオは背景・枠なしで円だけ描く）。
     /// </summary>
     [SupportedOSPlatform("windows")]
     public class ThemedProfessionalRenderer(ProfessionalColorTable colorTable) : ToolStripProfessionalRenderer(colorTable)
@@ -34,7 +35,15 @@ namespace GkmStatus.src.ui
 
         protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
         {
-            Color color = e.Item is { Enabled: true } item ? item.ForeColor : SystemColors.GrayText;
+            if (e.Item is RadioMenuItem radio)
+            {
+                MenuRadioGlyph.Draw(e.Graphics, e.ImageRectangle, radio.Enabled);
+                return;
+            }
+            // ライトテーマは文字色（黒）だと強すぎるので、少し明るい色で描く
+            Color color = e.Item is not { Enabled: true } item ? SystemColors.GrayText
+                : ColorTable is ThemedProfessionalColorTable ? item.ForeColor
+                : AccentColorTable.LightCheckGlyph;
             Image? glyph = MenuCheckGlyph.Get(e.ImageRectangle.Size, color);
             if (glyph == null)
             {
@@ -134,6 +143,69 @@ namespace GkmStatus.src.ui
     }
 
     /// <summary>
+    /// 択一（ラジオボタン式）のメニュー項目。選択中（Checked）の項目にはチェックの代わりにラジオボタンを描く。
+    /// 選択の切り替え自体は通常の項目と同じく Checked で行う。
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    public class RadioMenuItem(string text) : ToolStripMenuItem(text);
+
+    /// <summary>
+    /// 埋め込みのラジオボタン画像（選択中の円、色付きの透過 PNG）を指定サイズで用意してキャッシュし、描く。
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    internal static class MenuRadioGlyph
+    {
+        private const string RESOURCE_NAME = "GkmStatus.Resources.menu_radio.png";
+        private static readonly Lazy<Bitmap?> Source = new(LoadSource);
+        private static readonly Dictionary<int, Bitmap> Cache = [];
+
+        /// <summary>bounds の中央に、短辺に合わせた正方形で描く。無効な項目は薄く描く。</summary>
+        public static void Draw(Graphics g, Rectangle bounds, bool enabled)
+        {
+            int size = Math.Min(bounds.Width, bounds.Height);
+            if (size <= 0 || Get(size) is not Bitmap glyph) return;
+            var rect = new Rectangle(bounds.Left + (bounds.Width - size) / 2, bounds.Top + (bounds.Height - size) / 2, size, size);
+            if (enabled)
+            {
+                g.DrawImage(glyph, rect);
+                return;
+            }
+            using var attrs = new ImageAttributes();
+            attrs.SetColorMatrix(new ColorMatrix { Matrix33 = 0.4f });
+            g.DrawImage(glyph, rect, 0, 0, size, size, GraphicsUnit.Pixel, attrs);
+        }
+
+        private static Bitmap? Get(int size)
+        {
+            if (Source.Value is not Bitmap src) return null;
+            if (Cache.TryGetValue(size, out Bitmap? cached)) return cached;
+
+            var bmp = new Bitmap(size, size, PixelFormat.Format32bppArgb);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                g.DrawImage(src, new Rectangle(0, 0, size, size), 0, 0, src.Width, src.Height, GraphicsUnit.Pixel);
+            }
+            Cache[size] = bmp;
+            return bmp;
+        }
+
+        private static Bitmap? LoadSource()
+        {
+            try
+            {
+                using Stream? stream = typeof(MenuRadioGlyph).Assembly.GetManifestResourceStream(RESOURCE_NAME);
+                return stream == null ? null : new Bitmap(stream);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
+
+    /// <summary>
     /// チェック欄とホバー表示をアクセント色（#ff7609 基調）にした配色。ライトテーマ用で、それ以外は標準のまま。
     /// </summary>
     [SupportedOSPlatform("windows")]
@@ -150,6 +222,8 @@ namespace GkmStatus.src.ui
         /// （背景にアクセント色を透明度 56 と 96 で重ねた色）をそのまま保つ。
         /// </summary>
         private static readonly Color LightCheckHover = ColorTranslator.FromHtml("#fcb57d");
+        /// <summary>ライトテーマのチェックマークの色（文字色の黒より少し明るくする）。</summary>
+        public static readonly Color LightCheckGlyph = ColorTranslator.FromHtml("#323232");
 
         /// <summary>チェック欄（ホバーしていない行）の塗りの透明度。</summary>
         protected virtual int FillAlpha => 56;
