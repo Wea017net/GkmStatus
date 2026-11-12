@@ -35,40 +35,6 @@ namespace GkmStatus
         void Cfg<T>(T c, Action<T> action) => action?.Invoke(c);
         private int S(int value) => (int)Math.Round(value * uiScale);
 
-        private int StanderdCmbHight()
-        {
-            //後でキャッシュする
-            using var temp = new ComboBox { Font = _fontManager.AppFont, FlatStyle = FlatStyle.Flat, DropDownStyle = ComboBoxStyle.DropDownList };
-            return temp.PreferredHeight;
-        }
-
-        private T WrapStylePanel<T>(T control, Point loc, int w) where T : Control
-        {
-            int autoHeight = StanderdCmbHight();
-
-            Panel container = new()
-            {
-                Location = loc,
-                Size = new(w, autoHeight),
-                BackColor = Default_BackColor,
-                Parent = this
-            };
-
-            container.Paint += (s, e) =>
-            {
-                if (container.Tag is Color col)
-                    ControlPaint.DrawBorder(e.Graphics, container.ClientRectangle, col, ButtonBorderStyle.Solid);
-            };
-
-            control.Location = new Point(S(5), (autoHeight - TextRenderer.MeasureText("Ag", control.Font).Height) / 2 - S(1));
-            control.Width = w - S(10);
-            control.Parent = container;
-
-            control.Tag = container;
-
-            return control;
-        }
-
         private Button CreateButton(Point l, int w, Color bc)
         {
             int btnHeight = Math.Max(S(35), TextRenderer.MeasureText("Ag", _fontManager.AppFontBold).Height + S(15));
@@ -85,14 +51,27 @@ namespace GkmStatus
             };
         }
 
+        /// <summary>
+        /// 「2行目の情報」の行で、名前表記のコンボボックスを項目（「Japanese Names」など）が収まる幅にし、
+        /// 右端（S(500)）をそろえたまま、その分アイドル選択のコンボボックスを狭める。表示言語を変えたときにも呼ぶ。
+        /// </summary>
+        private void LayoutCharNameLangRow()
+        {
+            int textWidth = 0;
+            foreach (object item in cmbCharNameLang.Items)
+                textWidth = Math.Max(textWidth, TextRenderer.MeasureText(cmbCharNameLang.GetItemText(item), _fontManager.AppFontMedium).Width);
+            int width = Math.Max(S(150), textWidth + SystemInformation.VerticalScrollBarWidth + S(16)); // ボタンと左右の余白の分
+            int right = S(500);
+            cmbCharNameLang.Bounds = new Rectangle(right - width, cmbCharNameLang.Top, width, cmbCharNameLang.Height);
+            cmbProduceCharacter.Width = cmbCharNameLang.Left - S(5) - cmbProduceCharacter.Left;
+        }
+
         private ComboBox CreateCombo(Point loc, int w, string[] i)
         {
-            var cb = new ComboBox
+            // 見た目はシステム標準で、選択中の項目と一覧の縁どりだけアクセント色にしたもの
+            var cb = new AccentComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                BackColor = Default_BackColor,
-                ForeColor = Default_ForeColor,
-                FlatStyle = FlatStyle.Flat,
                 Font = _fontManager.AppFont,
                 Location = loc,
                 Width = w,
@@ -104,28 +83,27 @@ namespace GkmStatus
 
         private NumericUpDown CreateNumeric(Point loc, int w)
         {
-            var nud = new NumericUpDown
+            return new NumericUpDown
             {
-                BorderStyle = BorderStyle.None,
-                BackColor = Default_BackColor,
-                ForeColor = Default_ForeColor,
                 Font = _fontManager.AppFont,
+                Location = loc,
+                Width = w,
                 Minimum = 1,
-                Maximum = 100
+                Maximum = 100,
+                Parent = this
             };
-            return WrapStylePanel(nud, loc, w);
         }
 
         private TextBox CreateText(Point loc, int w)
         {
-            var tb = new TextBox
+            // システム標準の TextBox に、ダーク時に IME の未確定文字を入力欄の色で表示する機能を加えたもの
+            return new ImeCompositionTextBox
             {
-                BorderStyle = BorderStyle.None,
-                BackColor = Default_BackColor,
-                ForeColor = Default_ForeColor,
-                Font = _fontManager.AppFont
+                Font = _fontManager.AppFont,
+                Location = loc,
+                Width = w,
+                Parent = this
             };
-            return WrapStylePanel(tb, loc, w);
         }
 
 
@@ -348,14 +326,32 @@ namespace GkmStatus
             y += S(45);
 
             AddHeader(y, "Header_Details"); y += S(25);
-            cmbDetailsType = CreateCombo(new Point(S(20), y), S(180), [I18n.T(Details_None), I18n.T(Details_PName), I18n.T(Details_PLv), I18n.T(Details_Both)]);
+            // 「プロデューサー名とPLv」がスケーリング 100% でも収まるよう、全角 2 文字分広げる（その分プロデューサー名欄を狭める）
+            int detailsExtra = TextRenderer.MeasureText("あい", _fontManager.AppFontMedium, Size.Empty, TextFormatFlags.NoPadding).Width;
+            cmbDetailsType = CreateCombo(new Point(S(20), y), S(180) + detailsExtra, [I18n.T(Details_None), I18n.T(Details_PName), I18n.T(Details_PLv), I18n.T(Details_Both)]);
             cmbDetailsType.SelectedIndex = 3; cmbDetailsType.SelectedIndexChanged += UpdateDetailsInputs;
-            txtPName = CreateText(new Point(S(210), y), S(200));
+            // 右端（S(500)）から順に: 数字入力欄（3 桁が収まる幅）→「PLv」ラベル → プロデューサー名（残りの幅）
+            int rowRight = S(500);
+            int numWidth = TextRenderer.MeasureText("100", _fontManager.AppFontMedium).Width + SystemInformation.VerticalScrollBarWidth + S(12);
+            numPLevel = CreateNumeric(new Point(rowRight - numWidth, y), numWidth);
+            numPLevel.ValueChanged += (s, e) => { if (!isInitializing) SaveSettings(); };
+
+            Size plvTextSize = TextRenderer.MeasureText("PLv", _fontManager.AppFontMedium);
+            lblPLevel = new Label
+            {
+                Name = "lblPLevel",
+                Text = "PLv",
+                AutoSize = true,
+                Font = _fontManager.AppFontMedium,
+                Location = new Point(numPLevel.Left - S(6) - plvTextSize.Width, y + (numPLevel.Height - plvTextSize.Height) / 2),
+                Parent = this
+            };
+
+            int pNameLeft = S(210) + detailsExtra;
+            txtPName = CreateText(new Point(pNameLeft, y), lblPLevel.Left - S(10) - pNameLeft);
             Native.SetPlaceholder(txtPName, I18n.T(Placeholder_PName));
             txtPName.MaxLength = 10;
             txtPName.TextChanged += (s, e) => { if (!isInitializing) SaveSettings(); };
-            numPLevel = CreateNumeric(new Point(S(420), y), S(80));
-            numPLevel.ValueChanged += (s, e) => { if (!isInitializing) SaveSettings(); };
             y += S(45);
 
             AddHeader(y, "Header_State"); y += S(25);
@@ -380,6 +376,7 @@ namespace GkmStatus
             );
             cmbCharNameLang.Visible = false;
             cmbCharNameLang.SelectedIndex = 0;
+            LayoutCharNameLangRow();
             cmbCharNameLang.SelectedIndexChanged += (s, e) =>
             {
                 if (!isInitializing)
@@ -721,6 +718,7 @@ namespace GkmStatus
         private ComboBox cmbDetailsType;
         private TextBox txtPName;
         private NumericUpDown numPLevel;
+        private Label lblPLevel;
         private ComboBox cmbStateType;
         private ComboBox cmbProduceCharacter;
         private ComboBox cmbCharNameLang;

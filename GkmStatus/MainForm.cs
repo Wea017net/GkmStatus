@@ -470,6 +470,7 @@ namespace GkmStatus
             RefreshCombo(cmbStateType!, [I18n.T(State_None), I18n.T(State_PID), I18n.T(State_Idol), I18n.T(State_Producing), I18n.T(State_Custom)]);
             RefreshCombo(cmbBtnMode!, [I18n.T(Button_ModeNone), I18n.T(Button_ModeStore), I18n.T(Button_ModeApp), I18n.T(Button_ModeCustom)]);
             RefreshCombo(cmbCharNameLang!, [I18n.T(CharName_JP), I18n.T(CharName_EN)]);
+            LayoutCharNameLangRow(); // 言語によって項目の長さが変わるので幅を合わせ直す
 
             CmbStateType_SelectedIndexChanged(null, EventArgs.Empty);
             CmbBtnMode_SelectedIndexChanged(null, EventArgs.Empty);
@@ -609,22 +610,14 @@ namespace GkmStatus
 
             bool isProduceMode = stateType is PresenceStateType.Idol or PresenceStateType.Producing;
 
-            if (txtStateCustom.Tag is Panel container)
-            {
-                container.Visible = !isProduceMode && stateType != PresenceStateType.None;
-            }
+            txtStateCustom.Visible = !isProduceMode && stateType != PresenceStateType.None;
 
             cmbProduceCharacter.Visible = isProduceMode;
             cmbCharNameLang.Visible = isProduceMode;
 
             if (stateType == PresenceStateType.PID)
             {
-                if (txtStateCustom.Tag is Panel con)
-                {
-                    con.Width = S(165);
-                    txtStateCustom.Width = S(165) - S(10);
-                    con.Invalidate();
-                }
+                txtStateCustom.Width = S(165);
                 txtStateCustom.Enabled = true;
                 txtStateCustom.MaxLength = 8;
                 Native.SetPlaceholder(txtStateCustom, I18n.T(Placeholder_PID));
@@ -635,12 +628,7 @@ namespace GkmStatus
             }
             else if (stateType == PresenceStateType.Custom)
             {
-                if (txtStateCustom.Tag is Panel con)
-                {
-                    con.Width = S(320);
-                    txtStateCustom.Width = S(320) - S(10);
-                    con.Invalidate();
-                }
+                txtStateCustom.Width = S(320);
                 txtStateCustom.Enabled = true;
                 txtStateCustom.MaxLength = 128;
                 Native.SetPlaceholder(txtStateCustom, I18n.T(Placeholder_Custom));
