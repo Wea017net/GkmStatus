@@ -21,7 +21,34 @@ namespace GkmStatus.src
         [LibraryImport("dwmapi.dll")]
         private static partial int DwmSetWindowAttribute(nint hwnd, int attr, ref int attrValue, int attrSize);
 
+        [LibraryImport("uxtheme.dll", StringMarshalling = StringMarshalling.Utf16)]
+        private static partial int SetWindowTheme(nint hwnd, string? subAppName, string? subIdList);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct COMBOBOXINFO
+        {
+            public int cbSize;
+            // rcItem / rcButton（RECT 2 つ分）。中身は使わない
+            public int itemLeft, itemTop, itemRight, itemBottom;
+            public int buttonLeft, buttonTop, buttonRight, buttonBottom;
+            public int stateButton;
+            public nint hwndCombo;
+            public nint hwndItem;
+            public nint hwndList;
+        }
+
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool GetComboBoxInfo(nint hwndCombo, ref COMBOBOXINFO info);
+
         private readonly FontManager _fontManager = fontManager;
+
+        // システム標準のコントロールをダーク/OLED テーマで使うときの入力欄の背景色
+        private static readonly Color DARK_INPUT_BG = Color.FromArgb(25, 25, 25);
+        // DarkMode_CFD テーマで描かれる、閉じた状態のコンボボックスの面の色
+        private static readonly Color DARK_COMBO_FACE = Color.FromArgb(51, 51, 51);
+        // ライトテーマで NumericUpDown が描く入力欄の枠の色（無効時のテキスト入力欄をこれにそろえる）
+        private static readonly Color LIGHT_DISABLED_INPUT_BORDER = Color.FromArgb(171, 173, 179);
 
         public void ApplyTheme(Form form, AppTheme theme)
         {
@@ -79,18 +106,15 @@ namespace GkmStatus.src
             SetTitleBarDarkMode(form.Handle, !isBright);
 
             Color menuBg = isBright ? Color.FromArgb(235, 233, 233) : (bg.R == 0 ? Color.Black : Color.FromArgb(45, 47, 51));
-            Color controlBg = isBright ? Color.White : Color.FromArgb(47, 49, 54);
-            Color borderColor = isBright ? Color.FromArgb(200, 200, 200) : Color.FromArgb(70, 70, 70);
-
             foreach (Control c in GetAllControls(form))
             {
-                ApplyToControl(c, isBright, menuBg, controlBg, borderColor);
+                ApplyToControl(c, isBright, menuBg);
             }
 
             form.ResumeLayout(true);
         }
 
-        private void ApplyToControl(Control c, bool isBright, Color menuBg, Color controlBg, Color borderColor)
+        private void ApplyToControl(Control c, bool isBright, Color menuBg)
         {
             if (c is Label lbl)
             {
@@ -100,22 +124,37 @@ namespace GkmStatus.src
             {
                 ApplyMenuStripTheme(ms, menuBg, isBright);
             }
-            else if (c is ComboBox cb)
+            else if (c is AccentComboBox cb)
             {
-                cb.BackColor = controlBg;
-                cb.ForeColor = isBright ? Color.Black : Color.White;
+                ApplyComboBoxTheme(cb, isBright);
             }
-            else if (c is TextBox tb)
+            else if (c is TextBox tb && tb.Parent is not NumericUpDown) // NumericUpDown 内部の入力部分は下で扱う
             {
-                tb.BackColor = controlBg;
-                tb.ForeColor = isBright ? Color.Black : Color.White;
-                if (tb.Tag is Panel p) { UpdatePanelBorder(p, controlBg, borderColor); }
+                // システム標準の描画。ダーク/OLED テーマでは Windows 標準のダーク表示（DarkMode_CFD）にする。
+                tb.BackColor = isBright ? SystemColors.Window : DARK_INPUT_BG;
+                tb.ForeColor = isBright ? SystemColors.WindowText : Color.White;
+                try { SetWindowTheme(tb.Handle, isBright ? null : "DarkMode_CFD", null); } catch { }
+                // IME の未確定文字は既定では IME 側の白いウィンドウに表示されるため、ダーク時は入力欄の色で自前表示する
+                if (tb is ImeCompositionTextBox imeTextBox)
+                {
+                    imeTextBox.DrawCompositionInline = !isBright;
+                    // ライトテーマの無効時は枠がほぼ見えなくなるので、数字入力欄（NumericUpDown）の無効時と同じ枠にする
+                    imeTextBox.DisabledBorderColor = isBright ? LIGHT_DISABLED_INPUT_BORDER : null;
+                }
             }
             else if (c is NumericUpDown nu)
             {
-                nu.BackColor = controlBg;
-                nu.ForeColor = isBright ? Color.Black : Color.White;
-                if (nu.Tag is Panel p) { UpdatePanelBorder(p, controlBg, borderColor); }
+                // システム標準の描画。色はフォームを継承してしまうので、ライトはシステム色、ダーク/OLED は暗い色を明示する。
+                nu.BackColor = isBright ? SystemColors.Window : DARK_INPUT_BG;
+                nu.ForeColor = isBright ? SystemColors.WindowText : Color.White;
+                try
+                {
+                    SetWindowTheme(nu.Handle, isBright ? null : "DarkMode_Explorer", null);
+                    foreach (Control child in nu.Controls) // 上下ボタンと入力部分
+                        SetWindowTheme(child.Handle, isBright ? null : "DarkMode_Explorer", null);
+                    nu.Invalidate(true);
+                }
+                catch { }
             }
             else if (c is CheckBox chk)
             {
@@ -130,6 +169,26 @@ namespace GkmStatus.src
             {
                 c.Font = _fontManager.AppFontMedium;
             }
+        }
+
+        // コンボボックスはシステム標準の描画を使う。ダーク/OLED テーマでは Windows 標準のダーク表示
+        // （エクスプローラーの「ファイルを開く」ダイアログと同じ DarkMode_CFD テーマ）に切り替える。
+        private static void ApplyComboBoxTheme(AccentComboBox cb, bool isBright)
+        {
+            // 色は指定しないとフォームの色を継承するので明示する。
+            // BackColor は閉じた状態の表示部分の背景になるため、ダーク時は DarkMode_CFD のボタン面と同じ色にし、
+            // 開いた一覧の背景は ListBackColor で別に指定する。
+            cb.BackColor = isBright ? SystemColors.Window : DARK_COMBO_FACE;
+            cb.ListBackColor = isBright ? SystemColors.Window : DARK_INPUT_BG;
+            cb.ForeColor = isBright ? SystemColors.WindowText : Color.White;
+            try
+            {
+                SetWindowTheme(cb.Handle, isBright ? null : "DarkMode_CFD", null);
+                var info = new COMBOBOXINFO { cbSize = Marshal.SizeOf<COMBOBOXINFO>() };
+                if (GetComboBoxInfo(cb.Handle, ref info) && info.hwndList != 0)
+                    SetWindowTheme(info.hwndList, isBright ? null : "DarkMode_Explorer", null); // 一覧のスクロールバー
+            }
+            catch { }
         }
 
         private void ApplyLabelTheme(Label lbl, bool isBright)
@@ -206,12 +265,6 @@ namespace GkmStatus.src
             dropDown.Renderer = new ThemedProfessionalRenderer(colorTable);
         }
 
-        private static void UpdatePanelBorder(Panel p, Color bg, Color border)
-        {
-            p.BackColor = bg;
-            p.Tag = border;
-            p.Invalidate();
-        }
 
         private static void SetTitleBarDarkMode(IntPtr handle, bool dark)
         {

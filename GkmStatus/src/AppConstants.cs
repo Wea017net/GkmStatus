@@ -61,9 +61,6 @@ namespace GkmStatus.src
         public static readonly Color COLOR_PRIMARY = ColorTranslator.FromHtml("#7e87f4");
         public static readonly Color COLOR_DISABLED = Color.FromArgb(60, 63, 65);
 
-        public static readonly Color Default_BackColor = Color.FromArgb(47, 49, 54);
-        public static readonly Color Default_ForeColor = Color.White;
-
         public static readonly Color COLOR_LIGHT_BG = ColorTranslator.FromHtml("#f3f3f4");
         public static readonly Color COLOR_DARK_BG = Color.FromArgb(32, 34, 37);
         public static readonly Color COLOR_OLED_BG = Color.Black;
