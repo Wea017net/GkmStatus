@@ -51,8 +51,11 @@ namespace GkmStatus.src.ui
 
         private bool IsDarkBackground => ListBack.GetBrightness() < 0.5f;
 
-        /// <summary>一覧の背景色にアクセント色を半透明で重ねたハイライト色（メニューのホバーと同じ透明度）。</summary>
-        private Color HighlightColor => Blend(ListBack, AccentColor, IsDarkBackground ? 90 : 56);
+        /// <summary>
+        /// 選択中の項目のハイライト色。メニューのホバーと同じで、ライトは淡いオレンジ（#ffedc4）、
+        /// ダークは一覧の背景色にアクセント色を半透明で重ねた色。
+        /// </summary>
+        private Color HighlightColor => IsDarkBackground ? Blend(ListBack, AccentColor, 90) : AccentColorTable.LightHover;
 
         protected override void OnHandleCreated(EventArgs e)
         {
@@ -171,8 +174,7 @@ namespace GkmStatus.src.ui
 
             if (hot)
             {
-                using var fill = new SolidBrush(Color.FromArgb(56, AccentColor));
-                g.FillRectangle(fill, button);
+                if (!button.IsEmpty) TintButton(g, button, AccentColorTable.LightHover);
                 using var pen = new Pen(AccentColor);
                 g.DrawRectangle(pen, 0, 0, ClientSize.Width - 1, ClientSize.Height - 1);
                 g.DrawLine(pen, button.Left - 1, button.Top, button.Left - 1, button.Bottom - 1);
@@ -210,7 +212,7 @@ namespace GkmStatus.src.ui
                 // 表示部分の背景はシステムのテーマが描くので、フォーカス時のハイライトだけ重ねる
                 if (selected && Focused && !DroppedDown)
                 {
-                    using var brush = new SolidBrush(Color.FromArgb(IsDarkBackground ? 90 : 56, AccentColor));
+                    using var brush = new SolidBrush(IsDarkBackground ? Color.FromArgb(90, AccentColor) : AccentColorTable.LightHover);
                     e.Graphics.FillRectangle(brush, e.Bounds);
                 }
             }
@@ -223,6 +225,35 @@ namespace GkmStatus.src.ui
             const TextFormatFlags flags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis;
             Rectangle textBounds = Rectangle.FromLTRB(e.Bounds.Left + 2, e.Bounds.Top, e.Bounds.Right - 2, e.Bounds.Bottom);
             TextRenderer.DrawText(e.Graphics, GetItemText(Items[e.Index]), Font, textBounds, fore, flags);
+        }
+
+        /// <summary>
+        /// 描き済みの矢印ボタンを指定色で「乗算」して描き直す。白い面は指定色そのもの（#ffedc4 など）になり、
+        /// 矢印は暗いまま残る（不透明で塗りつぶすと矢印が消え、半透明で重ねると狙った色にならないため）。
+        /// </summary>
+        private static void TintButton(Graphics g, Rectangle button, Color tint)
+        {
+            using var copy = new Bitmap(button.Width, button.Height);
+            using (Graphics cg = Graphics.FromImage(copy))
+            {
+                cg.Clear(Color.White);
+                try
+                {
+                    new System.Windows.Forms.VisualStyles.VisualStyleRenderer("COMBOBOX", CP_DROPDOWNBUTTONRIGHT, CBXSR_NORMAL)
+                        .DrawBackground(cg, new Rectangle(Point.Empty, button.Size));
+                }
+                catch (ArgumentException) { }
+            }
+            using var attrs = new System.Drawing.Imaging.ImageAttributes();
+            attrs.SetColorMatrix(new System.Drawing.Imaging.ColorMatrix(
+            [
+                [tint.R / 255f, 0, 0, 0, 0],
+                [0, tint.G / 255f, 0, 0, 0],
+                [0, 0, tint.B / 255f, 0, 0],
+                [0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 1],
+            ]));
+            g.DrawImage(copy, button, 0, 0, button.Width, button.Height, GraphicsUnit.Pixel, attrs);
         }
 
         private static Color Blend(Color background, Color overlay, int alpha)

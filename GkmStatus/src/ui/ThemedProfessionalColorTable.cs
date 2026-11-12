@@ -135,28 +135,39 @@ namespace GkmStatus.src.ui
 
     /// <summary>
     /// チェック欄とホバー表示をアクセント色（#ff7609 基調）にした配色。ライトテーマ用で、それ以外は標準のまま。
-    /// 塗りは半透明なので、下の色に自然に馴染む。
     /// </summary>
     [SupportedOSPlatform("windows")]
     public class AccentColorTable : ProfessionalColorTable
     {
         public static readonly Color Accent = ColorTranslator.FromHtml("#ff7609");
 
-        /// <summary>チェック欄とホバー行の塗りの透明度。</summary>
+        /// <summary>
+        /// ライトテーマのホバー行の塗り（淡いオレンジ）。背景（ほぼ白）より赤が強い色は半透明の重ね塗りでは作れないため、不透明の色で塗る。
+        /// </summary>
+        public static readonly Color LightHover = ColorTranslator.FromHtml("#ffedc4");
+        /// <summary>
+        /// ライトテーマでホバー中の行にあるチェック欄の色。ホバー行の塗りを変える前の見た目
+        /// （背景にアクセント色を透明度 56 と 96 で重ねた色）をそのまま保つ。
+        /// </summary>
+        private static readonly Color LightCheckHover = ColorTranslator.FromHtml("#fcb57d");
+
+        /// <summary>チェック欄（ホバーしていない行）の塗りの透明度。</summary>
         protected virtual int FillAlpha => 56;
-        /// <summary>ホバー中の行にあるチェック欄の透明度（ホバー行の塗りの上に重なる）。</summary>
-        protected virtual int CheckHoverAlpha => 96;
+        /// <summary>ホバー行の塗り。</summary>
+        protected virtual Color HoverFill => LightHover;
+        /// <summary>ホバー中の行にあるチェック欄の塗り（ホバー行の塗りの上に重なる）。</summary>
+        protected virtual Color CheckHoverFill => LightCheckHover;
 
         // チェック欄
         public override Color CheckBackground => Color.FromArgb(FillAlpha, Accent);
-        public override Color CheckSelectedBackground => Color.FromArgb(CheckHoverAlpha, Accent);
-        public override Color CheckPressedBackground => Color.FromArgb(CheckHoverAlpha, Accent);
+        public override Color CheckSelectedBackground => CheckHoverFill;
+        public override Color CheckPressedBackground => CheckHoverFill;
         public override Color ButtonSelectedBorder => Accent;
 
         // ホバー（ドロップダウンの項目 / メニューバーの項目）
-        public override Color MenuItemSelected => Color.FromArgb(FillAlpha, Accent);
-        public override Color MenuItemSelectedGradientBegin => Color.FromArgb(FillAlpha, Accent);
-        public override Color MenuItemSelectedGradientEnd => Color.FromArgb(FillAlpha, Accent);
+        public override Color MenuItemSelected => HoverFill;
+        public override Color MenuItemSelectedGradientBegin => HoverFill;
+        public override Color MenuItemSelectedGradientEnd => HoverFill;
         public override Color MenuItemBorder => Accent;
     }
 
@@ -183,7 +194,9 @@ namespace GkmStatus.src.ui
 
         // 暗い背景では同じ透明度だと沈むので少し濃くする
         protected override int FillAlpha => 90;
-        protected override int CheckHoverAlpha => 130;
+        // ダーク/OLED はこれまでどおり、アクセント色の半透明の重ね塗り
+        protected override Color HoverFill => Color.FromArgb(FillAlpha, Accent);
+        protected override Color CheckHoverFill => Color.FromArgb(130, Accent);
 
         // メニューバー
         public override Color MenuStripGradientBegin => _bg;
