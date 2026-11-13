@@ -146,7 +146,12 @@ namespace GkmStatus
             };
             trayIcon.BalloonTipClicked += (s, e) =>
             {
-                if (trayIcon.Tag is UpdateCheckResult updateResult)
+                if (ReferenceEquals(trayIcon.Tag, ProducerLevelReminderTag))
+                {
+                    trayIcon.Tag = null;
+                    this.Invoke((MethodInvoker)(() => { RestoreFromTray(); FocusProducerLevelInput(); }));
+                }
+                else if (trayIcon.Tag is UpdateCheckResult updateResult)
                 {
                     trayIcon.Tag = null;
                     _ = DownloadUpdateAsync(updateResult, manual: false);
@@ -156,6 +161,8 @@ namespace GkmStatus
                     this.Invoke((MethodInvoker)(() => RestoreFromTray()));
                 }
             };
+
+            trayIcon.BalloonTipClosed += (s, e) => HideTrayIconAfterReminder();
 
             var trayMenu = new ContextMenuStrip();
             trayMenu.Opening += (s, e) =>
@@ -336,7 +343,13 @@ namespace GkmStatus
             int rowRight = S(500);
             int numWidth = TextRenderer.MeasureText("100", _fontManager.AppFontMedium).Width + SystemInformation.VerticalScrollBarWidth + S(12);
             numPLevel = CreateNumeric(new Point(rowRight - numWidth, y), numWidth);
-            numPLevel.ValueChanged += (s, e) => { if (!isInitializing) SaveSettings(); };
+            numPLevel.ValueChanged += (s, e) =>
+            {
+                if (isInitializing) return;
+                // PLv を見直したので、次の確認の通知は今から 30 日後にする
+                _configManager.Config.Settings.LastProducerLevelReminder = DateTime.UtcNow;
+                SaveSettings();
+            };
 
             Size plvTextSize = TextRenderer.MeasureText("PLv", _fontManager.AppFontMedium);
             lblPLevel = new Label
@@ -634,7 +647,9 @@ namespace GkmStatus
 
             // 通知の設定はサブメニューにまとめる
             notificationMenu = new(I18n.T(Menu_Notifications));
-            notificationMenu.DropDownItems.AddRange([notifyInBackgroundItem, notifyOnMinimizeItem]);
+            plvReminderItem = new(I18n.T(Menu_NotifyProducerLevel)) { CheckOnClick = true, Checked = true };
+            plvReminderItem.CheckedChanged += (s, e) => SaveSettings();
+            notificationMenu.DropDownItems.AddRange([notifyInBackgroundItem, notifyOnMinimizeItem, plvReminderItem]);
             notificationMenu.DropDown.Closing += (s, e) =>
             {
                 if (e.CloseReason == ToolStripDropDownCloseReason.ItemClicked) e.Cancel = true;
@@ -775,6 +790,7 @@ namespace GkmStatus
         private ToolStripMenuItem notificationMenu;
         private ToolStripMenuItem notifyInBackgroundItem;
         private ToolStripMenuItem notifyOnMinimizeItem;
+        private ToolStripMenuItem plvReminderItem;
         private ToolStripMenuItem minimizeToTrayItem;
         private ToolStripMenuItem viewMenu;
         private ToolStripMenuItem themeMenu;

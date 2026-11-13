@@ -37,6 +37,42 @@ public sealed class UsageTelemetryTests
     }
 
     [TestMethod]
+    public void ProducerLevelReminderStartsUnrecordedAndIsDueAfterThirtyDays()
+    {
+        var now = new DateTime(2026, 11, 14, 0, 0, 0, DateTimeKind.Utc);
+        Assert.IsTrue(ProducerLevelReminder.NeedsStart(DateTime.MinValue, now));
+        Assert.IsTrue(ProducerLevelReminder.NeedsStart(now.AddDays(1), now));
+        Assert.IsFalse(ProducerLevelReminder.IsDue(DateTime.MinValue, now));
+        Assert.IsFalse(ProducerLevelReminder.IsDue(now.AddDays(-29), now));
+        Assert.IsTrue(ProducerLevelReminder.IsDue(now.AddDays(-30), now));
+
+        // 基準の PLv 以上なら通知を止める
+        Assert.IsTrue(ProducerLevelReminder.IsAtStopLevel(ProducerLevelReminder.StopLevel));
+        Assert.IsFalse(ProducerLevelReminder.IsAtStopLevel(ProducerLevelReminder.StopLevel - 1));
+
+        string path = Path.Combine(Path.GetTempPath(), $"GkmStatus-{Guid.NewGuid():N}.json");
+        try
+        {
+            var manager = new ConfigManager(path);
+            manager.Load();
+            Assert.IsTrue(manager.Config.Settings.NotifyProducerLevel);
+            Assert.AreEqual(DateTime.MinValue, manager.Config.Settings.LastProducerLevelReminder);
+
+            manager.Config.Settings.NotifyProducerLevel = false;
+            manager.Config.Settings.LastProducerLevelReminder = now;
+            Assert.IsTrue(manager.Save());
+            var reloaded = new ConfigManager(path);
+            reloaded.Load();
+            Assert.IsFalse(reloaded.Config.Settings.NotifyProducerLevel);
+            Assert.AreEqual(now, reloaded.Config.Settings.LastProducerLevelReminder.ToUniversalTime());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [TestMethod]
     public void TelemetryConsentDefaultsToUndecidedAndPersistsExplicitChoices()
     {
         string path = Path.Combine(Path.GetTempPath(), $"GkmStatus-{Guid.NewGuid():N}.json");

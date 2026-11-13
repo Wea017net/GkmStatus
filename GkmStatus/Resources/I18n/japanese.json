@@ -61,6 +61,10 @@
       "text": "通知設定"
     },
     {
+      "key": "Menu_NotifyProducerLevel",
+      "text": "プロデューサーレベルの確認（30日ごと）"
+    },
+    {
       "key": "Menu_NotifyInBackground",
       "text": "バックグラウンドで動作したとき"
     },
@@ -462,6 +466,14 @@
     {
       "key": "Update_DownloadFailed",
       "text": "更新に失敗しました: {0}"
+    },
+    {
+      "key": "Notify_ProducerLevelTitle",
+      "text": "プロデューサーレベルの確認"
+    },
+    {
+      "key": "Notify_ProducerLevelBody",
+      "text": "プロデューサーレベルは上がっていませんか？\n現在の設定は PLv{0} です。上がっていたら、アプリの PLv を今のレベルに設定しましょう。"
     },
     {
       "key": "Notify_Minimized",
