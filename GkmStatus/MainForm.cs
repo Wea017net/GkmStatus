@@ -40,6 +40,11 @@ namespace GkmStatus
         private System.Windows.Forms.Timer? connectionTimer;
         private System.Windows.Forms.Timer? retryTimer;
         private System.Windows.Forms.Timer? clockTimer;
+        private System.Windows.Forms.Timer? plvReminderTimer;
+        /// <summary>PLv の確認の通知を押したときに、どの通知かを見分けるための目印（trayIcon.Tag）。</summary>
+        private static readonly object ProducerLevelReminderTag = new();
+        /// <summary>ウィンドウ表示中に通知のためだけにトレイアイコンを出したか（通知が閉じたら隠す）。</summary>
+        private bool _trayIconShownForReminder;
         private int connectionSeconds = 0;
         private bool suppressAutomaticReconnect;
         private const int CONNECTION_TIMEOUT = 30;
@@ -192,6 +197,7 @@ namespace GkmStatus
                 _ = CheckForUpdatesAsync(manual: false);
 
             SendStartupUsageTelemetry();
+            CheckProducerLevelReminder();
 
 
             this.FormClosing += (s, e) =>
@@ -317,7 +323,7 @@ namespace GkmStatus
             _runtimeResourcesDisposed = true;
 
             Interlocked.Increment(ref _updateDisplayVersion);
-            foreach (var timer in new[] { connectionTimer, retryTimer, clockTimer, gameAppGuideTimer, resetGuideTimer })
+            foreach (var timer in new[] { connectionTimer, retryTimer, clockTimer, plvReminderTimer, gameAppGuideTimer, resetGuideTimer })
             {
                 timer?.Stop();
                 timer?.Dispose();
@@ -325,6 +331,7 @@ namespace GkmStatus
             connectionTimer = null;
             retryTimer = null;
             clockTimer = null;
+            plvReminderTimer = null;
 
             _updateCts?.Cancel();
             _updateCts?.Dispose();
@@ -412,6 +419,7 @@ namespace GkmStatus
                 notificationMenu.Text = I18n.T(Menu_Notifications);
                 notifyInBackgroundItem.Text = I18n.T(Menu_NotifyInBackground);
                 notifyOnMinimizeItem.Text = I18n.T(Menu_NotifyOnMinimize);
+                plvReminderItem.Text = I18n.T(Menu_NotifyProducerLevel);
                 minimizeToTrayItem.Text = I18n.T(Menu_MinimizeToTray);
                 monitorItem.Text = I18n.T(Menu_MonitorProcess);
 
@@ -754,6 +762,7 @@ namespace GkmStatus
             settings.AutoCheckUpdates = checkForUpdatesItem.Checked;
             settings.ShowBackgroundNotifications = notifyInBackgroundItem.Checked;
             settings.NotifyOnMinimize = notifyOnMinimizeItem.Checked;
+            settings.NotifyProducerLevel = plvReminderItem.Checked;
             settings.MinimizeToTray = minimizeToTrayItem.Checked;
             settings.AutoDetectGakumas = monitorItem.Checked;
             var selectedTheme = themeLight.Checked ? AppTheme.Light : (themeDark.Checked ? AppTheme.Dark : (themeOLED.Checked ? AppTheme.OLED : AppTheme.Auto));
@@ -799,6 +808,7 @@ namespace GkmStatus
                 checkForUpdatesItem.Checked = settings.AutoCheckUpdates;
                 notifyInBackgroundItem.Checked = settings.ShowBackgroundNotifications;
                 notifyOnMinimizeItem.Checked = settings.NotifyOnMinimize;
+                plvReminderItem.Checked = settings.NotifyProducerLevel;
                 minimizeToTrayItem.Checked = settings.MinimizeToTray;
                 monitorItem.Checked = settings.AutoDetectGakumas;
 
@@ -879,6 +889,67 @@ namespace GkmStatus
                 if (rpc.IsInitialized == true)
                     rpc.Invoke();
             };
+
+            // 常駐したまま日をまたいでも気づけるよう、1 時間ごとに PLv の確認の時期か調べる
+            plvReminderTimer = new System.Windows.Forms.Timer { Interval = (int)TimeSpan.FromHours(1).TotalMilliseconds, Enabled = true };
+            plvReminderTimer.Tick += (s, e) => CheckProducerLevelReminder();
+        }
+
+        /// <summary>
+        /// 前回から 30 日たっていたら、PLv が上がっていないか確かめるよう通知する。
+        /// PLv が基準（ProducerLevelReminder.StopLevel）以上のときは、設定にかかわらず通知しない。
+        /// PLv を表示しない設定のときも通知せず、次の確認を 30 日後に回す。
+        /// 「バックグラウンドで動作したとき」の通知設定とは別で、それがオフでもトレイに常駐中に通知する。
+        /// </summary>
+        private void CheckProducerLevelReminder()
+        {
+            var settings = _configManager.Config.Settings;
+            DateTime now = DateTime.UtcNow;
+            if (ProducerLevelReminder.NeedsStart(settings.LastProducerLevelReminder, now))
+            {
+                settings.LastProducerLevelReminder = now;
+                _configManager.Save();
+                return;
+            }
+            if (ProducerLevelReminder.IsAtStopLevel((int)numPLevel.Value)
+                || !plvReminderItem.Checked
+                || !ProducerLevelReminder.IsDue(settings.LastProducerLevelReminder, now))
+                return;
+
+            settings.LastProducerLevelReminder = now;
+            _configManager.Save();
+
+            var detailsType = GetDetailsType(cmbDetailsType.SelectedIndex);
+            bool showsLevel = detailsType == PresenceDetailsType.PLv || detailsType == PresenceDetailsType.Both;
+            if (!showsLevel)
+                return;
+
+            if (!trayIcon.Visible)
+            {
+                trayIcon.Visible = true;
+                _trayIconShownForReminder = true;
+            }
+            trayIcon.Tag = ProducerLevelReminderTag;
+            trayIcon.ShowBalloonTip(10000, I18n.T(Notify_ProducerLevelTitle),
+                I18n.T(Notify_ProducerLevelBody, (int)numPLevel.Value), ToolTipIcon.Info);
+        }
+
+        /// <summary>ウィンドウ表示中に通知のためだけに出したトレイアイコンを、通知が閉じたら隠す。</summary>
+        private void HideTrayIconAfterReminder()
+        {
+            if (!_trayIconShownForReminder) return;
+            _trayIconShownForReminder = false;
+            if (this.Visible && this.WindowState != FormWindowState.Minimized)
+                trayIcon.Visible = false;
+        }
+
+        /// <summary>PLv の入力欄を選び、すぐ打ち替えられるようにする。</summary>
+        private void FocusProducerLevelInput()
+        {
+            _trayIconShownForReminder = false;
+            if (!numPLevel.Enabled) return;
+            numPLevel.Focus();
+            numPLevel.Select(0, numPLevel.Text.Length);
         }
 
         private void InitializeRpc(ConnectionTrigger trigger = ConnectionTrigger.Manual)

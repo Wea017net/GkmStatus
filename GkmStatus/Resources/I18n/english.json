@@ -62,6 +62,10 @@
       "text": "Notifications"
     },
     {
+      "key": "Menu_NotifyProducerLevel",
+      "text": "Producer Level check (every 30 days)"
+    },
+    {
       "key": "Menu_NotifyInBackground",
       "text": "When running in the background"
     },
@@ -464,6 +468,14 @@
     {
       "key": "Update_DownloadFailed",
       "text": "Update failed: {0}"
+    },
+    {
+      "key": "Notify_ProducerLevelTitle",
+      "text": "Producer Level check"
+    },
+    {
+      "key": "Notify_ProducerLevelBody",
+      "text": "Has your Producer Level gone up?\nIt is currently set to PLv{0}. If it has, update the PLv in the app to your current level."
     },
     {
       "key": "Notify_Minimized",

@@ -112,6 +112,8 @@ namespace GkmStatus.src
                 config.Settings.UsageTelemetryAllowed = Read(settings, "UsageTelemetryAllowed", config.Settings.UsageTelemetryAllowed);
                 config.Settings.TelemetryInstallationId = Read(settings, "TelemetryInstallationId", config.Settings.TelemetryInstallationId);
                 config.Settings.BackgroundSetupCompleted = Read(settings, "BackgroundSetupCompleted", config.Settings.BackgroundSetupCompleted);
+                config.Settings.NotifyProducerLevel = Read(settings, "NotifyProducerLevel", config.Settings.NotifyProducerLevel);
+                config.Settings.LastProducerLevelReminder = Read(settings, "LastProducerLevelReminder", config.Settings.LastProducerLevelReminder);
                 if (config.Settings.LastUpdateCheck > DateTime.UtcNow)
                     config.Settings.LastUpdateCheck = DateTime.MinValue;
             }
@@ -262,6 +264,10 @@ namespace GkmStatus.src
         public string? TelemetryInstallationId { get; set; }
         /// <summary>初回起動時の「推奨設定の確認」を済ませたか。config.json が新しく作られたときや、この項目がないときは false。</summary>
         public bool BackgroundSetupCompleted { get; set; }
+        /// <summary>30 日ごとに PLv の見直しを促す通知を出すか。</summary>
+        public bool NotifyProducerLevel { get; set; } = true;
+        /// <summary>PLv の見直しの起点（前回通知した日時、または PLv を変更した日時。UTC）。未記録は MinValue。</summary>
+        public DateTime LastProducerLevelReminder { get; set; } = DateTime.MinValue;
     }
 
     public class PresenceSettings
