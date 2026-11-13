@@ -632,18 +632,25 @@ namespace GkmStatus
                 SaveSettings();
             };
 
-            ToolStripSeparator separatorSettings = new();
+            // 通知の設定はサブメニューにまとめる
+            notificationMenu = new(I18n.T(Menu_Notifications));
+            notificationMenu.DropDownItems.AddRange([notifyInBackgroundItem, notifyOnMinimizeItem]);
+            notificationMenu.DropDown.Closing += (s, e) =>
+            {
+                if (e.CloseReason == ToolStripDropDownCloseReason.ItemClicked) e.Cancel = true;
+            };
+
             settingsMenu.DropDownItems.AddRange([
+                monitorItem,
+                new ToolStripSeparator(),
                 runAtStartupItem,
                 startMinimizedItem,
                 autoConnectItem,
                 checkForUpdatesItem,
                 usageTelemetryItem,
-                separatorSettings,
-                monitorItem,
-                notifyInBackgroundItem,
-                notifyOnMinimizeItem,
-                minimizeToTrayItem
+                new ToolStripSeparator(),
+                minimizeToTrayItem,
+                notificationMenu
             ]);
 
             settingsMenu.DropDown.Closing += (s, e) =>
@@ -765,6 +772,7 @@ namespace GkmStatus
         private ToolStripMenuItem usageTelemetryItem;
         private ToolStripMenuItem checkForUpdatesItem;
         private ToolStripMenuItem monitorItem;
+        private ToolStripMenuItem notificationMenu;
         private ToolStripMenuItem notifyInBackgroundItem;
         private ToolStripMenuItem notifyOnMinimizeItem;
         private ToolStripMenuItem minimizeToTrayItem;
