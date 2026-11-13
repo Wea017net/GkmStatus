@@ -129,6 +129,10 @@
       "text": "このアプリの場所を開く..."
     },
     {
+      "key": "Menu_OpenLogLocation",
+      "text": "ログフォルダを開く..."
+    },
+    {
       "key": "Menu_OpenConfigLocation",
       "text": "設定ファイルの場所を開く..."
     },
@@ -328,6 +332,10 @@
     {
       "key": "Status_Paused",
       "text": "接続済み\n（表示を停止中）"
+    },
+    {
+      "key": "Status_ConnectionFailed",
+      "text": "Discord connection failed.（Discordアプリを起動していますか？）"
     },
     {
       "key": "Status_Timeout",

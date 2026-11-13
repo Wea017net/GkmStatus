@@ -23,6 +23,9 @@ namespace GkmStatus.src
         public string? CurrentUsername { get; private set; }
         public string? LastErrorMessage { get; private set; }
 
+        /// <summary>Discord に接続できなかったときの LastErrorMessage。画面では Discord の起動を促す一言を添えて表示する。</summary>
+        public const string ConnectionFailedMessage = "Discord connection failed.";
+
         public event EventHandler<RpcStatus>? StatusChanged;
         public event EventHandler<string>? Ready;
 
@@ -73,7 +76,7 @@ namespace GkmStatus.src
             {
                 if (!ReferenceEquals(client, session)) return;
                 Status = RpcStatus.Error;
-                LastErrorMessage = "Discord connection failed.";
+                LastErrorMessage = ConnectionFailedMessage;
                 StatusChanged?.Invoke(this, Status);
             };
 
@@ -90,6 +93,7 @@ namespace GkmStatus.src
                 }
             } catch (Exception ex)
             {
+                ErrorLog.Write("Discord RPC initialize", ex);
                 Status = RpcStatus.Error;
                 LastErrorMessage = ex.Message;
                 StatusChanged?.Invoke(this, Status);

@@ -207,6 +207,7 @@ internal static class UpdaterService
         }
         catch (Exception ex)
         {
+            ErrorLog.Write("Updater", ex);
             MessageBox.Show(I18n.T(I18n.Text_List.Update_DownloadFailed, ex.Message), I18n.T(I18n.Text_List.App_Name), MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
@@ -255,6 +256,7 @@ internal static class UpdaterService
             }
             catch (Exception ex)
             {
+                ErrorLog.Write("Update apply", ex);
                 errorMessage = ex.Message;
                 TryRestartOriginalApplication(request);
             }
@@ -284,6 +286,7 @@ internal static class UpdaterService
             }
             catch (Exception ex)
             {
+                ErrorLog.Write("Restart after update", ex);
                 MessageBox.Show(I18n.T(I18n.Text_List.Update_DownloadFailed, ex.Message), I18n.T(I18n.Text_List.App_Name), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -431,7 +434,7 @@ internal static class UpdaterService
         }
         catch (Exception ex)
         {
-            Debug.WriteLine("Could not restart GkmStatus after a failed update: " + ex.Message);
+            ErrorLog.Write("Restart after failed update", ex);
         }
     }
 

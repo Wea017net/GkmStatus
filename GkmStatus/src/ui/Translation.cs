@@ -57,6 +57,7 @@ namespace GkmStatus.src.ui
             Menu_About,
             Menu_OpenAppLocation,
             Menu_OpenConfigLocation,
+            Menu_OpenLogLocation,
             Tray_Open,
             Tray_Idol,
             Tray_ProducingIdol,
@@ -112,6 +113,7 @@ namespace GkmStatus.src.ui
             Status_Connecting,
             Status_Paused,
             Status_Timeout,
+            Status_ConnectionFailed,
             Status_Error,
             Status_InitFailed,
             Status_Exception,
@@ -243,7 +245,7 @@ namespace GkmStatus.src.ui
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("I18n load error: " + ex.Message);
+                ErrorLog.Write("Translation load", ex);
             }
 
             return map;

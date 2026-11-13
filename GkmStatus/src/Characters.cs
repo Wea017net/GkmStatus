@@ -67,7 +67,7 @@ namespace GkmStatus.src
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("Character JSON load error: " + ex.Message);
+                ErrorLog.Write("Character data load", ex);
             }
 
             return [];

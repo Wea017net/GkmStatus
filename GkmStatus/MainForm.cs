@@ -434,6 +434,7 @@ namespace GkmStatus
                 helpMenu.Text = I18n.T(Menu_Help);
                 openAppLocationMenu.Text = I18n.T(Menu_OpenAppLocation);
                 openConfigLocationMenu.Text = I18n.T(Menu_OpenConfigLocation);
+                openLogLocationMenu.Text = I18n.T(Menu_OpenLogLocation);
                 githubMenu.Text = I18n.T(Menu_Github);
                 checkUpdateMenuItem.Text = I18n.T(Menu_CheckUpdateNow);
                 aboutMenu.Text = I18n.T(Menu_About);
@@ -622,6 +623,7 @@ namespace GkmStatus
             }
             catch (Exception ex)
             {
+                ErrorLog.Write("Update download", ex);
                 SafeBeginInvoke(() =>
                 {
                     if (manual)
@@ -874,7 +876,7 @@ namespace GkmStatus
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("UI Load Error: " + ex.Message);
+                ErrorLog.Write("UI load", ex);
             }
         }
 
@@ -1003,6 +1005,9 @@ namespace GkmStatus
 
         private void HandleConnectionError(string message)
         {
+            ErrorLog.Write("Discord connection", message);
+            if (message == DiscordRpcService.ConnectionFailedMessage)
+                message = I18n.T(Status_ConnectionFailed);
             connectionTimer?.Stop();
             lblStatus.Text = message; lblStatus.ForeColor = COLOR_ERROR;
             statusToolTip.SetToolTip(lblStatus, message);
@@ -1234,7 +1239,7 @@ namespace GkmStatus
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("RPC Update Error: " + ex.Message);
+                ErrorLog.Write("Discord presence update", ex);
             }
         }
 
