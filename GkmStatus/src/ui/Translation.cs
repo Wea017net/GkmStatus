@@ -35,6 +35,8 @@ namespace GkmStatus.src.ui
             Menu_UsageTelemetry,
             UsageTelemetry_ConsentTitle,
             UsageTelemetry_ConsentBody,
+            BackgroundSetup_Title,
+            BackgroundSetup_Body,
             Menu_CheckForUpdates,
             Menu_NotifyInBackground,
             Menu_NotifyOnMinimize,

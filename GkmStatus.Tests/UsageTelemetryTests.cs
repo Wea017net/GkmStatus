@@ -9,6 +9,34 @@ namespace GkmStatus.Tests;
 public sealed class UsageTelemetryTests
 {
     [TestMethod]
+    public void BackgroundSetupIsPendingUntilSavedAndWhenTheSettingIsMissing()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"GkmStatus-{Guid.NewGuid():N}.json");
+        try
+        {
+            var manager = new ConfigManager(path);
+            manager.Load();
+            Assert.IsFalse(manager.Config.Settings.BackgroundSetupCompleted);
+
+            manager.Config.Settings.BackgroundSetupCompleted = true;
+            Assert.IsTrue(manager.Save());
+            var reloaded = new ConfigManager(path);
+            reloaded.Load();
+            Assert.IsTrue(reloaded.Config.Settings.BackgroundSetupCompleted);
+
+            // 以前のバージョンの config.json（項目なし）はセットアップ未完了として扱う
+            File.WriteAllText(path, """{ "ConfigVersion": 1, "Settings": { "StartMinimized": false } }""");
+            var legacy = new ConfigManager(path);
+            legacy.Load();
+            Assert.IsFalse(legacy.Config.Settings.BackgroundSetupCompleted);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [TestMethod]
     public void TelemetryConsentDefaultsToUndecidedAndPersistsExplicitChoices()
     {
         string path = Path.Combine(Path.GetTempPath(), $"GkmStatus-{Guid.NewGuid():N}.json");

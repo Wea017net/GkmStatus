@@ -29,7 +29,8 @@ namespace GkmStatus
         private bool _isFirstStartup = true;
         private bool _syncingStartupSetting;
         private bool _isUpdating;
-        private readonly bool _forceVisibleOnStartup;
+        // 初回セットアップで「最小化した状態で起動」を有効にした回は、ウィンドウを表示したままにするため書き換える
+        private bool _forceVisibleOnStartup;
         private int _updateDisplayVersion;
         private bool _runtimeResourcesDisposed;
 
@@ -157,6 +158,7 @@ namespace GkmStatus
             _configManager.Load();
             LoadSettings();
             PromptForUsageTelemetryConsentIfNeeded();
+            PromptForBackgroundSetupIfNeeded();
 
             if (!_forceVisibleOnStartup && startMinimizedItem.Checked)
             {
@@ -240,13 +242,44 @@ namespace GkmStatus
                 I18n.T(UsageTelemetry_ConsentTitle),
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Information,
-                MessageBoxDefaultButton.Button2);
+                MessageBoxDefaultButton.Button1);
 
             settings.UsageTelemetryAllowed = result == DialogResult.Yes;
             settings.TelemetryInstallationId = settings.UsageTelemetryAllowed == true
                 ? UsageTelemetryClient.CreateInstallationId()
                 : null;
             usageTelemetryItem.Checked = settings.UsageTelemetryAllowed == true;
+            _configManager.Save();
+        }
+
+        /// <summary>
+        /// 初回起動時（config.json が新しく作られた、または BackgroundSetupCompleted がない）に、
+        /// 「システム起動時に実行」と「最小化した状態で起動」をまとめて有効にするか確認する。
+        /// </summary>
+        private void PromptForBackgroundSetupIfNeeded()
+        {
+            var settings = _configManager.Config.Settings;
+            if (settings.BackgroundSetupCompleted)
+                return;
+
+            var result = MessageBox.Show(
+                I18n.T(BackgroundSetup_Body),
+                I18n.T(BackgroundSetup_Title),
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question,
+                MessageBoxDefaultButton.Button1);
+
+            if (result == DialogResult.Yes)
+            {
+                // 失敗したときは runAtStartupItem の CheckedChanged がチェックを戻してエラーを表示する
+                runAtStartupItem.Checked = true;
+                startMinimizedItem.Checked = true;
+                settings.StartMinimized = true;
+                // 設定した直後の今回は、ウィンドウを表示したまま起動する
+                _forceVisibleOnStartup = true;
+            }
+
+            settings.BackgroundSetupCompleted = true;
             _configManager.Save();
         }
 

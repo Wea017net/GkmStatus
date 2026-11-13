@@ -111,6 +111,7 @@ namespace GkmStatus.src
                 config.Settings.LastUpdateCheck = Read(settings, "LastUpdateCheck", config.Settings.LastUpdateCheck);
                 config.Settings.UsageTelemetryAllowed = Read(settings, "UsageTelemetryAllowed", config.Settings.UsageTelemetryAllowed);
                 config.Settings.TelemetryInstallationId = Read(settings, "TelemetryInstallationId", config.Settings.TelemetryInstallationId);
+                config.Settings.BackgroundSetupCompleted = Read(settings, "BackgroundSetupCompleted", config.Settings.BackgroundSetupCompleted);
                 if (config.Settings.LastUpdateCheck > DateTime.UtcNow)
                     config.Settings.LastUpdateCheck = DateTime.MinValue;
             }
@@ -259,6 +260,8 @@ namespace GkmStatus.src
         public DateTime LastUpdateCheck { get; set; } = DateTime.MinValue;
         public bool? UsageTelemetryAllowed { get; set; }
         public string? TelemetryInstallationId { get; set; }
+        /// <summary>初回起動時の「推奨設定の確認」を済ませたか。config.json が新しく作られたときや、この項目がないときは false。</summary>
+        public bool BackgroundSetupCompleted { get; set; }
     }
 
     public class PresenceSettings
