@@ -61,6 +61,10 @@
       "text": "通知設定"
     },
     {
+      "key": "Menu_ShowMemoryUsage",
+      "text": "メモリ使用量を表示"
+    },
+    {
       "key": "Menu_NotifyProducerLevel",
       "text": "プロデューサーレベルの確認（30日ごと）"
     },
@@ -332,6 +336,10 @@
     {
       "key": "Status_Paused",
       "text": "接続済み\n（表示を停止中）"
+    },
+    {
+      "key": "Status_MemoryUsage",
+      "text": "メモリ使用量: {0}"
     },
     {
       "key": "Status_ConnectionFailed",

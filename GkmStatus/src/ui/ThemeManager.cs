@@ -211,7 +211,7 @@ namespace GkmStatus.src
             else
                 lbl.Font = _fontManager.AppFontMedium;
 
-            if (lbl.Name == "lblResetGuide" || lbl.Name == "lblBtnModeNote")
+            if (lbl.Name == "lblResetGuide" || lbl.Name == "lblBtnModeNote" || lbl.Name == "lblMemoryUsage")
                 lbl.ForeColor = Color.Gray;
             else if (lbl.Name == "lblGameAppGuide")
                 lbl.ForeColor = AppConstants.COLOR_PAUSE;
