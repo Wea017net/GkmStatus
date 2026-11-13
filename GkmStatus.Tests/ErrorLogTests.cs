@@ -38,6 +38,15 @@ public sealed class ErrorLogTests
     }
 
     [TestMethod]
+    public void MemoryUsageIsReadAndFormattedInTenthsOfMegabytes()
+    {
+        Assert.IsTrue(MemoryUsage.GetBytes() > 0);
+        Assert.AreEqual(123, MemoryUsage.ToTenthsOfMegabyte((long)(12.3 * 1024 * 1024)));
+        Assert.AreEqual("12.3 MB", MemoryUsage.Format(123));
+        Assert.AreEqual("0.5 MB", MemoryUsage.Format(5));
+    }
+
+    [TestMethod]
     public void LogFolderIsNextToTheConfigFile()
     {
         string config = Path.Combine(Path.GetTempPath(), "GkmStatusConfigDir", "config.json");

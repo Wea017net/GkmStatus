@@ -113,6 +113,7 @@ namespace GkmStatus.src
                 config.Settings.TelemetryInstallationId = Read(settings, "TelemetryInstallationId", config.Settings.TelemetryInstallationId);
                 config.Settings.BackgroundSetupCompleted = Read(settings, "BackgroundSetupCompleted", config.Settings.BackgroundSetupCompleted);
                 config.Settings.NotifyProducerLevel = Read(settings, "NotifyProducerLevel", config.Settings.NotifyProducerLevel);
+                config.Settings.ShowMemoryUsage = Read(settings, "ShowMemoryUsage", config.Settings.ShowMemoryUsage);
                 config.Settings.LastProducerLevelReminder = Read(settings, "LastProducerLevelReminder", config.Settings.LastProducerLevelReminder);
                 if (config.Settings.LastUpdateCheck > DateTime.UtcNow)
                     config.Settings.LastUpdateCheck = DateTime.MinValue;
@@ -266,6 +267,8 @@ namespace GkmStatus.src
         public bool BackgroundSetupCompleted { get; set; }
         /// <summary>30 日ごとに PLv の見直しを促す通知を出すか。</summary>
         public bool NotifyProducerLevel { get; set; } = true;
+        /// <summary>ステータス欄の右側にメモリ使用量を表示するか。</summary>
+        public bool ShowMemoryUsage { get; set; }
         /// <summary>PLv の見直しの起点（前回通知した日時、または PLv を変更した日時。UTC）。未記録は MinValue。</summary>
         public DateTime LastProducerLevelReminder { get; set; } = DateTime.MinValue;
     }

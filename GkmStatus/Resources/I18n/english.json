@@ -62,6 +62,10 @@
       "text": "Notifications"
     },
     {
+      "key": "Menu_ShowMemoryUsage",
+      "text": "Show memory usage"
+    },
+    {
       "key": "Menu_NotifyProducerLevel",
       "text": "Producer Level check (every 30 days)"
     },
@@ -334,6 +338,10 @@
     {
       "key": "Status_Paused",
       "text": "Connected\n(Display Paused)"
+    },
+    {
+      "key": "Status_MemoryUsage",
+      "text": "Memory usage: {0}"
     },
     {
       "key": "Status_ConnectionFailed",

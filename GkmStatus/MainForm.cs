@@ -45,6 +45,10 @@ namespace GkmStatus
         private static readonly object ProducerLevelReminderTag = new();
         /// <summary>ウィンドウ表示中に通知のためだけにトレイアイコンを出したか（通知が閉じたら隠す）。</summary>
         private bool _trayIconShownForReminder;
+        /// <summary>メモリ使用量の表示を更新する間隔（clockTimer の何回に 1 回か）と、前回表示した値（0.1MB 単位）。</summary>
+        private const int MEMORY_UPDATE_TICKS = 2;
+        private int _memoryUpdateTick;
+        private long _shownMemoryTenths = -1;
         private int connectionSeconds = 0;
         private bool suppressAutomaticReconnect;
         private const int CONNECTION_TIMEOUT = 30;
@@ -420,6 +424,8 @@ namespace GkmStatus
                 notifyInBackgroundItem.Text = I18n.T(Menu_NotifyInBackground);
                 notifyOnMinimizeItem.Text = I18n.T(Menu_NotifyOnMinimize);
                 plvReminderItem.Text = I18n.T(Menu_NotifyProducerLevel);
+                memoryUsageItem.Text = I18n.T(Menu_ShowMemoryUsage);
+                ApplyMemoryUsageVisibility();
                 minimizeToTrayItem.Text = I18n.T(Menu_MinimizeToTray);
                 monitorItem.Text = I18n.T(Menu_MonitorProcess);
 
@@ -765,6 +771,7 @@ namespace GkmStatus
             settings.ShowBackgroundNotifications = notifyInBackgroundItem.Checked;
             settings.NotifyOnMinimize = notifyOnMinimizeItem.Checked;
             settings.NotifyProducerLevel = plvReminderItem.Checked;
+            settings.ShowMemoryUsage = memoryUsageItem.Checked;
             settings.MinimizeToTray = minimizeToTrayItem.Checked;
             settings.AutoDetectGakumas = monitorItem.Checked;
             var selectedTheme = themeLight.Checked ? AppTheme.Light : (themeDark.Checked ? AppTheme.Dark : (themeOLED.Checked ? AppTheme.OLED : AppTheme.Auto));
@@ -811,6 +818,7 @@ namespace GkmStatus
                 notifyInBackgroundItem.Checked = settings.ShowBackgroundNotifications;
                 notifyOnMinimizeItem.Checked = settings.NotifyOnMinimize;
                 plvReminderItem.Checked = settings.NotifyProducerLevel;
+                memoryUsageItem.Checked = settings.ShowMemoryUsage;
                 minimizeToTrayItem.Checked = settings.MinimizeToTray;
                 monitorItem.Checked = settings.AutoDetectGakumas;
 
@@ -888,6 +896,7 @@ namespace GkmStatus
             clockTimer.Tick += (s, e) =>
             {
                 UpdateTimestampLabel();
+                UpdateMemoryUsageLabel();
                 if (rpc.IsInitialized == true)
                     rpc.Invoke();
             };
@@ -895,6 +904,43 @@ namespace GkmStatus
             // 常駐したまま日をまたいでも気づけるよう、1 時間ごとに PLv の確認の時期か調べる
             plvReminderTimer = new System.Windows.Forms.Timer { Interval = (int)TimeSpan.FromHours(1).TotalMilliseconds, Enabled = true };
             plvReminderTimer.Tick += (s, e) => CheckProducerLevelReminder();
+        }
+
+        /// <summary>
+        /// 「メモリ使用量を表示」に合わせて、ステータス欄の右側のメモリ使用量を出し入れする。
+        /// 表示中はステータスメッセージの幅をその分だけ狭める。
+        /// </summary>
+        private void ApplyMemoryUsageVisibility()
+        {
+            bool show = memoryUsageItem.Checked;
+            // 「メモリ使用量: 9999.9 MB」が入る幅を右端に確保する
+            int width = TextRenderer.MeasureText(I18n.T(Status_MemoryUsage, "9999.9 MB"), lblMemoryUsage.Font).Width + S(4);
+            lblMemoryUsage.SetBounds(this.ClientSize.Width - S(20) - width, lblStatus.Top, width, lblStatus.Height);
+            lblMemoryUsage.Visible = show;
+            int right = show ? lblMemoryUsage.Left - S(8) : this.ClientSize.Width - S(20);
+            lblStatus.Width = right - lblStatus.Left;
+            _shownMemoryTenths = -1;
+            _memoryUpdateTick = 0;
+            UpdateMemoryUsageLabel();
+        }
+
+        /// <summary>
+        /// メモリ使用量を表示し直す（clockTimer から呼ばれ、MEMORY_UPDATE_TICKS 回に 1 回だけ取得する）。
+        /// ウィンドウが見えていないときは取得しない。値が変わらなければ文字列も作らない。
+        /// </summary>
+        private void UpdateMemoryUsageLabel()
+        {
+            if (!memoryUsageItem.Checked || !this.Visible || this.WindowState == FormWindowState.Minimized)
+                return;
+            if (_memoryUpdateTick++ % MEMORY_UPDATE_TICKS != 0)
+                return;
+            if (MemoryUsage.GetBytes() is not long bytes)
+                return;
+            long tenths = MemoryUsage.ToTenthsOfMegabyte(bytes);
+            if (tenths == _shownMemoryTenths)
+                return;
+            _shownMemoryTenths = tenths;
+            lblMemoryUsage.Text = I18n.T(Status_MemoryUsage, MemoryUsage.Format(tenths));
         }
 
         /// <summary>

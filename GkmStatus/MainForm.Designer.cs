@@ -579,9 +579,19 @@ namespace GkmStatus
                 Name = "lblStatus", Text = I18n.T(Status_Disconnected), ForeColor = Color.Gray, Font = _fontManager.AppFontMedium,
                 Location = new Point(S(20), statusSeparatorY + S(2)), Size = new Size(this.ClientSize.Width - S(40), statusBarHeight),
             };
+            // ステータス欄の右端にメモリ使用量（「設定」の「メモリ使用量を表示」がオンのときだけ）。
+            // 幅と位置は言語で変わるので ApplyMemoryUsageVisibility で決める
+            lblMemoryUsage = new Label
+            {
+                Name = "lblMemoryUsage", AutoSize = false, TextAlign = ContentAlignment.MiddleRight,
+                ForeColor = Color.Gray, Font = _fontManager.AppFontMedium, Visible = false,
+                Location = new Point(this.ClientSize.Width - S(20), lblStatus.Top),
+                Size = new Size(0, statusBarHeight),
+            };
             statusToolTip = new ToolTip();
             statusToolTip.SetToolTip(lblStatus, lblStatus.Text);
             this.Controls.Add(btnConnect); this.Controls.Add(btnUpdate); this.Controls.Add(btnDisconnect); this.Controls.Add(lblStatus);
+            this.Controls.Add(lblMemoryUsage);
 
             var menu = new MenuStrip();
             fileMenu = new(I18n.T(Menu_File));
@@ -645,6 +655,9 @@ namespace GkmStatus
                 SaveSettings();
             };
 
+            memoryUsageItem = new(I18n.T(Menu_ShowMemoryUsage)) { CheckOnClick = true };
+            memoryUsageItem.CheckedChanged += (s, e) => { ApplyMemoryUsageVisibility(); SaveSettings(); };
+
             // 通知の設定はサブメニューにまとめる
             notificationMenu = new(I18n.T(Menu_Notifications));
             plvReminderItem = new(I18n.T(Menu_NotifyProducerLevel)) { CheckOnClick = true, Checked = true };
@@ -665,7 +678,9 @@ namespace GkmStatus
                 usageTelemetryItem,
                 new ToolStripSeparator(),
                 minimizeToTrayItem,
-                notificationMenu
+                notificationMenu,
+                new ToolStripSeparator(),
+                memoryUsageItem
             ]);
 
             settingsMenu.DropDown.Closing += (s, e) =>
@@ -789,6 +804,8 @@ namespace GkmStatus
         private Button btnUpdate;
         private Button btnDisconnect;
         private Label lblStatus;
+        private Label lblMemoryUsage;
+        private ToolStripMenuItem memoryUsageItem;
         private ToolTip statusToolTip;
         private ToolStripMenuItem fileMenu, exitItem;
         private ToolStripMenuItem settingsMenu;
