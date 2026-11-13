@@ -78,6 +78,7 @@ namespace GkmStatus.src.ui
         private static partial bool RedrawWindow(nint hWnd, nint lprcUpdate, nint hrgnUpdate, int flags);
 
         private Color? _disabledBorderColor;
+        private Color? _focusBorderColor;
 
         /// <summary>
         /// 無効時に枠をこの色で描き直す（null なら Windows の描画のまま）。
@@ -91,15 +92,51 @@ namespace GkmStatus.src.ui
             set { _disabledBorderColor = value; RedrawFrame(); }
         }
 
+        /// <summary>入力中（フォーカスがある間）の枠の色（null なら Windows の描画のまま）。</summary>
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public Color? FocusBorderColor
+        {
+            get => _focusBorderColor;
+            set { _focusBorderColor = value; RedrawFrame(); }
+        }
+
         protected override void OnEnabledChanged(EventArgs e)
         {
             base.OnEnabledChanged(e);
             RedrawFrame();
         }
 
+        protected override void OnGotFocus(EventArgs e)
+        {
+            base.OnGotFocus(e);
+            RedrawFrame();
+        }
+
         private void RedrawFrame()
         {
             if (IsHandleCreated) RedrawWindow(Handle, 0, 0, RDW_INVALIDATE | RDW_FRAME);
+        }
+
+        private void DrawFocusBorder(Color color)
+        {
+            nint hdc = GetWindowDC(Handle);
+            if (hdc == 0) return;
+            try
+            {
+                using Graphics g = Graphics.FromHdc(hdc);
+                using var pen = new Pen(color);
+                g.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+                // ライトの Windows 11 は入力中に枠の内側の下辺へ青い線を引くので、入力欄の色で消す（ダークの内側の線は灰色なのでそのまま）
+                if (BackColor.GetBrightness() > 0.5f)
+                {
+                    using var inner = new Pen(BackColor);
+                    g.DrawLine(inner, 1, Height - 2, Width - 2, Height - 2);
+                }
+            }
+            finally
+            {
+                ReleaseDC(Handle, hdc);
+            }
         }
 
         private void DrawDisabledBorder(Color color)
@@ -128,7 +165,11 @@ namespace GkmStatus.src.ui
             if (m.Msg == WM_NCPAINT)
             {
                 base.WndProc(ref m);
-                if (!Enabled && _disabledBorderColor is Color border && BorderStyle != BorderStyle.None) DrawDisabledBorder(border);
+                if (BorderStyle != BorderStyle.None)
+                {
+                    if (!Enabled && _disabledBorderColor is Color border) DrawDisabledBorder(border);
+                    else if (Enabled && Focused && _focusBorderColor is Color focus) DrawFocusBorder(focus);
+                }
                 return;
             }
             if (DrawCompositionInline)
@@ -166,6 +207,7 @@ namespace GkmStatus.src.ui
         {
             EndComposition();
             base.OnLostFocus(e);
+            RedrawFrame();
         }
 
         protected override void Dispose(bool disposing)

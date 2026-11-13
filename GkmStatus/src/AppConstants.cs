@@ -61,8 +61,20 @@ namespace GkmStatus.src
         public static readonly Color COLOR_PRIMARY = ColorTranslator.FromHtml("#7e87f4");
         public static readonly Color COLOR_DISABLED = Color.FromArgb(60, 63, 65);
 
-        public static readonly Color COLOR_LIGHT_BG = ColorTranslator.FromHtml("#f3f3f4");
+        // ライトテーマ: タイトルバー（白）→ メニューバー → 背景 の順に少しずつ暗くして、境目をわかるようにする
+        public static readonly Color COLOR_LIGHT_TITLEBAR = Color.White;
+        public static readonly Color COLOR_LIGHT_MENUBAR = ColorTranslator.FromHtml("#f7f7f8");
+        public static readonly Color COLOR_LIGHT_BG = ColorTranslator.FromHtml("#ebebed");
+        /// <summary>ライトテーマの文字色（黒だと強すぎるので少し明るくする）。</summary>
+        public static readonly Color COLOR_LIGHT_TEXT = ColorTranslator.FromHtml("#323232");
+
+        // ダーク/OLED テーマ。区切り線は立体の白い線だと浮くので、背景になじむ平らな線にする
         public static readonly Color COLOR_DARK_BG = Color.FromArgb(32, 34, 37);
+        public static readonly Color COLOR_DARK_SEPARATOR = ColorTranslator.FromHtml("#45484e");
         public static readonly Color COLOR_OLED_BG = Color.Black;
+        public static readonly Color COLOR_OLED_SEPARATOR = ColorTranslator.FromHtml("#2e2f33");
+
+        /// <summary>メイン画面下部の区切り線（Label）の Name。テーマに合わせて線の描き方を変えるときの目印。</summary>
+        public const string FOOTER_SEPARATOR_NAME = "footerSeparator";
     }
 }

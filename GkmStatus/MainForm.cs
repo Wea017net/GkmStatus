@@ -26,7 +26,6 @@ namespace GkmStatus
         }
 
         private readonly bool isInitializing = true;
-        private int footerButtonsY;
         private bool _isFirstStartup = true;
         private bool _syncingStartupSetting;
         private bool _isUpdating;
@@ -888,7 +887,6 @@ namespace GkmStatus
             lblStatus.Text = I18n.T("Status_Connecting", 0);
             lblStatus.ForeColor = COLOR_PAUSE;
             btnConnect.Enabled = false;
-            AdjustStatusVerticalPosition();
             _trayIconManager?.UpdateStatusIcon(COLOR_PAUSE, I18n.T(Tray_Status_Connecting));
 
             connectionTimer.Start();
@@ -903,7 +901,6 @@ namespace GkmStatus
             connectionTimer?.Stop();
             lblStatus.Text = message; lblStatus.ForeColor = COLOR_ERROR;
             statusToolTip.SetToolTip(lblStatus, message);
-            AdjustStatusVerticalPosition();
             btnConnect.Text = I18n.T(Button_Connect); btnConnect.BackColor = COLOR_CONNECT; btnConnect.Enabled = true;
             btnUpdate.Enabled = false; btnUpdate.BackColor = COLOR_DISABLED;
             btnDisconnect.Enabled = false; btnDisconnect.BackColor = COLOR_DISABLED;
@@ -962,8 +959,7 @@ namespace GkmStatus
             string status = I18n.T(Status_Connected, username);
             lblStatus.Text = status;
             lblStatus.ForeColor = COLOR_CONNECT;
-            statusToolTip.SetToolTip(lblStatus, status.Replace("\n", " "));
-            AdjustStatusVerticalPosition();
+            statusToolTip.SetToolTip(lblStatus, lblStatus.Text);
             btnConnect.Text = I18n.T(Button_Pause);
             btnConnect.BackColor = COLOR_PAUSE;
             btnConnect.Enabled = true;
@@ -1019,8 +1015,7 @@ namespace GkmStatus
             string status = I18n.T(Status_Paused);
             lblStatus.Text = status;
             lblStatus.ForeColor = COLOR_PAUSE;
-            statusToolTip.SetToolTip(lblStatus, status.Replace("\n", " "));
-            AdjustStatusVerticalPosition();
+            statusToolTip.SetToolTip(lblStatus, lblStatus.Text);
             btnConnect.Text = I18n.T(Button_Resume);
             btnConnect.BackColor = COLOR_CONNECT;
             btnConnect.Enabled = true;
@@ -1040,8 +1035,7 @@ namespace GkmStatus
             string status = monitorItem.Checked ? I18n.T(Status_Disconnected_Auto) : I18n.T(Status_Disconnected);
             lblStatus.Text = status;
             lblStatus.ForeColor = Color.Gray;
-            statusToolTip.SetToolTip(lblStatus, status.Replace("\n", " "));
-            AdjustStatusVerticalPosition();
+            statusToolTip.SetToolTip(lblStatus, lblStatus.Text);
             btnConnect.Text = I18n.T(Button_Connect);
             btnConnect.BackColor = COLOR_CONNECT;
             btnConnect.Enabled = true;
@@ -1169,15 +1163,7 @@ namespace GkmStatus
             TimeSpan ts = isSessionActive ? DateTime.UtcNow - startTime : TimeSpan.Zero;
 
             lblStartTime.Text = $"{I18n.T(Timestamp_Label)}: {(int)ts.TotalHours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
-            lblStartTime.ForeColor = this.BackColor.GetBrightness() > 0.5f ? Color.Black : Color.LightGray;
-        }
-
-        private void AdjustStatusVerticalPosition()
-        {
-            if (lblStatus == null || btnConnect == null) return;
-            int btnHeight = btnConnect.Height;
-            int areaCenterY = (footerButtonsY + S(20)) + (btnHeight / 2);
-            lblStatus.Top = areaCenterY - (lblStatus.Height / 2);
+            lblStartTime.ForeColor = this.BackColor.GetBrightness() > 0.5f ? COLOR_LIGHT_TEXT : Color.LightGray;
         }
 
         private void RefreshProduceCharacterList()
