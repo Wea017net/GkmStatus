@@ -409,6 +409,7 @@ namespace GkmStatus
                 autoConnectItem.Text = I18n.T(Menu_AutoConnect);
                 usageTelemetryItem.Text = I18n.T(Menu_UsageTelemetry);
                 checkForUpdatesItem.Text = I18n.T(Menu_CheckForUpdates);
+                notificationMenu.Text = I18n.T(Menu_Notifications);
                 notifyInBackgroundItem.Text = I18n.T(Menu_NotifyInBackground);
                 notifyOnMinimizeItem.Text = I18n.T(Menu_NotifyOnMinimize);
                 minimizeToTrayItem.Text = I18n.T(Menu_MinimizeToTray);

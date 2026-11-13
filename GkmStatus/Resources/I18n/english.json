@@ -58,12 +58,16 @@
       "text": "Check for updates on startup"
     },
     {
+      "key": "Menu_Notifications",
+      "text": "Notifications"
+    },
+    {
       "key": "Menu_NotifyInBackground",
-      "text": "Notify in background"
+      "text": "When running in the background"
     },
     {
       "key": "Menu_NotifyOnMinimize",
-      "text": "Notify on minimize"
+      "text": "When minimized"
     },
     {
       "key": "Menu_MinimizeToTray",

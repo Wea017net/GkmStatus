@@ -57,12 +57,16 @@
       "text": "起動時にアプリの更新を確認"
     },
     {
+      "key": "Menu_Notifications",
+      "text": "通知設定"
+    },
+    {
       "key": "Menu_NotifyInBackground",
-      "text": "バックグラウンド動作時に通知"
+      "text": "バックグラウンドで動作したとき"
     },
     {
       "key": "Menu_NotifyOnMinimize",
-      "text": "最小化時に通知"
+      "text": "最小化したとき"
     },
     {
       "key": "Menu_MinimizeToTray",

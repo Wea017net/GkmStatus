@@ -38,6 +38,7 @@ namespace GkmStatus.src.ui
             BackgroundSetup_Title,
             BackgroundSetup_Body,
             Menu_CheckForUpdates,
+            Menu_Notifications,
             Menu_NotifyInBackground,
             Menu_NotifyOnMinimize,
             Menu_MinimizeToTray,
