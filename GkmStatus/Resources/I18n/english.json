@@ -43,7 +43,15 @@
     },
     {
       "key": "UsageTelemetry_ConsentBody",
-      "text": "Allow anonymous usage data to be sent?\nYou can change this anytime in Settings."
+      "text": "Allow anonymous usage data to be sent?\nSettings like your producer name or favorite idol are not sent.\n(You can change this anytime in Settings.)"
+    },
+    {
+      "key": "BackgroundSetup_Title",
+      "text": "Recommended settings"
+    },
+    {
+      "key": "BackgroundSetup_Body",
+      "text": "Keeping GkmStatus running in the background\nlets it detect when gakumas.exe starts and exits, and show your status on Discord automatically.\nIt uses about 50 MB of memory while running in the background.\n\nEnable \"Run at system startup\" and \"Start minimized in tray\"?\n(You can change this anytime in Settings.)"
     },
     {
       "key": "Menu_CheckForUpdates",
