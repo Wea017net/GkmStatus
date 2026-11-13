@@ -45,6 +45,7 @@ namespace GkmStatus
         private static readonly object ProducerLevelReminderTag = new();
         /// <summary>ウィンドウ表示中に通知のためだけにトレイアイコンを出したか（通知が閉じたら隠す）。</summary>
         private bool _trayIconShownForReminder;
+        private ActivityPreviewForm? _previewForm;
         /// <summary>メモリ使用量の表示を更新する間隔（clockTimer の何回に 1 回か）と、前回表示した値（0.1MB 単位）。</summary>
         private const int MEMORY_UPDATE_TICKS = 2;
         private int _memoryUpdateTick;
@@ -403,7 +404,14 @@ namespace GkmStatus
             if (!btnUpdate.Enabled) btnUpdate.BackColor = disabledColor;
             if (!btnDisconnect.Enabled) btnDisconnect.BackColor = disabledColor;
             if (!btnResetTime.Enabled) btnResetTime.BackColor = disabledColor;
+
+            // プレビューも Discord の配色を切り替える
+            _previewForm?.SetTheme(PreviewTheme);
         }
+
+        /// <summary>プレビューに使う Discord のテーマ。OLED はミッドナイト、それ以外は実際の背景が明るいかどうかでライトかダーク。</summary>
+        private AppTheme PreviewTheme
+            => themeOLED.Checked ? AppTheme.OLED : (this.BackColor.GetBrightness() > 0.5 ? AppTheme.Light : AppTheme.Dark);
 
         private void ApplyLanguage()
         {
@@ -478,6 +486,8 @@ namespace GkmStatus
             btnResetTime.Text = I18n.T(Timestamp_Reset);
             btnUpdate.Text = I18n.T(Button_Update);
             btnDisconnect.Text = I18n.T(Button_Disconnect);
+            btnPreview.Text = I18n.T(Button_Preview);
+            _previewForm?.Close();
 
             Native.SetPlaceholder(txtPName, I18n.T(Placeholder_PName));
             Native.SetPlaceholder(txtBtn1Label, I18n.T(Placeholder_BtnLabel, 1));
@@ -1205,11 +1215,44 @@ namespace GkmStatus
             _trayIconManager?.UpdateMenuState(rpc.Status);
         }
 
+        /// <summary>Discord に送るアクティビティの文字とボタン（入力欄の内容から作る）。</summary>
+        private sealed record PresenceContent(string Details, string State, string? StateUrl, Button[]? Buttons);
+
         private void UpdateRpc()
         {
             if (rpc.Status != RpcStatus.Connected)
                 return;
 
+            var content = BuildPresenceContent();
+            try
+            {
+                rpc.UpdatePresence(new RichPresence
+                {
+                    Details = content.Details,
+                    State = content.State,
+                    StateUrl = content.StateUrl,
+                    DetailsUrl = RPC_ACTIVITY_URL,
+                    Assets = new Assets
+                    {
+                        LargeImageKey = RPC_LARGE_IMAGE_KEY,
+                        LargeImageText = LargeImageText,
+                        LargeImageUrl = RPC_ACTIVITY_URL
+                    },
+                    Buttons = content.Buttons,
+                    Timestamps = new Timestamps(startTime)
+                });
+            }
+            catch (Exception ex)
+            {
+                ErrorLog.Write("Discord presence update", ex);
+            }
+        }
+
+        private const string RPC_LARGE_IMAGE_KEY = "app";
+        private static string LargeImageText => $"{I18n.T(App_Name)} v{Application.ProductVersion}";
+
+        private PresenceContent BuildPresenceContent()
+        {
             string? pName = string.IsNullOrWhiteSpace(txtPName.Text) ? I18n.T(Placeholder_PName) : txtPName.Text;
             string? details = null;
             var detailsType = GetDetailsType(cmbDetailsType.SelectedIndex);
@@ -1264,29 +1307,44 @@ namespace GkmStatus
             }
             if (!string.IsNullOrEmpty(details) && details.Length < 2) details = "";
             if (!string.IsNullOrEmpty(state) && state.Length < 2) state = "";
+            return new PresenceContent(details ?? "", state ?? "", stateUrl, buttons);
+        }
 
-            try
+        /// <summary>プレビューに出す内容。Discord に送るものと同じ組み立て方で作る。</summary>
+        private ActivityPreviewData GetPreviewData()
+        {
+            var content = BuildPresenceContent();
+            int appIndex = Math.Clamp(cmbGameName.SelectedIndex, 0, GameApps.Count - 1);
+            bool isSessionActive = rpc.Status is RpcStatus.Connected or RpcStatus.Paused;
+            return new ActivityPreviewData(
+                GameApps[appIndex].AppId,
+                GameApps[appIndex].Name,
+                content.Details,
+                content.State,
+                !string.IsNullOrEmpty(content.StateUrl),
+                LargeImageText,
+                content.Buttons?.Select(b => b.Label).ToArray() ?? [],
+                isSessionActive ? DateTime.UtcNow - startTime : TimeSpan.Zero);
+        }
+
+        /// <summary>プレビューのウィンドウを開く（開いていれば前に出す）。メイン画面の右に並べる。</summary>
+        private void ShowActivityPreview()
+        {
+            if (_previewForm is { IsDisposed: false })
             {
-                rpc.UpdatePresence(new RichPresence
-                {
-                    Details = details ?? "",
-                    State = state ?? "",
-                    StateUrl = stateUrl,
-                    DetailsUrl = RPC_ACTIVITY_URL,
-                    Assets = new Assets
-                    {
-                        LargeImageKey = "app",
-                        LargeImageText = $"{I18n.T(App_Name)} v{Application.ProductVersion}",
-                        LargeImageUrl = RPC_ACTIVITY_URL
-                    },
-                    Buttons = buttons,
-                    Timestamps = new Timestamps(startTime)
-                });
+                _previewForm.RefreshData();
+                _previewForm.Activate();
+                return;
             }
-            catch (Exception ex)
-            {
-                ErrorLog.Write("Discord presence update", ex);
-            }
+
+            _previewForm = new ActivityPreviewForm(GetPreviewData, PreviewTheme, this.DeviceDpi / 96f) { Icon = this.Icon };
+            var screen = Screen.FromControl(this).WorkingArea;
+            int x = this.Right + S(8);
+            if (x + _previewForm.Width > screen.Right) x = Math.Max(screen.Left, this.Left - S(8) - _previewForm.Width);
+            int y = Math.Clamp(this.Top, screen.Top, Math.Max(screen.Top, screen.Bottom - _previewForm.Height));
+            _previewForm.Location = new Point(x, y);
+            _previewForm.FormClosed += (s, e) => _previewForm = null;
+            _previewForm.Show(this);
         }
 
         private static Button? TryCreateRpcButton(string? label, string? url)

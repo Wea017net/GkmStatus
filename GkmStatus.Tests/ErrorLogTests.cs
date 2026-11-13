@@ -47,6 +47,14 @@ public sealed class ErrorLogTests
     }
 
     [TestMethod]
+    public void PreviewElapsedTimeUsesDiscordStyle()
+    {
+        Assert.AreEqual("0:23", GkmStatus.src.ui.ActivityPreviewForm.FormatElapsed(TimeSpan.FromSeconds(23)));
+        Assert.AreEqual("10:36", GkmStatus.src.ui.ActivityPreviewForm.FormatElapsed(new TimeSpan(0, 10, 36)));
+        Assert.AreEqual("1:02:03", GkmStatus.src.ui.ActivityPreviewForm.FormatElapsed(new TimeSpan(1, 2, 3)));
+    }
+
+    [TestMethod]
     public void LogFolderIsNextToTheConfigFile()
     {
         string config = Path.Combine(Path.GetTempPath(), "GkmStatusConfigDir", "config.json");

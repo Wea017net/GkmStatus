@@ -573,6 +573,10 @@ namespace GkmStatus
             };
             btnDisconnect = CreateButton(new Point(S(240), y), S(100), COLOR_ERROR);
             btnDisconnect.Enabled = false; btnDisconnect.Click += (s, e) => DisposeRpc();
+            // Discord での表示を確かめるプレビュー（左の余白と同じだけ空けて右端にそろえる）
+            btnPreview = CreateButton(new Point(this.ClientSize.Width - S(20) - S(100), y), S(100), COLOR_PRIMARY);
+            btnPreview.Text = I18n.T(Button_Preview);
+            btnPreview.Click += (s, e) => ShowActivityPreview();
 
             lblStatus = new StatusBarLabel
             {
@@ -805,6 +809,7 @@ namespace GkmStatus
         private Button btnDisconnect;
         private Label lblStatus;
         private Label lblMemoryUsage;
+        private Button btnPreview;
         private ToolStripMenuItem memoryUsageItem;
         private ToolTip statusToolTip;
         private ToolStripMenuItem fileMenu, exitItem;
