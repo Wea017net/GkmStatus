@@ -292,7 +292,7 @@ namespace GkmStatus.src
         }
 
 
-        private static void SetTitleBarDarkMode(IntPtr handle, bool dark)
+        internal static void SetTitleBarDarkMode(IntPtr handle, bool dark)
         {
             try
             {

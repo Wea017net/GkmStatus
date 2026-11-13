@@ -393,6 +393,18 @@
       "text": "Resume"
     },
     {
+      "key": "Button_Preview",
+      "text": "Preview"
+    },
+    {
+      "key": "Preview_Title",
+      "text": "Discord activity preview"
+    },
+    {
+      "key": "Preview_Playing",
+      "text": "Playing"
+    },
+    {
       "key": "Button_Update",
       "text": "Update"
     },

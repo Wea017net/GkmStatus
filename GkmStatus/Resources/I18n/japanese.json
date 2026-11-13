@@ -391,6 +391,18 @@
       "text": "再開"
     },
     {
+      "key": "Button_Preview",
+      "text": "プレビュー"
+    },
+    {
+      "key": "Preview_Title",
+      "text": "Discord での表示のプレビュー"
+    },
+    {
+      "key": "Preview_Playing",
+      "text": "プレイ中："
+    },
+    {
       "key": "Button_Update",
       "text": "更新"
     },
