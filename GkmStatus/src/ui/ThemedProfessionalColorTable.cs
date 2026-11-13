@@ -14,10 +14,26 @@ namespace GkmStatus.src.ui
     [SupportedOSPlatform("windows")]
     public class ThemedProfessionalRenderer(ProfessionalColorTable colorTable) : ToolStripProfessionalRenderer(colorTable)
     {
+        /// <summary>チェック欄を詰めたメニューで、項目の文字の左に足す余白（96 DPI での px）。</summary>
+        private const int NO_MARGIN_TEXT_INDENT = 8;
+
         protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e)
         {
             if (e.Item is { Enabled: true } item) e.ArrowColor = item.ForeColor;
             base.OnRenderArrow(e);
+        }
+
+        protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
+        {
+            // チェック欄を詰めたメニューは文字がメニューの左端に近すぎるので、少し右へずらす
+            // （右側には矢印用の空きがあるので、幅は広げなくても文字は切れない）
+            if (e.ToolStrip is ToolStripDropDownMenu { ShowImageMargin: false, ShowCheckMargin: false } menu)
+            {
+                int indent = (int)Math.Round(NO_MARGIN_TEXT_INDENT * menu.DeviceDpi / 96f);
+                Rectangle r = e.TextRectangle;
+                e.TextRectangle = new Rectangle(r.X + indent, r.Y, r.Width, r.Height);
+            }
+            base.OnRenderItemText(e);
         }
 
         protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
@@ -231,6 +247,10 @@ namespace GkmStatus.src.ui
         protected virtual Color HoverFill => LightHover;
         /// <summary>ホバー中の行にあるチェック欄の塗り（ホバー行の塗りの上に重なる）。</summary>
         protected virtual Color CheckHoverFill => LightCheckHover;
+
+        // メニューバーの背景（ライトテーマ。ダーク/OLED は ThemedProfessionalColorTable で上書き）
+        public override Color MenuStripGradientBegin => AppConstants.COLOR_LIGHT_MENUBAR;
+        public override Color MenuStripGradientEnd => AppConstants.COLOR_LIGHT_MENUBAR;
 
         // チェック欄
         public override Color CheckBackground => Color.FromArgb(FillAlpha, Accent);

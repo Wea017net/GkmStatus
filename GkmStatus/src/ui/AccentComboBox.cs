@@ -49,6 +49,13 @@ namespace GkmStatus.src.ui
 
         private Color ListBack => ListBackColor ?? BackColor;
 
+        /// <summary>
+        /// ライトテーマで枠の角の丸みの外側を塗る色。null なら親の背景色。
+        /// （親の背景の上に別の色を描いている場合に指定する。SectionCards のカードなど）
+        /// </summary>
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public Color? OuterBackColor { get; set; }
+
         private bool IsDarkBackground => ListBack.GetBrightness() < 0.5f;
 
         /// <summary>
@@ -144,7 +151,7 @@ namespace GkmStatus.src.ui
             bool hot = !DroppedDown && ClientRectangle.Contains(PointToClient(Cursor.Position));
 
             // 外枠（角の丸みの外側は親の背景色）
-            using (var parentBack = new SolidBrush(Parent?.BackColor ?? SystemColors.Control))
+            using (var parentBack = new SolidBrush(OuterBackColor ?? Parent?.BackColor ?? SystemColors.Control))
                 g.FillRectangle(parentBack, ClientRectangle);
             try
             {

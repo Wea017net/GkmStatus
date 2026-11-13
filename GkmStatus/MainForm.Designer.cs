@@ -294,10 +294,12 @@ namespace GkmStatus
             trayIcon.ContextMenuStrip = trayMenu;
 
             int y = S(40);
+            var sectionHeaders = new List<Label>();
             void AddHeader(int top, string tag)
             {
                 var lbl = new Label {Location = new Point(S(20), top), AutoSize = true, Font = _fontManager.AppFontBold, ForeColor = Color.LightGray, Tag = tag };
                 this.Controls.Add(lbl);
+                sectionHeaders.Add(lbl);
             }
 
             AddHeader(y, "Header_GameName"); y += S(25);
@@ -503,10 +505,26 @@ namespace GkmStatus
 
             y += S(50);
 
-            y = this.ClientSize.Height - S(80);
-            footerButtonsY = y;
-            this.Controls.Add(new Label { BorderStyle = BorderStyle.Fixed3D, Location = new Point(0, y), Size = new Size(S(520), S(2)) });
-            y += S(20);
+            // 見出しを帯にし、見出しと項目をカードで囲む（項目は y までに並んでいる）
+            SectionCards.Apply(this, sectionHeaders, top: S(32), headerToContent: S(25), bottomLimit: y, S);
+
+            // 下部: 区切り線 / ボタン / 区切り線 / ステータス欄（1 行）。ウィンドウの下端から積み上げる
+            int statusBarHeight = Math.Max(S(26), TextRenderer.MeasureText("Ag", _fontManager.AppFontMedium).Height + S(8));
+            int footerButtonHeight = Math.Max(S(35), TextRenderer.MeasureText("Ag", _fontManager.AppFontBold).Height + S(15));
+            int footerHeight = S(2) + S(12) + footerButtonHeight + S(12) + S(2) + statusBarHeight;
+
+            // ボタン設定の警告（最大 3 行: ラベルの長さ + 2 行の URL の警告）が下部の区切り線にかからない高さにする
+            int warningMaxHeight = TextRenderer.MeasureText("Ag\nAg\nAg", lblBtnWarning.Font).Height;
+            int requiredHeight = lblBtnWarning.Top + warningMaxHeight + S(8) + footerHeight;
+            if (this.ClientSize.Height < requiredHeight)
+                this.ClientSize = new Size(this.ClientSize.Width, requiredHeight);
+
+            int statusSeparatorY = this.ClientSize.Height - statusBarHeight - S(2);
+            y = statusSeparatorY - S(12) - footerButtonHeight;
+            void AddFooterSeparator(int top)
+                => this.Controls.Add(new Label { Name = FOOTER_SEPARATOR_NAME, BorderStyle = BorderStyle.Fixed3D, Location = new Point(0, top), Size = new Size(S(520), S(2)) });
+            AddFooterSeparator(y - S(12) - S(2));
+            AddFooterSeparator(statusSeparatorY);
 
             btnConnect = CreateButton(new Point(S(20), y), S(100), COLOR_CONNECT);
             btnConnect.Click += (s, e) =>
@@ -525,8 +543,7 @@ namespace GkmStatus
                 string updatedText = I18n.T(Status_Updated);
                 lblStatus.Text = updatedText;
                 lblStatus.ForeColor = COLOR_PRIMARY;
-                statusToolTip.SetToolTip(lblStatus, updatedText.Replace("\n", " "));
-                AdjustStatusVerticalPosition();
+                statusToolTip.SetToolTip(lblStatus, lblStatus.Text);
 
                 await System.Threading.Tasks.Task.Delay(2000);
 
@@ -544,13 +561,14 @@ namespace GkmStatus
             btnDisconnect = CreateButton(new Point(S(240), y), S(100), COLOR_ERROR);
             btnDisconnect.Enabled = false; btnDisconnect.Click += (s, e) => DisposeRpc();
 
-            lblStatus = new Label { Name = "lblStatus", Text = I18n.T(Status_Disconnected), Location = new Point(S(352), y), AutoSize = true, ForeColor = Color.Gray, Font = _fontManager.AppFontMedium };
+            lblStatus = new StatusBarLabel
+            {
+                Name = "lblStatus", Text = I18n.T(Status_Disconnected), ForeColor = Color.Gray, Font = _fontManager.AppFontMedium,
+                Location = new Point(S(20), statusSeparatorY + S(2)), Size = new Size(this.ClientSize.Width - S(40), statusBarHeight),
+            };
             statusToolTip = new ToolTip();
             statusToolTip.SetToolTip(lblStatus, lblStatus.Text);
             this.Controls.Add(btnConnect); this.Controls.Add(btnUpdate); this.Controls.Add(btnDisconnect); this.Controls.Add(lblStatus);
-
-
-            AdjustStatusVerticalPosition();
 
             var menu = new MenuStrip();
             fileMenu = new(I18n.T(Menu_File));
