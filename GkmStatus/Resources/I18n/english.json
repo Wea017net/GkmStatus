@@ -130,6 +130,10 @@
       "text": "Open app location..."
     },
     {
+      "key": "Menu_OpenLogLocation",
+      "text": "Open log folder..."
+    },
+    {
       "key": "Menu_OpenConfigLocation",
       "text": "Open config location..."
     },
@@ -330,6 +334,10 @@
     {
       "key": "Status_Paused",
       "text": "Connected\n(Display Paused)"
+    },
+    {
+      "key": "Status_ConnectionFailed",
+      "text": "Discord connection failed. (Is the Discord app running?)"
     },
     {
       "key": "Status_Timeout",

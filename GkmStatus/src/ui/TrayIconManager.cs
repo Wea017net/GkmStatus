@@ -73,7 +73,7 @@ namespace GkmStatus.src.ui
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to update tray icon: {ex.Message}");
+                ErrorLog.Write("Tray icon update", ex);
                 _trayIcon.Icon = _baseIcon;
             }
         }

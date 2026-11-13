@@ -131,7 +131,7 @@ namespace GkmStatus
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("Icon Load Error: " + ex.Message);
+                ErrorLog.Write("Icon load", ex);
             }
 
             trayIcon = new NotifyIcon
@@ -728,6 +728,17 @@ namespace GkmStatus
                 catch { MessageBox.Show(I18n.T(Error_Browser)); }
             };
 
+            openLogLocationMenu = new ToolStripMenuItem(I18n.T(Menu_OpenLogLocation));
+            openLogLocationMenu.Click += (s, e) =>
+            {
+                try
+                {
+                    Directory.CreateDirectory(ErrorLog.DefaultDirectory);
+                    Process.Start("explorer.exe", $"\"{ErrorLog.DefaultDirectory}\"");
+                }
+                catch { MessageBox.Show(I18n.T(Error_Browser)); }
+            };
+
             githubMenu = new ToolStripMenuItem(I18n.T(Menu_Github));
             githubMenu.Click += (s, e) => { try { Process.Start(new ProcessStartInfo("https://github.com/Wea017net/GkmStatus") { UseShellExecute = true }); } catch { MessageBox.Show(I18n.T(Error_Browser)); } };
 
@@ -738,7 +749,7 @@ namespace GkmStatus
             aboutMenu.Click += (s, e) => ShowAboutDialog();
 
             var separatorHelp = new ToolStripSeparator();
-            helpMenu.DropDownItems.AddRange([openAppLocationMenu, openConfigLocationMenu, separatorHelp, githubMenu, checkUpdateMenuItem, aboutMenu]);
+            helpMenu.DropDownItems.AddRange([openAppLocationMenu, openConfigLocationMenu, openLogLocationMenu, separatorHelp, githubMenu, checkUpdateMenuItem, aboutMenu]);
 
             menu.Items.Add(fileMenu); menu.Items.Add(settingsMenu); menu.Items.Add(viewMenu); menu.Items.Add(helpMenu);
             this.Controls.Add(menu);
@@ -804,6 +815,7 @@ namespace GkmStatus
         private ToolStripMenuItem helpMenu;
         private ToolStripMenuItem openAppLocationMenu;
         private ToolStripMenuItem openConfigLocationMenu;
+        private ToolStripMenuItem openLogLocationMenu;
         private ToolStripMenuItem githubMenu;
         private ToolStripMenuItem checkUpdateMenuItem;
         private ToolStripMenuItem aboutMenu;

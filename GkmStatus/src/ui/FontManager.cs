@@ -109,7 +109,7 @@ namespace GkmStatus.src
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("Font Load Error: " + ex.Message);
+                ErrorLog.Write("Font load", ex);
             }
 
             // フォールバック

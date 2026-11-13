@@ -106,9 +106,11 @@ namespace GkmStatus.src
             {
                 result.IsSuccess = false;
                 result.ErrorMessage = "The update check timed out.";
+                ErrorLog.Write("Update check", result.ErrorMessage);
             }
             catch(Exception ex)
             {
+                ErrorLog.Write("Update check", ex);
                 result.IsSuccess = false;
                 result.ErrorMessage = ex.Message;
             }

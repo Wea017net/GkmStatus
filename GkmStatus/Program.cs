@@ -14,6 +14,13 @@ namespace GkmStatus
             if (GkmStatus.src.UpdaterService.TryRunUpdaterMode(args))
                 return;
 
+            // 想定外の例外でアプリが終了するときも、原因をログに残す
+            AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+            {
+                if (e.ExceptionObject is Exception exception)
+                    GkmStatus.src.ErrorLog.Write("Unhandled exception", exception);
+            };
+
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
             ApplicationConfiguration.Initialize();
 
@@ -34,6 +41,7 @@ namespace GkmStatus
             }
             catch (Exception ex)
             {
+                GkmStatus.src.ErrorLog.Write("Startup", ex);
                 MessageBox.Show($"起動エラー: {ex.Message}\n{ex.StackTrace}", "GkmStatus Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

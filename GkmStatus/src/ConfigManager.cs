@@ -46,7 +46,7 @@ namespace GkmStatus.src
             }
             catch (Exception e)
             {
-                Debug.WriteLine("Failed to load config, using default. Error: " + e.Message);
+                ErrorLog.Write("Config load (using defaults)", e, ErrorLog.DirectoryFor(_configPath));
                 Config = CreateDefaultConfig();
             }
         }
@@ -77,7 +77,7 @@ namespace GkmStatus.src
             catch (Exception e)
             {
                 LastSaveError = e.Message;
-                Debug.WriteLine("Failed to save config. Error: " + e);
+                ErrorLog.Write("Config save", e, ErrorLog.DirectoryFor(_configPath));
                 return false;
             }
             finally
