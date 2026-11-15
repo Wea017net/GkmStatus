@@ -437,6 +437,9 @@ namespace GkmStatus
                 resetGuideTimer.Stop();
                 resetGuideTimer.Start();
                 if (rpc.IsInitialized == true) UpdateRpc();
+                // 経過時間のリセットは「更新」を押して反映するので、押せるようにする
+                _timestampResetPending = true;
+                RefreshUpdateButton();
             };
             y += S(45);
 
@@ -596,6 +599,14 @@ namespace GkmStatus
             statusToolTip.SetToolTip(lblStatus, lblStatus.Text);
             this.Controls.Add(btnConnect); this.Controls.Add(btnUpdate); this.Controls.Add(btnDisconnect); this.Controls.Add(lblStatus);
             this.Controls.Add(lblMemoryUsage);
+
+            // Details / State / Buttons の入力が変わったら、Discord に送った内容と比べて「更新」を押せるかを決め直す
+            // （各コントロールの既存のハンドラーの後に呼ばれるよう、ここで登録する）
+            foreach (var combo in new[] { cmbDetailsType, cmbStateType, cmbProduceCharacter, cmbCharNameLang, cmbBtnMode })
+                combo.SelectedIndexChanged += (s, e) => RefreshUpdateButton();
+            foreach (var text in new[] { txtPName, txtStateCustom, txtBtn1Label, txtBtn1Url, txtBtn2Label, txtBtn2Url })
+                text.TextChanged += (s, e) => RefreshUpdateButton();
+            numPLevel.ValueChanged += (s, e) => RefreshUpdateButton();
 
             var menu = new MenuStrip();
             fileMenu = new(I18n.T(Menu_File));

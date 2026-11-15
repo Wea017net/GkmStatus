@@ -32,6 +32,10 @@ namespace GkmStatus
         // 初回セットアップで「最小化した状態で起動」を有効にした回は、ウィンドウを表示したままにするため書き換える
         private bool _forceVisibleOnStartup;
         private int _updateDisplayVersion;
+        // 最後に Discord に送った Details / State / Buttons（未送信なら null）。入力欄と比べて「更新」を押せるようにする
+        private string? _sentPresenceKey;
+        // 経過時間をリセットしてから、まだ「更新」を押していない
+        private bool _timestampResetPending;
         private bool _runtimeResourcesDisposed;
 
         private readonly DiscordRpcService rpc = new();
@@ -1071,6 +1075,7 @@ namespace GkmStatus
             statusToolTip.SetToolTip(lblStatus, message);
             btnConnect.Text = I18n.T(Button_Connect); btnConnect.BackColor = COLOR_CONNECT; btnConnect.Enabled = true;
             btnUpdate.Enabled = false; btnUpdate.BackColor = COLOR_DISABLED;
+            ResetSentPresence();
             btnDisconnect.Enabled = false; btnDisconnect.BackColor = COLOR_DISABLED;
             _trayIconManager?.UpdateStatusIcon(null);
             rpc.Deinitialize(preserveError: true);
@@ -1131,8 +1136,7 @@ namespace GkmStatus
             btnConnect.Text = I18n.T(Button_Pause);
             btnConnect.BackColor = COLOR_PAUSE;
             btnConnect.Enabled = true;
-            btnUpdate.Enabled = true;
-            btnUpdate.BackColor = COLOR_PRIMARY;
+            RefreshUpdateButton();
             btnDisconnect.Enabled = true;
             btnDisconnect.BackColor = COLOR_ERROR;
             btnResetTime.Enabled = true;
@@ -1189,6 +1193,7 @@ namespace GkmStatus
             btnConnect.Enabled = true;
             btnUpdate.Enabled = false;
             btnUpdate.BackColor = GetDisabledButtonColor();
+            ResetSentPresence();
             btnDisconnect.Enabled = true;
             btnDisconnect.BackColor = COLOR_ERROR;
             btnResetTime.Enabled = true;
@@ -1209,6 +1214,7 @@ namespace GkmStatus
             btnConnect.Enabled = true;
             btnUpdate.Enabled = false;
             btnUpdate.BackColor = GetDisabledButtonColor();
+            ResetSentPresence();
             btnDisconnect.Enabled = false;
             btnDisconnect.BackColor = GetDisabledButtonColor();
             btnResetTime.Enabled = false;
@@ -1243,11 +1249,46 @@ namespace GkmStatus
                     Buttons = content.Buttons,
                     Timestamps = new Timestamps(startTime)
                 });
+                _sentPresenceKey = GetPresenceKey(content);
+                _timestampResetPending = false;
             }
             catch (Exception ex)
             {
                 ErrorLog.Write("Discord presence update", ex);
             }
+            RefreshUpdateButton();
+        }
+
+        /// <summary>アクティビティの内容を比べるための文字列（Buttons は配列なので中身を並べる）。</summary>
+        private static string GetPresenceKey(PresenceContent content)
+        {
+            var parts = new List<string> { content.Details, content.State, content.StateUrl ?? "" };
+            if (content.Buttons != null)
+                foreach (var button in content.Buttons)
+                    parts.Add($"{button.Label}\u001F{button.Url}");
+            return string.Join("\u001E", parts);
+        }
+
+        /// <summary>
+        /// 「更新」ボタンは、Discord に接続中で、入力内容（または経過時間のリセット）が
+        /// 最後に送った内容から変わっているときだけ押せるようにする。
+        /// </summary>
+        private void RefreshUpdateButton()
+        {
+            if (btnUpdate == null)
+                return;
+
+            bool needsUpdate = rpc.Status == RpcStatus.Connected && !isManualPaused && _sentPresenceKey != null
+                && (_timestampResetPending || GetPresenceKey(BuildPresenceContent()) != _sentPresenceKey);
+            btnUpdate.Enabled = needsUpdate;
+            btnUpdate.BackColor = needsUpdate ? COLOR_PRIMARY : GetDisabledButtonColor();
+        }
+
+        /// <summary>Discord のアクティビティが表示されていない状態になったので、送った内容の記録を消す。</summary>
+        private void ResetSentPresence()
+        {
+            _sentPresenceKey = null;
+            _timestampResetPending = false;
         }
 
         private const string RPC_LARGE_IMAGE_KEY = "app";
