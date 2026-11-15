@@ -286,9 +286,11 @@ namespace GkmStatus
                 runAtStartupItem.Checked = true;
                 startMinimizedItem.Checked = true;
                 settings.StartMinimized = true;
-                // 設定した直後の今回は、ウィンドウを表示したまま起動する
-                _forceVisibleOnStartup = true;
             }
+
+            // 確認ダイアログを表示した今回は、はい・いいえどちらを選んでも
+            // 「最小化した状態で起動」の設定に関わらずウィンドウを表示して起動する
+            _forceVisibleOnStartup = true;
 
             settings.BackgroundSetupCompleted = true;
             _configManager.Save();
