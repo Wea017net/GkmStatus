@@ -392,12 +392,13 @@ namespace GkmStatus
             ReapplyTheme();
         }
 
+        /// <summary>「表示」→「テーマ」で選ばれているテーマ。</summary>
+        private AppTheme SelectedTheme
+            => themeLight.Checked ? AppTheme.Light : themeDark.Checked ? AppTheme.Dark : themeOLED.Checked ? AppTheme.OLED : AppTheme.Auto;
+
         private void ReapplyTheme()
         {
-            AppTheme theme = AppTheme.Auto;
-            if (themeLight.Checked) theme = AppTheme.Light;
-            else if (themeDark.Checked) theme = AppTheme.Dark;
-            else if (themeOLED.Checked) theme = AppTheme.OLED;
+            AppTheme theme = SelectedTheme;
 
             _themeManager.ApplyTheme(this, theme);
             if (trayIcon.ContextMenuStrip != null)
@@ -559,7 +560,7 @@ namespace GkmStatus
 
         private void ShowAboutDialog()
         {
-            using var about = new AboutForm(this.BackColor, this.ForeColor, _fontManager.AppFont, uiScale);
+            using var about = new AboutForm(_fontManager, _themeManager, SelectedTheme, uiScale);
             about.ShowDialog(this);
         }
 
