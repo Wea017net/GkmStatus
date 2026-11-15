@@ -140,7 +140,8 @@ namespace GkmStatus.src
                     uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase) &&
                     uri.AbsolutePath.StartsWith("/Wea017net/GkmStatus/releases/download/", StringComparison.Ordinal) &&
                     TryParseSha256(digest, out string sha256))
-                    return (expectedName, uri.AbsoluteUri, sha256);
+                    // 後段（DownloadReleaseAsync と Updater の検証）は「sha256:」付きの形式を受け取るので、接頭辞を付けたまま返す
+                    return (expectedName, uri.AbsoluteUri, "sha256:" + sha256);
             }
 
             return null;
