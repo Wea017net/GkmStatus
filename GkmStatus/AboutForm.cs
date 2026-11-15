@@ -1,41 +1,41 @@
 using System;
 using System.Drawing;
-using System.Windows.Forms;
-using System.Diagnostics;
 using System.IO;
+using System.Windows.Forms;
+using GkmStatus.src;
+using GkmStatus.src.ui;
 
 namespace GkmStatus
 {
+    /// <summary>
+    /// 「このアプリについて」のダイアログ。配色・フォント・下部のボタンはメイン画面（MainForm）と同じにする。
+    /// </summary>
     public partial class AboutForm : Form
     {
-        private readonly Color _backColor;
-        private readonly Color _foreColor;
-        private readonly Font _mainFont;
-        private readonly Font _titleFont;
+        private readonly FontManager _fontManager;
+        private readonly ThemeManager _themeManager;
+        private readonly AppTheme _theme;
         private readonly float _scale;
-        private readonly List<Font> _ownedFonts = [];
+        private readonly Font _titleFont;
         private Image? _iconImage;
         private Icon? _ownedIcon;
 
-        public AboutForm(Color backColor, Color foreColor, Font mainFont, float scale)
+        public AboutForm(FontManager fontManager, ThemeManager themeManager, AppTheme theme, float scale)
         {
-            _backColor = backColor;
-            _foreColor = foreColor;
-            _mainFont = mainFont;
+            _fontManager = fontManager;
+            _themeManager = themeManager;
+            _theme = theme;
             _scale = scale;
-            _titleFont = new Font(mainFont.FontFamily, 14f, FontStyle.Bold, GraphicsUnit.Point);
-            _ownedFonts.Add(_titleFont);
+            // アプリ名はメイン画面の見出しと同じ太字を大きくしたもの
+            Font bold = fontManager.AppFontBold;
+            _titleFont = new Font(bold.FontFamily, bold.Size * 1.4f, bold.Style, GraphicsUnit.Pixel);
 
             this.Disposed += (s, e) =>
             {
                 _iconImage?.Dispose();
                 _ownedIcon?.Dispose();
-                foreach (var font in _ownedFonts)
-                    font.Dispose();
-                _ownedFonts.Clear();
+                _titleFont.Dispose();
             };
-
-            //SetupInitializeComponent();
 
             SuspendLayout();
             InitializeComponent();
@@ -43,93 +43,66 @@ namespace GkmStatus
             ResumeLayout();
         }
 
-        private static readonly Color COLOR_PRIMARY_DEFAULT = ColorTranslator.FromHtml("#7e87f4");
+        /// <summary>
+        /// メイン画面と同じテーマを当て、そのあとでこのダイアログだけの文字の大きさと色を付け直す
+        /// （ThemeManager はラベルのフォントと色を一律に設定するため）。
+        /// </summary>
+        private void ApplyTheme()
+        {
+            _themeManager.ApplyTheme(this, _theme);
+            lblName.Font = _titleFont;
+            foreach (var note in new[] { lblVersion, lblFont })
+                note.ForeColor = Color.Gray; // メイン画面の補足（「Discordの仕様により…」など）と同じ
+        }
 
-        private void ShowLicense(object sender, LinkLabelLinkClickedEventArgs e)
+        /// <summary>同梱フォント（IBM Plex Sans JP）のライセンスを、メイン画面と同じテーマのウィンドウで表示する。</summary>
+        private void ShowLicense()
         {
             try
             {
                 var assembly = System.Reflection.Assembly.GetExecutingAssembly();
                 using Stream? stream = assembly.GetManifestResourceStream("GkmStatus.Resources.fonts.IBM_Plex_Sans_JP.OFL.txt");
-                if (stream != null)
+                if (stream == null) return;
+
+                using var reader = new StreamReader(stream);
+                string licenseText = reader.ReadToEnd();
+                using var licenseFont = new Font(FontFamily.GenericMonospace, 9f * _scale * 96f / 72f, GraphicsUnit.Pixel);
+                using var licenseForm = new Form
                 {
-                    using var reader = new StreamReader(stream);
-                    string licenseText = reader.ReadToEnd();
-                    using var licenseForm = new Form
-                    {
-                        Text = "Font License",
-                        Icon = this.Icon,
-                        ShowIcon = true,
-                        Size = new Size(S(500), S(400)),
-                        StartPosition = FormStartPosition.CenterParent,
-                        BackColor = _backColor,
-                        ForeColor = _foreColor,
-                        MinimizeBox = false,
-                        MaximizeBox = false
-                    };
-                    using var licenseFont = new Font(FontFamily.GenericMonospace, 9f, GraphicsUnit.Point);
-                    var txt = new TextBox
-                    {
-                        Multiline = true,
-                        ReadOnly = true,
-                        Dock = DockStyle.Fill,
-                        Text = licenseText,
-                        ScrollBars = ScrollBars.Vertical,
-                        BackColor = _backColor,
-                        ForeColor = _foreColor,
-                        BorderStyle = BorderStyle.None,
-                        Font = licenseFont
-                    };
-                    licenseForm.Controls.Add(txt);
-                    licenseForm.ShowDialog(this);
-                }
+                    Text = "Font License",
+                    Icon = this.Icon,
+                    AutoScaleMode = AutoScaleMode.None,
+                    ClientSize = new Size(S(500), S(400)),
+                    StartPosition = FormStartPosition.CenterParent,
+                    ShowInTaskbar = false,
+                    MinimizeBox = false,
+                    MaximizeBox = false
+                };
+                var txt = new TextBox
+                {
+                    Multiline = true,
+                    ReadOnly = true,
+                    Dock = DockStyle.Fill,
+                    Text = licenseText,
+                    ScrollBars = ScrollBars.Vertical,
+                    BorderStyle = BorderStyle.None
+                };
+                licenseForm.Controls.Add(txt);
+                // 入力欄の色・ダーク表示・タイトルバーはメイン画面と同じにし、文字だけ等幅にする
+                _themeManager.ApplyTheme(licenseForm, _theme);
+                txt.Font = licenseFont;
+                txt.Select(0, 0);
+                licenseForm.ShowDialog(this);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not load license: " + ex.Message);
+                ErrorLog.Write("About license", ex);
+                MessageBox.Show(this, "Could not load license: " + ex.Message, I18n.T(I18n.Text_List.App_Name), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-        }
-
-        protected override void OnLoad(EventArgs e)
-        {
-            base.OnLoad(e);
-            SetTitleBarDarkMode(_backColor.GetBrightness() < 0.5f);
-        }
-
-        [System.Runtime.InteropServices.LibraryImport("dwmapi.dll")]
-        private static partial int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
-
-        private void SetTitleBarDarkMode(bool dark)
-        {
-            try
-            {
-                int useDark = dark ? 1 : 0;
-                int hr = DwmSetWindowAttribute(this.Handle, 20, ref useDark, sizeof(int));
-                if (hr != 0) _ = DwmSetWindowAttribute(this.Handle, 19, ref useDark, sizeof(int));
-            }
-            catch { }
-        }
-
-        private void Close(object sender, EventArgs e)
-        {
-            this.Close();
-        }
-
-        private Font CreateOwnedFont(FontFamily family, float size, FontStyle style = FontStyle.Regular)
-        {
-            var font = new Font(family, size, style, GraphicsUnit.Point);
-            _ownedFonts.Add(font);
-            return font;
-        }
-
-        private Font CreateOwnedFont(string family, float size, FontStyle style = FontStyle.Regular)
-        {
-            var font = new Font(family, size, style, GraphicsUnit.Point);
-            _ownedFonts.Add(font);
-            return font;
         }
 
         private void SetOwnedIconImage(Image image) => _iconImage = new Bitmap(image);
+
         private void SetOwnedIcon(Icon icon)
         {
             _ownedIcon?.Dispose();
