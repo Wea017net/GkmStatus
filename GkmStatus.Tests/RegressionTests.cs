@@ -99,7 +99,13 @@ public sealed class RegressionTests
 
         Assert.AreEqual("GkmStatus_win-x64_v1.2.0.zip", selected.Name);
         Assert.AreEqual("https://github.com/Wea017net/GkmStatus/releases/download/v1.2.0/GkmStatus_win-x64_v1.2.0.zip", selected.Url);
-        Assert.AreEqual(new string('a', 64), selected.Sha256);
+        Assert.AreEqual("sha256:" + new string('a', 64), selected.Sha256);
+
+        // 選ばれたダイジェストは、そのままダウンロードと Updater の検証（TryParseSha256）を通る形式でなければならない
+        var parse = typeof(UpdateService).GetMethod("TryParseSha256", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+        Assert.IsNotNull(parse);
+        object?[] parseArguments = [selected.Sha256, null];
+        Assert.IsTrue((bool)parse.Invoke(null, parseArguments)!);
     }
 
     [TestMethod]
