@@ -15,12 +15,13 @@
 <p align="center">
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License"></a>
   <a href="https://github.com/Wea017net/GkmStatus/releases/latest"><img alt="GitHub release (latest by date)" src="https://img.shields.io/github/v/release/Wea017net/GkmStatus?logo=github&label=Latest"></a>
+  <a href="https://github.com/Wea017net/GkmStatus/releases"><img alt="GitHub release (total downloads)" src="https://img.shields.io/github/downloads/Wea017net/GkmStatus/total">
   <img src="https://github.com/Wea017net/GkmStatus/actions/workflows/dotnet.yml/badge.svg" alt="Build Status">
 </p>
 
 
 <p align="center">
-  <a href="https://github.com/Wea017net/GkmStatus/releases/download/v1.2.0/GkmStatus_win-x64_v1.2.0.zip"><img src="https://raw.githubusercontent.com/Wea017net/.github/refs/heads/main/GkmStatus/resources/download_win_ja.png" height="54px" alt="download">
+  <a href="https://github.com/Wea017net/GkmStatus/releases/download/v2.0.0/GkmStatus_win-x64_v2.0.0.zip"><img src="https://raw.githubusercontent.com/Wea017net/.github/refs/heads/main/GkmStatus/resources/download_win_ja.png" height="54px" alt="download">
 </p>
 
 <p align="center">
