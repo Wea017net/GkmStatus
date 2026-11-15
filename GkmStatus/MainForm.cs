@@ -533,6 +533,9 @@ namespace GkmStatus
             RefreshCombo(cmbDetailsType!, [I18n.T(Details_None), I18n.T(Details_PName), I18n.T(Details_PLv), I18n.T(Details_Both)]);
             RefreshCombo(cmbStateType!, [I18n.T(State_None), I18n.T(State_PID), I18n.T(State_Idol), I18n.T(State_Producing), I18n.T(State_Custom)]);
             RefreshCombo(cmbBtnMode!, [I18n.T(Button_ModeNone), I18n.T(Button_ModeStore), I18n.T(Button_ModeApp), I18n.T(Button_ModeCustom)]);
+            RefreshCombo(cmbStatusDisplay!, [I18n.T(StatusDisplay_Auto), I18n.T(StatusDisplay_Name), I18n.T(StatusDisplay_Details), I18n.T(StatusDisplay_State)]);
+            lblStatusDisplayNote.Text = I18n.T(StatusDisplay_AutoNote);
+            LayoutStatusDisplayNote(); // 言語によって項目と説明の長さが変わるので並べ直す
             RefreshCombo(cmbCharNameLang!, [I18n.T(CharName_JP), I18n.T(CharName_EN)]);
             LayoutCharNameLangRow(); // 言語によって項目の長さが変わるので幅を合わせ直す
 
@@ -806,6 +809,7 @@ namespace GkmStatus
             presence.StateType = GetStateString(stateType);
             presence.ButtonMode = GetButtonModeString(buttonMode);
             presence.CharNameLangIndex = cmbCharNameLang.SelectedIndex;
+            presence.StatusDisplay = GetStatusDisplayString(GetStatusDisplay(cmbStatusDisplay.SelectedIndex));
 
             PresenceEditorHistory.SaveEditorHistory(presence, stateType, txtStateCustom.Text, buttonMode,
                 txtBtn1Label.Text, txtBtn1Url.Text, txtBtn2Label.Text, txtBtn2Url.Text);
@@ -895,6 +899,7 @@ namespace GkmStatus
                 cmbProduceCharacter.SelectedIndex = charIdx >= 0 ? charIdx : 0;
 
                 cmbBtnMode.SelectedIndex = GetButtonModeIndex(GetButtonMode(presence.ButtonMode ?? GetButtonModeString(PresenceButtonMode.Store)));
+                cmbStatusDisplay.SelectedIndex = GetStatusDisplayIndex(GetStatusDisplay(presence.StatusDisplay));
 
                 ApplyLanguage();
             }
@@ -1224,7 +1229,7 @@ namespace GkmStatus
         }
 
         /// <summary>Discord に送るアクティビティの文字とボタン（入力欄の内容から作る）。</summary>
-        private sealed record PresenceContent(string Details, string State, string? StateUrl, Button[]? Buttons);
+        private sealed record PresenceContent(string Details, string State, string? StateUrl, Button[]? Buttons, StatusDisplayType StatusDisplay);
 
         private void UpdateRpc()
         {
@@ -1247,6 +1252,7 @@ namespace GkmStatus
                         LargeImageUrl = RPC_ACTIVITY_URL
                     },
                     Buttons = content.Buttons,
+                    StatusDisplay = content.StatusDisplay,
                     Timestamps = new Timestamps(startTime)
                 });
                 _sentPresenceKey = GetPresenceKey(content);
@@ -1262,7 +1268,7 @@ namespace GkmStatus
         /// <summary>アクティビティの内容を比べるための文字列（Buttons は配列なので中身を並べる）。</summary>
         private static string GetPresenceKey(PresenceContent content)
         {
-            var parts = new List<string> { content.Details, content.State, content.StateUrl ?? "" };
+            var parts = new List<string> { content.Details, content.State, content.StateUrl ?? "", content.StatusDisplay.ToString() };
             if (content.Buttons != null)
                 foreach (var button in content.Buttons)
                     parts.Add($"{button.Label}\u001F{button.Url}");
@@ -1350,7 +1356,49 @@ namespace GkmStatus
             }
             if (!string.IsNullOrEmpty(details) && details.Length < 2) details = "";
             if (!string.IsNullOrEmpty(state) && state.Length < 2) state = "";
-            return new PresenceContent(details ?? "", state ?? "", stateUrl, buttons);
+            return new PresenceContent(details ?? "", state ?? "", stateUrl, buttons, ResolveStatusDisplay(stateType));
+        }
+
+        /// <summary>
+        /// 「名前の下に表示する内容」の行を並べ直す。コンボボックスは項目が収まる幅にし（言語で変わる）、
+        /// その右側に「自動」の説明（2 行）をコンボボックスと上下中央をそろえて置く。
+        /// </summary>
+        private void LayoutStatusDisplayNote()
+        {
+            if (cmbStatusDisplay == null || lblStatusDisplayNote == null)
+                return;
+
+            int itemWidth = cmbStatusDisplay.Items.Cast<object>()
+                .Select(item => TextRenderer.MeasureText(item.ToString() ?? "", cmbStatusDisplay.Font).Width)
+                .DefaultIfEmpty(0).Max();
+            cmbStatusDisplay.Width = Math.Max(S(150), itemWidth + SystemInformation.VerticalScrollBarWidth + S(8));
+
+            lblStatusDisplayNote.Location = new Point(
+                cmbStatusDisplay.Right + S(10),
+                cmbStatusDisplay.Top + (cmbStatusDisplay.Height - lblStatusDisplayNote.PreferredHeight) / 2);
+            UpdateStatusDisplayNote();
+        }
+
+        /// <summary>「自動」が選ばれているときだけ説明を表示する。</summary>
+        private void UpdateStatusDisplayNote()
+        {
+            if (cmbStatusDisplay == null || lblStatusDisplayNote == null)
+                return;
+            lblStatusDisplayNote.Visible = GetStatusDisplay(cmbStatusDisplay.SelectedIndex) == PresenceStatusDisplay.Auto;
+        }
+
+        /// <summary>
+        /// 名前の下に表示する内容を決める。「自動」のときは、State が「プロデュース中」なら State、それ以外は Name。
+        /// </summary>
+        private StatusDisplayType ResolveStatusDisplay(PresenceStateType stateType)
+        {
+            return GetStatusDisplay(cmbStatusDisplay.SelectedIndex) switch
+            {
+                PresenceStatusDisplay.Name => StatusDisplayType.Name,
+                PresenceStatusDisplay.Details => StatusDisplayType.Details,
+                PresenceStatusDisplay.State => StatusDisplayType.State,
+                _ => stateType == PresenceStateType.Producing ? StatusDisplayType.State : StatusDisplayType.Name,
+            };
         }
 
         /// <summary>プレビューに出す内容。Discord に送るものと同じ組み立て方で作る。</summary>
@@ -1367,7 +1415,24 @@ namespace GkmStatus
                 !string.IsNullOrEmpty(content.StateUrl),
                 LargeImageText,
                 content.Buttons?.Select(b => b.Label).ToArray() ?? [],
-                isSessionActive ? DateTime.UtcNow - startTime : TimeSpan.Zero);
+                isSessionActive ? DateTime.UtcNow - startTime : TimeSpan.Zero,
+                rpc.CurrentDisplayName ?? I18n.T(Preview_UserFallback),
+                rpc.CurrentAvatarUrl,
+                GetStatusDisplayText(content, GameApps[appIndex].Name));
+        }
+
+        /// <summary>
+        /// メンバー一覧で名前の下に出る 1 行。StatusDisplay で選んだ項目が空のときは、ゲームの表示名になるものとして扱う。
+        /// </summary>
+        private static string GetStatusDisplayText(PresenceContent content, string appName)
+        {
+            string text = content.StatusDisplay switch
+            {
+                StatusDisplayType.Details => content.Details,
+                StatusDisplayType.State => content.State,
+                _ => appName,
+            };
+            return string.IsNullOrEmpty(text) ? appName : text;
         }
 
         /// <summary>プレビューのウィンドウを開く（開いていれば前に出す）。メイン画面の右に並べる。</summary>

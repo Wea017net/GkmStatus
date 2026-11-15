@@ -169,6 +169,30 @@
       "text": "2行目の情報 (State)"
     },
     {
+      "key": "Header_StatusDisplay",
+      "text": "名前の下に表示する内容 (StatusDisplay)"
+    },
+    {
+      "key": "StatusDisplay_Auto",
+      "text": "自動"
+    },
+    {
+      "key": "StatusDisplay_Name",
+      "text": "ゲームの表示名 (Name)"
+    },
+    {
+      "key": "StatusDisplay_Details",
+      "text": "1行目の情報 (Details)"
+    },
+    {
+      "key": "StatusDisplay_State",
+      "text": "2行目の情報 (State)"
+    },
+    {
+      "key": "StatusDisplay_AutoNote",
+      "text": "「プロデュース中」なら2行目の情報を、\nそれ以外はゲームの表示名を表示します"
+    },
+    {
       "key": "Header_Timestamp",
       "text": "経過時間 (Timestamp)"
     },
@@ -401,6 +425,10 @@
     {
       "key": "Preview_Playing",
       "text": "プレイ中："
+    },
+    {
+      "key": "Preview_UserFallback",
+      "text": "あなた"
     },
     {
       "key": "Button_Update",

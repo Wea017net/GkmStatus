@@ -138,6 +138,7 @@ namespace GkmStatus.src
                     value.SelectedProduceCharacterId = defaultProduceId;
                 value.GameAppIndex = Math.Clamp(Read(presence, "GameAppIndex", value.GameAppIndex), 0, GameApps.Count - 1);
                 value.ButtonMode = GetButtonModeString(GetButtonMode(Read(presence, "ButtonMode", value.ButtonMode)));
+                value.StatusDisplay = GetStatusDisplayString(GetStatusDisplay(Read(presence, "StatusDisplay", value.StatusDisplay)));
                 value.StateHistory = ReadStateHistory(presence);
                 value.ButtonHistory = ReadButtonHistory(presence);
             }
@@ -286,6 +287,8 @@ namespace GkmStatus.src
         public int GameAppIndex { get; set; } = 0;
         public string ButtonMode { get; set; } = GetButtonModeString(PresenceButtonMode.App);
         public Dictionary<string, ButtonHistoryData> ButtonHistory { get; set; } = [];
+        /// <summary>Discord で名前の下に表示する内容（<see cref="PresenceStatusDisplay"/> の名前）。</summary>
+        public string StatusDisplay { get; set; } = GetStatusDisplayString(PresenceStatusDisplay.Auto);
     }
 
     public class ButtonHistoryData
