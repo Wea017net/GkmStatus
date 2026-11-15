@@ -1403,5 +1403,24 @@ namespace GkmStatus
             }
             base.SetVisibleCore(value);
         }
+
+        protected override void WndProc(ref Message m)
+        {
+            // 二重起動された別プロセスから、ウィンドウ表示の依頼を受け取る
+            if (m.Msg != 0 && m.Msg == GkmStatus.src.native.Native.WM_SHOW_EXISTING_INSTANCE)
+            {
+                if (!isInitializing && !IsDisposed && !Disposing)
+                    BringToFrontFromAnotherInstance();
+                return;
+            }
+
+            base.WndProc(ref m);
+        }
+
+        private void BringToFrontFromAnotherInstance()
+        {
+            RestoreFromTray();
+            GkmStatus.src.native.Native.SetForegroundWindow(this.Handle);
+        }
     }
 }
