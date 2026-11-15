@@ -171,6 +171,30 @@
       "text": "Line 2 Info (State)"
     },
     {
+      "key": "Header_StatusDisplay",
+      "text": "Shown Under Your Name (StatusDisplay)"
+    },
+    {
+      "key": "StatusDisplay_Auto",
+      "text": "Auto"
+    },
+    {
+      "key": "StatusDisplay_Name",
+      "text": "Game Display Name (Name)"
+    },
+    {
+      "key": "StatusDisplay_Details",
+      "text": "Line 1 Info (Details)"
+    },
+    {
+      "key": "StatusDisplay_State",
+      "text": "Line 2 Info (State)"
+    },
+    {
+      "key": "StatusDisplay_AutoNote",
+      "text": "Line 2 Info if \"Producing...\",\notherwise the Game Display Name"
+    },
+    {
       "key": "Header_Timestamp",
       "text": "Elapsed Time (Timestamp)"
     },
@@ -403,6 +427,10 @@
     {
       "key": "Preview_Playing",
       "text": "Playing"
+    },
+    {
+      "key": "Preview_UserFallback",
+      "text": "You"
     },
     {
       "key": "Button_Update",

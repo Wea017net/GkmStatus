@@ -35,6 +35,36 @@ namespace GkmStatus.src
             }
         }
 
+        /// <summary>URL の画像（Discord のアバターなど）を取得する。取得できなかったときは null（次に呼んだときに取り直す）。</summary>
+        public static Task<Image?> GetFromUrlAsync(string url)
+        {
+            string key = "url:" + url;
+            lock (Gate)
+            {
+                if (Cache.TryGetValue(key, out var cached) && !(cached.IsCompleted && cached.Result is null))
+                    return cached;
+                var task = LoadUrlAsync(url);
+                Cache[key] = task;
+                return task;
+            }
+        }
+
+        private static async Task<Image?> LoadUrlAsync(string url)
+        {
+            try
+            {
+                byte[] bytes = await Client.GetByteArrayAsync(url).ConfigureAwait(false);
+                using var stream = new MemoryStream(bytes);
+                using var decoded = Image.FromStream(stream);
+                return new Bitmap(decoded);
+            }
+            catch (Exception ex)
+            {
+                ErrorLog.Write("Preview avatar", ex);
+                return null;
+            }
+        }
+
         private static async Task<Image?> LoadAsync(string appId, string assetName)
         {
             try

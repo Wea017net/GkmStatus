@@ -15,10 +15,14 @@ namespace GkmStatus.src.ui
         bool StateIsLink,
         string ImageText,
         IReadOnlyList<string> Buttons,
-        TimeSpan Elapsed);
+        TimeSpan Elapsed,
+        string UserName,
+        string? AvatarUrl,
+        string StatusText);
 
     /// <summary>
     /// Discord のプロフィールに表示されるアクティビティ（「プレイ中」のカード）を再現して表示するウィンドウ。
+    /// カードの上には、メンバー一覧での自分の表示（アバター・名前・名前の下に出る 1 行）を並べる。
     /// 寸法と色は Discord の表示に合わせている（アプリのテーマがライト・ダーク・OLED なら、Discord のライト・ダーク・ミッドナイト）。
     /// 数値はすべて CSS px で、DPI に合わせて拡大する。
     /// ホバー時の色の変化・下線・画像の吹き出しは再現するが、クリックしてもリンクは開かない。
@@ -46,7 +50,14 @@ namespace GkmStatus.src.ui
             Color ButtonText,
             Color TooltipFill,
             Color TooltipRing,
-            Shadow? TooltipShadow);
+            Shadow? TooltipShadow,
+            Color MemberName,
+            Color MemberIcon,
+            Color Separator);
+
+        // メンバー一覧のアバターの初期表示（画像を読めないとき）と、オンラインの印の色
+        private static readonly Color DefaultAvatar = Color.FromArgb(88, 101, 242);
+        private static readonly Color OnlineStatus = Color.FromArgb(67, 162, 90);
 
         // カードのホバーとボタンの背景は、どのテーマでも同じ半透明の色を重ねる（OLED のボタンのホバーだけ少し濃い）
         private static readonly Color HoverOverlay = Color.FromArgb(31, 148, 148, 156);        // rgba(148,148,156,.12)
@@ -68,7 +79,10 @@ namespace GkmStatus.src.ui
             ButtonText: Color.FromArgb(251, 251, 251),
             TooltipFill: Color.FromArgb(36, 36, 41),
             TooltipRing: Color.FromArgb(64, 148, 148, 156),
-            TooltipShadow: null);
+            TooltipShadow: null,
+            MemberName: Color.FromArgb(148, 148, 156),
+            MemberIcon: Color.FromArgb(94, 180, 121),
+            Separator: Color.FromArgb(31, 148, 148, 156));
 
         private static readonly Palette LightPalette = new(
             Panel: Color.White,
@@ -85,7 +99,10 @@ namespace GkmStatus.src.ui
             ButtonText: Color.FromArgb(40, 40, 45),
             TooltipFill: Color.White,
             TooltipRing: Color.FromArgb(71, 151, 151, 158),   // rgba(151,151,158,.28)
-            TooltipShadow: new Shadow(12, 36, 0.12));
+            TooltipShadow: new Shadow(12, 36, 0.12),
+            MemberName: Color.FromArgb(102, 103, 112),        // メンバー一覧の名前（実際の Discord で測った色）
+            MemberIcon: Color.FromArgb(69, 163, 102),         // #45a366
+            Separator: Color.FromArgb(51, 150, 150, 160));
 
         // Discord の「ミッドナイト」（黒に近いテーマ）。アプリの OLED テーマのときに使う
         private static readonly Palette OledPalette = new(
@@ -103,7 +120,10 @@ namespace GkmStatus.src.ui
             ButtonText: Color.FromArgb(220, 220, 223),
             TooltipFill: Color.FromArgb(10, 10, 12),
             TooltipRing: Color.FromArgb(51, 150, 150, 160),
-            TooltipShadow: new Shadow(12, 24, 0.24));
+            TooltipShadow: new Shadow(12, 24, 0.24),
+            MemberName: Color.FromArgb(130, 131, 139),
+            MemberIcon: Color.FromArgb(65, 160, 99),
+            Separator: Color.FromArgb(41, 149, 149, 162));
 
         private static Palette PaletteFor(AppTheme theme) => theme switch
         {
@@ -128,18 +148,36 @@ namespace GkmStatus.src.ui
         private const int ButtonGap = 8;
         private const int Radius = 8;
 
+        // メンバー一覧の行（実際の Discord で測った寸法）。行の高さ 44、左の余白 8、アバター 32、アバターと文字の間 12。
+        // 名前は 16px（行の上から 5）、名前の下の 1 行は 12px（行の上から 23、アイコン 12×12 の右に 4 空けて文字）
+        private const int MemberTop = 8;
+        private const int MemberRowHeight = 44;
+        private const int MemberPadding = 8;
+        private const int AvatarSize = 32;
+        private const int MemberTextLeft = MemberPadding + AvatarSize + 12;
+        private const int MemberNameTop = 5;
+        private const int MemberNameHeight = 20;
+        private const int MemberSubTop = 23;
+        private const int MemberSubHeight = 16;
+        // 行の下の区切り線（行から 8 下、太さ 1）。カードはその下に OuterMargin 空けて置く
+        private const int SeparatorY = MemberTop + MemberRowHeight + 8;
+        private const int MemberAreaHeight = SeparatorY + 1;
+
         private enum HotSpot { None, Image, Details, State, Button0, Button1 }
 
         private readonly Func<ActivityPreviewData> _getData;
         private readonly System.Windows.Forms.Timer _refreshTimer;
         private readonly float _k;
-        private readonly MixedFont _headerFont, _titleFont, _textFont, _buttonFont, _tooltipFont, _monoFont;
+        private readonly MixedFont _headerFont, _titleFont, _textFont, _buttonFont, _tooltipFont, _monoFont, _memberNameFont;
 
         private Palette _palette;
         private ActivityPreviewData _data;
         private Image? _image;
         private Bitmap? _scaledImage;
         private string? _imageAppId;
+        private Image? _avatar;
+        private Bitmap? _scaledAvatar;
+        private string? _avatarUrl;
         private bool _cardHover;
         private HotSpot _hot;
 
@@ -167,6 +205,8 @@ namespace GkmStatus.src.ui
             _buttonFont = new MixedFont(PxFont(latin, 14, FontStyle.Regular), PxFont(cjk, 14, FontStyle.Regular));
             _tooltipFont = new MixedFont(PxFont(latin, 14, FontStyle.Regular), PxFont(cjk, 14, FontStyle.Regular));
             _monoFont = new MixedFont(PxFont(mono, 12, FontStyle.Regular), PxFont(cjk, 12, FontStyle.Regular));
+            // メンバー一覧の名前は 16px・500（名前の下の 1 行は 12px・500 で、_textFont と同じになる）
+            _memberNameFont = new MixedFont(PxFont(latin, 16, FontStyle.Regular), PxFont(cjk, 16, FontStyle.Regular));
 
             Text = I18n.T(Preview_Title);
             FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -183,6 +223,7 @@ namespace GkmStatus.src.ui
             _refreshTimer.Tick += (s, e) => RefreshData();
             _refreshTimer.Start();
             LoadImage();
+            LoadAvatar();
         }
 
         private bool IsLight => ReferenceEquals(_palette, LightPalette);
@@ -209,27 +250,50 @@ namespace GkmStatus.src.ui
         {
             _data = _getData();
             if (_data.AppId != _imageAppId) LoadImage();
+            if (_data.AvatarUrl != _avatarUrl) LoadAvatar();
             UpdateClientSize();
             UpdateHotSpot(PointToClient(Cursor.Position));
             Invalidate();
         }
 
-        private void LoadImage()
+        /// <summary>
+        /// ゲームの画像を読み込む。await で UI スレッドに戻ってから反映するので、
+        /// 2 回目以降に開いたとき（キャッシュ済みですぐ終わり、まだウィンドウが作られていないとき）も表示される。
+        /// </summary>
+        private async void LoadImage()
         {
             string appId = _data.AppId;
             _imageAppId = appId;
-            _ = DiscordAppImage.GetAsync(appId, "app").ContinueWith(task =>
+            Image? image = await DiscordAppImage.GetAsync(appId, "app");
+            if (IsDisposed || _imageAppId != appId) return;
+            _image = image;
+            _scaledImage?.Dispose();
+            _scaledImage = null;
+            Invalidate();
+        }
+
+        /// <summary>接続中の Discord ユーザーのアバターを読み込む（未接続や読み込めないときは初期のアバターの色で描く）。</summary>
+        private async void LoadAvatar()
+        {
+            string? url = _data.AvatarUrl;
+            _avatarUrl = url;
+            if (url is null)
             {
-                if (IsDisposed || !IsHandleCreated) return;
-                BeginInvoke(() =>
-                {
-                    if (IsDisposed || _imageAppId != appId) return;
-                    _image = task.Result;
-                    _scaledImage?.Dispose();
-                    _scaledImage = null;
-                    Invalidate();
-                });
-            }, TaskScheduler.Default);
+                SetAvatar(null);
+                return;
+            }
+            // ゲームの画像と同じく、await で UI スレッドに戻ってから反映する
+            Image? avatar = await DiscordAppImage.GetFromUrlAsync(url);
+            if (IsDisposed || _avatarUrl != url) return;
+            SetAvatar(avatar);
+        }
+
+        private void SetAvatar(Image? avatar)
+        {
+            _avatar = avatar;
+            _scaledAvatar?.Dispose();
+            _scaledAvatar = null;
+            Invalidate();
         }
 
         // ---- レイアウト（CSS px） ----
@@ -254,13 +318,17 @@ namespace GkmStatus.src.ui
 
         private void UpdateClientSize()
         {
-            var size = new Size(Px(CardWidth + OuterMargin * 2), Px(CardHeight + OuterMargin * 2));
+            var size = new Size(Px(CardWidth + OuterMargin * 2), Px(MemberAreaHeight + CardHeight + OuterMargin * 2));
             if (ClientSize != size) ClientSize = size;
         }
 
-        /// <summary>カード内の位置（CSS px）を、ウィンドウ上の矩形（実ピクセル）にする。</summary>
+        /// <summary>カード内の位置（CSS px）を、ウィンドウ上の矩形（実ピクセル）にする。カードはメンバー一覧の行と区切り線の下にある。</summary>
         private Rectangle CardRect(float x, float y, float w, float h)
-            => Rectangle.Round(new RectangleF((OuterMargin + x) * _k, (OuterMargin + y) * _k, w * _k, h * _k));
+            => Rectangle.Round(new RectangleF((OuterMargin + x) * _k, (MemberAreaHeight + OuterMargin + y) * _k, w * _k, h * _k));
+
+        /// <summary>メンバー一覧の行の中の位置（CSS px、行の左上が原点）を、ウィンドウ上の矩形にする。行の左右はカードとそろえる。</summary>
+        private Rectangle MemberRect(float x, float y, float w, float h)
+            => Rectangle.Round(new RectangleF((OuterMargin + x) * _k, (MemberTop + y) * _k, w * _k, h * _k));
 
         private Rectangle CardBounds => CardRect(0, 0, CardWidth, CardHeight);
         private Rectangle ImageBounds => CardRect(CardPadding, BodyTop, ImageSize, ImageSize);
@@ -316,6 +384,8 @@ namespace GkmStatus.src.ui
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
+            DrawMemberRow(g);
+
             Color card = _cardHover ? Over(palette.Panel, HoverOverlay) : palette.Card;
             FillRounded(g, CardBounds, card, palette.Border);
 
@@ -325,7 +395,7 @@ namespace GkmStatus.src.ui
             {
                 foreach (float cx in new[] { 3.5f, 8f, 12.5f })
                 {
-                    float x = (OuterMargin + CardWidth - CardPadding - 20 + 4 + cx) * _k, y = (OuterMargin + CardPadding + 8) * _k, r = 1.5f * _k;
+                    float x = (OuterMargin + CardWidth - CardPadding - 20 + 4 + cx) * _k, y = (MemberAreaHeight + OuterMargin + CardPadding + 8) * _k, r = 1.5f * _k;
                     g.FillEllipse(dots, x - r, y - r, r * 2, r * 2);
                 }
             }
@@ -356,6 +426,65 @@ namespace GkmStatus.src.ui
 
             if (_hot == HotSpot.Image && _data.ImageText.Length > 0)
                 DrawTooltip(g, _data.ImageText);
+        }
+
+        /// <summary>
+        /// メンバー一覧での自分の表示（アバター・名前・名前の下の 1 行）と、その下の区切り線を描く。
+        /// 名前の下の 1 行は、StatusDisplay で選んだ内容（Name・Details・State）をコントローラーのアイコンの右に出す。
+        /// </summary>
+        private void DrawMemberRow(Graphics g)
+        {
+            var palette = _palette;
+            DrawAvatar(g, MemberRect(MemberPadding, (MemberRowHeight - AvatarSize) / 2f, AvatarSize, AvatarSize));
+
+            int textWidth = CardWidth - MemberTextLeft - MemberPadding;
+            DrawLine(g, _data.UserName, _memberNameFont, MemberRect(MemberTextLeft, MemberNameTop, textWidth, MemberNameHeight), palette.MemberName);
+            if (_data.StatusText.Length > 0)
+            {
+                DrawControllerIcon(g, MemberRect(MemberTextLeft, MemberSubTop + 2, 12, 12), palette.MemberIcon, palette.Panel);
+                DrawLine(g, _data.StatusText, _textFont, MemberRect(MemberTextLeft + 16, MemberSubTop, textWidth - 16, MemberSubHeight), palette.MemberName);
+            }
+
+            // 区切り線はウィンドウの端から端まで
+            using var separator = new SolidBrush(Over(palette.Panel, palette.Separator));
+            g.FillRectangle(separator, 0, Px(SeparatorY), ClientSize.Width, Math.Max(1, Px(1)));
+        }
+
+        /// <summary>丸いアバターと、右下のオンラインの印（周りを背景色でくり抜く）。</summary>
+        private void DrawAvatar(Graphics g, Rectangle bounds)
+        {
+            using (var circle = new GraphicsPath())
+            {
+                circle.AddEllipse(bounds);
+                if (_avatar is null)
+                {
+                    using var fill = new SolidBrush(DefaultAvatar);
+                    g.FillPath(fill, circle);
+                }
+                else
+                {
+                    if (_scaledAvatar is null || _scaledAvatar.Size != bounds.Size)
+                    {
+                        _scaledAvatar?.Dispose();
+                        _scaledAvatar = new Bitmap(bounds.Width, bounds.Height);
+                        using var sg = Graphics.FromImage(_scaledAvatar);
+                        sg.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                        sg.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                        sg.DrawImage(_avatar, new Rectangle(Point.Empty, bounds.Size));
+                    }
+                    using var texture = new TextureBrush(_scaledAvatar, WrapMode.Clamp);
+                    texture.TranslateTransform(bounds.X, bounds.Y);
+                    g.FillPath(texture, circle);
+                }
+            }
+
+            // オンラインの印（直径 10、周りに 3 の背景色の縁）。アバターの右下に重ねる
+            float k = bounds.Width / (float)AvatarSize;
+            float cx = bounds.X + 27 * k, cy = bounds.Y + 27 * k;
+            using (var cutout = new SolidBrush(_palette.Panel))
+                g.FillEllipse(cutout, cx - 8 * k, cy - 8 * k, 16 * k, 16 * k);
+            using (var dot = new SolidBrush(OnlineStatus))
+                g.FillEllipse(dot, cx - 5 * k, cy - 5 * k, 10 * k, 10 * k);
         }
 
         /// <summary>角丸の矩形を塗り、枠線があれば 1 ピクセルの線で縁取る（Discord の 1px の枠は画面の 1 ピクセルになる）。</summary>
@@ -647,7 +776,8 @@ namespace GkmStatus.src.ui
             {
                 _refreshTimer.Dispose();
                 _scaledImage?.Dispose();
-                foreach (var font in new[] { _headerFont, _titleFont, _textFont, _buttonFont, _tooltipFont, _monoFont })
+                _scaledAvatar?.Dispose();
+                foreach (var font in new[] { _headerFont, _titleFont, _textFont, _buttonFont, _tooltipFont, _monoFont, _memberNameFont })
                     font.Dispose();
             }
             base.Dispose(disposing);

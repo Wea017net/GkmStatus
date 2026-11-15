@@ -111,7 +111,8 @@ namespace GkmStatus
         {
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
 
-            this.ClientSize = new Size(S(520), S(630));
+            // 「名前の下に表示する内容」セクション（見出し S(25) + 入力行 S(45)）の分を含めた高さ
+            this.ClientSize = new Size(S(520), S(700));
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
 
             this.MaximizeBox = false;
@@ -425,6 +426,31 @@ namespace GkmStatus
             cmbStateType.SelectedIndexChanged += CmbStateType_SelectedIndexChanged;
             y += S(45);
 
+            // Discord で名前の下に表示する内容（自動 / Name / Details / State）
+            AddHeader(y, "Header_StatusDisplay"); y += S(25);
+            cmbStatusDisplay = CreateCombo(new(S(20), y), S(210),
+                [I18n.T(StatusDisplay_Auto), I18n.T(StatusDisplay_Name), I18n.T(StatusDisplay_Details), I18n.T(StatusDisplay_State)]);
+            cmbStatusDisplay.SelectedIndex = GetStatusDisplayIndex(PresenceStatusDisplay.Auto);
+
+            // 「自動」のときだけ、コンボボックスの右側に何が表示されるかの説明（2 行）を出す
+            lblStatusDisplayNote = new Label
+            {
+                Name = "lblStatusDisplayNote",
+                Text = I18n.T(StatusDisplay_AutoNote),
+                AutoSize = true,
+                ForeColor = Color.Gray,
+                Font = _fontManager.AppFontMedium
+            };
+            this.Controls.Add(lblStatusDisplayNote);
+            LayoutStatusDisplayNote();
+
+            cmbStatusDisplay.SelectedIndexChanged += (s, e) =>
+            {
+                UpdateStatusDisplayNote();
+                if (!isInitializing) SaveSettings();
+            };
+            y += S(45);
+
             AddHeader(y, "Header_Timestamp"); y += S(25);
             lblStartTime = new Label { Text = I18n.T(Timestamp_Label) + ": 00:00:00", Location = new Point(S(20), y + S(7)), AutoSize = true };
             this.Controls.Add(lblStartTime);
@@ -602,7 +628,7 @@ namespace GkmStatus
 
             // Details / State / Buttons の入力が変わったら、Discord に送った内容と比べて「更新」を押せるかを決め直す
             // （各コントロールの既存のハンドラーの後に呼ばれるよう、ここで登録する）
-            foreach (var combo in new[] { cmbDetailsType, cmbStateType, cmbProduceCharacter, cmbCharNameLang, cmbBtnMode })
+            foreach (var combo in new[] { cmbDetailsType, cmbStateType, cmbProduceCharacter, cmbCharNameLang, cmbStatusDisplay, cmbBtnMode })
                 combo.SelectedIndexChanged += (s, e) => RefreshUpdateButton();
             foreach (var text in new[] { txtPName, txtStateCustom, txtBtn1Label, txtBtn1Url, txtBtn2Label, txtBtn2Url })
                 text.TextChanged += (s, e) => RefreshUpdateButton();
@@ -809,6 +835,8 @@ namespace GkmStatus
         private Label lblResetGuide;
         private System.Windows.Forms.Timer resetGuideTimer;
         private ComboBox cmbBtnMode;
+        private ComboBox cmbStatusDisplay;
+        private Label lblStatusDisplayNote;
         private Label lblBtnModeNote;
         private TextBox txtBtn1Label;
         private TextBox txtBtn1Url;
