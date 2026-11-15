@@ -20,8 +20,37 @@ namespace GkmStatus.src
     {
         [LibraryImport("dwmapi.dll")]
         private static partial int DwmSetWindowAttribute(nint hwnd, int attr, ref int attrValue, int attrSize);
+        private const int DWMWA_CAPTION_COLOR = 35;
+        private const int DWMWA_COLOR_DEFAULT = unchecked((int)0xFFFFFFFF);
+
+        [LibraryImport("uxtheme.dll", StringMarshalling = StringMarshalling.Utf16)]
+        private static partial int SetWindowTheme(nint hwnd, string? subAppName, string? subIdList);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct COMBOBOXINFO
+        {
+            public int cbSize;
+            // rcItem / rcButton（RECT 2 つ分）。中身は使わない
+            public int itemLeft, itemTop, itemRight, itemBottom;
+            public int buttonLeft, buttonTop, buttonRight, buttonBottom;
+            public int stateButton;
+            public nint hwndCombo;
+            public nint hwndItem;
+            public nint hwndList;
+        }
+
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool GetComboBoxInfo(nint hwndCombo, ref COMBOBOXINFO info);
 
         private readonly FontManager _fontManager = fontManager;
+
+        // システム標準のコントロールをダーク/OLED テーマで使うときの入力欄の背景色
+        private static readonly Color DARK_INPUT_BG = Color.FromArgb(25, 25, 25);
+        // DarkMode_CFD テーマで描かれる、閉じた状態のコンボボックスの面の色
+        private static readonly Color DARK_COMBO_FACE = Color.FromArgb(51, 51, 51);
+        // ライトテーマで NumericUpDown が描く入力欄の枠の色（無効時のテキスト入力欄をこれにそろえる）
+        private static readonly Color LIGHT_DISABLED_INPUT_BORDER = Color.FromArgb(171, 173, 179);
 
         public void ApplyTheme(Form form, AppTheme theme)
         {
@@ -35,14 +64,12 @@ namespace GkmStatus.src
             bool isBright = bg.GetBrightness() > 0.5;
             Color menuBg = isBright ? Color.FromArgb(235, 233, 233) : (bg.R == 0 ? Color.Black : Color.FromArgb(45, 47, 51));
 
-            menu.BackColor = menuBg;
-            menu.Font = _fontManager.MenuFont;
-            menu.Renderer = new MyRenderer(isBright, new CustomColorTable(isBright));
-
+            // メインウィンドウのメニューバーのドロップダウンと同じ描画にする
+            ProfessionalColorTable colorTable = CreateMenuColorTable(menuBg, isBright);
+            ApplyDropDownTheme(menu, colorTable, isBright ? null : menuBg);
             foreach (ToolStripItem item in menu.Items)
             {
-                if (item is ToolStripMenuItem tsmi) ApplyThemeToMenuItems(tsmi, menuBg, isBright);
-                else item.Font = _fontManager.MenuFont;
+                ApplyMenuItemTheme(item, colorTable, isBright ? null : menuBg);
             }
         }
 
@@ -76,23 +103,20 @@ namespace GkmStatus.src
 
             bool isBright = bg.GetBrightness() > 0.5;
             form.BackColor = bg;
-            form.ForeColor = isBright ? Color.Black : Color.White;
+            form.ForeColor = isBright ? COLOR_LIGHT_TEXT : Color.White;
 
             SetTitleBarDarkMode(form.Handle, !isBright);
 
             Color menuBg = isBright ? Color.FromArgb(235, 233, 233) : (bg.R == 0 ? Color.Black : Color.FromArgb(45, 47, 51));
-            Color controlBg = isBright ? Color.White : Color.FromArgb(47, 49, 54);
-            Color borderColor = isBright ? Color.FromArgb(200, 200, 200) : Color.FromArgb(70, 70, 70);
-
             foreach (Control c in GetAllControls(form))
             {
-                ApplyToControl(c, isBright, menuBg, controlBg, borderColor);
+                ApplyToControl(c, isBright, menuBg);
             }
 
             form.ResumeLayout(true);
         }
 
-        private void ApplyToControl(Control c, bool isBright, Color menuBg, Color controlBg, Color borderColor)
+        private void ApplyToControl(Control c, bool isBright, Color menuBg)
         {
             if (c is Label lbl)
             {
@@ -100,34 +124,44 @@ namespace GkmStatus.src
             }
             else if (c is MenuStrip ms)
             {
-                ms.BackColor = menuBg;
-                ms.Font = _fontManager.MenuFont;
-                ms.Renderer = new MyRenderer(isBright, new CustomColorTable(isBright));
-                foreach (ToolStripItem item in ms.Items)
+                ApplyMenuStripTheme(ms, menuBg, isBright);
+            }
+            else if (c is AccentComboBox cb)
+            {
+                ApplyComboBoxTheme(cb, isBright);
+            }
+            else if (c is TextBox tb && tb.Parent is not NumericUpDown) // NumericUpDown 内部の入力部分は下で扱う
+            {
+                // システム標準の描画。ダーク/OLED テーマでは Windows 標準のダーク表示（DarkMode_CFD）にする。
+                tb.BackColor = isBright ? SystemColors.Window : DARK_INPUT_BG;
+                tb.ForeColor = isBright ? COLOR_LIGHT_TEXT : Color.White;
+                try { SetWindowTheme(tb.Handle, isBright ? null : "DarkMode_CFD", null); } catch { }
+                // IME の未確定文字は既定では IME 側の白いウィンドウに表示されるため、ダーク時は入力欄の色で自前表示する
+                if (tb is ImeCompositionTextBox imeTextBox)
                 {
-                    if (item is ToolStripMenuItem tsmi) ApplyThemeToMenuItems(tsmi, menuBg, isBright);
+                    imeTextBox.DrawCompositionInline = !isBright;
+                    // ライトテーマの無効時は枠がほぼ見えなくなるので、数字入力欄（NumericUpDown）の無効時と同じ枠にする
+                    imeTextBox.DisabledBorderColor = isBright ? LIGHT_DISABLED_INPUT_BORDER : null;
+                    imeTextBox.FocusBorderColor = AccentColorTable.Accent; // 入力中の枠はアクセント色（全テーマ共通）
                 }
-            }
-            else if (c is ComboBox cb)
-            {
-                cb.BackColor = controlBg;
-                cb.ForeColor = isBright ? Color.Black : Color.White;
-            }
-            else if (c is TextBox tb)
-            {
-                tb.BackColor = controlBg;
-                tb.ForeColor = isBright ? Color.Black : Color.White;
-                if (tb.Tag is Panel p) { UpdatePanelBorder(p, controlBg, borderColor); }
             }
             else if (c is NumericUpDown nu)
             {
-                nu.BackColor = controlBg;
-                nu.ForeColor = isBright ? Color.Black : Color.White;
-                if (nu.Tag is Panel p) { UpdatePanelBorder(p, controlBg, borderColor); }
+                // システム標準の描画。色はフォームを継承してしまうので、ライトはシステム色、ダーク/OLED は暗い色を明示する。
+                nu.BackColor = isBright ? SystemColors.Window : DARK_INPUT_BG;
+                nu.ForeColor = isBright ? COLOR_LIGHT_TEXT : Color.White;
+                try
+                {
+                    SetWindowTheme(nu.Handle, isBright ? null : "DarkMode_Explorer", null);
+                    foreach (Control child in nu.Controls) // 上下ボタンと入力部分
+                        SetWindowTheme(child.Handle, isBright ? null : "DarkMode_Explorer", null);
+                    nu.Invalidate(true);
+                }
+                catch { }
             }
             else if (c is CheckBox chk)
             {
-                chk.ForeColor = isBright ? Color.Black : Color.White;
+                chk.ForeColor = isBright ? COLOR_LIGHT_TEXT : Color.White;
             }
             else if (c is Button btn)
             {
@@ -140,14 +174,44 @@ namespace GkmStatus.src
             }
         }
 
+        // コンボボックスはシステム標準の描画を使う。ダーク/OLED テーマでは Windows 標準のダーク表示
+        // （エクスプローラーの「ファイルを開く」ダイアログと同じ DarkMode_CFD テーマ）に切り替える。
+        private static void ApplyComboBoxTheme(AccentComboBox cb, bool isBright)
+        {
+            // 色は指定しないとフォームの色を継承するので明示する。
+            // BackColor は閉じた状態の表示部分の背景になるため、ダーク時は DarkMode_CFD のボタン面と同じ色にし、
+            // 開いた一覧の背景は ListBackColor で別に指定する。
+            cb.BackColor = isBright ? SystemColors.Window : DARK_COMBO_FACE;
+            cb.ListBackColor = isBright ? SystemColors.Window : DARK_INPUT_BG;
+            cb.ForeColor = isBright ? COLOR_LIGHT_TEXT : Color.White;
+            try
+            {
+                SetWindowTheme(cb.Handle, isBright ? null : "DarkMode_CFD", null);
+                var info = new COMBOBOXINFO { cbSize = Marshal.SizeOf<COMBOBOXINFO>() };
+                if (GetComboBoxInfo(cb.Handle, ref info) && info.hwndList != 0)
+                    SetWindowTheme(info.hwndList, isBright ? null : "DarkMode_Explorer", null); // 一覧のスクロールバー
+            }
+            catch { }
+        }
+
         private void ApplyLabelTheme(Label lbl, bool isBright)
         {
+            if (lbl.Name == FOOTER_SEPARATOR_NAME)
+            {
+                // ライトは立体の線、ダーク/OLED は背景になじむ色の平らな線
+                bool oled = lbl.FindForm()?.BackColor.R == 0;
+                lbl.BorderStyle = isBright ? BorderStyle.Fixed3D : BorderStyle.None;
+                if (isBright) lbl.ResetBackColor();
+                else lbl.BackColor = oled ? COLOR_OLED_SEPARATOR : COLOR_DARK_SEPARATOR;
+                return;
+            }
+
             if (lbl.Tag is string tag && tag.StartsWith("Header_"))
                 lbl.Font = _fontManager.AppFontBold;
             else
                 lbl.Font = _fontManager.AppFontMedium;
 
-            if (lbl.Name == "lblResetGuide" || lbl.Name == "lblBtnModeNote")
+            if (lbl.Name == "lblResetGuide" || lbl.Name == "lblBtnModeNote" || lbl.Name == "lblStatusDisplayNote" || lbl.Name == "lblMemoryUsage")
                 lbl.ForeColor = Color.Gray;
             else if (lbl.Name == "lblGameAppGuide")
                 lbl.ForeColor = AppConstants.COLOR_PAUSE;
@@ -156,39 +220,91 @@ namespace GkmStatus.src
                 // do not overwrite color of lblStatus here as it is dynamic
             }
             else
-                lbl.ForeColor = isBright ? Color.Black : Color.LightGray;
+                lbl.ForeColor = isBright ? COLOR_LIGHT_TEXT : Color.LightGray;
         }
 
-        private void ApplyThemeToMenuItems(ToolStripMenuItem item, Color menuBg, bool isBright)
+        // メインウィンドウのメニューバー: 標準の ToolStripProfessionalRenderer をベースに、テーマに合わせた ColorTable を渡す。
+        // フォントはシステムのメニューフォント（ToolStripManager.DefaultFont）。
+        // 全テーマ共通で、チェック欄とホバーはアクセント色（#ff7609）、チェックマークは独自画像、矢印は文字色。
+        private static void ApplyMenuStripTheme(MenuStrip ms, Color menuBg, bool isBright)
         {
-            item.Font = _fontManager.MenuFont;
-            if (item.DropDown != null)
+            // ライトテーマは背景・タイトルバーと区別できる明るい色、ダーク/OLED テーマはテーマの暗い色。
+            // MenuStrip の BackColor/ForeColor はフォームの値を継承してしまうため、ライトでも明示する。
+            ms.BackColor = isBright ? COLOR_LIGHT_MENUBAR : menuBg;
+            ms.ForeColor = isBright ? SystemColors.MenuText : ThemedProfessionalColorTable.DarkText;
+            ms.ResetFont();
+
+            ProfessionalColorTable colorTable = CreateMenuColorTable(menuBg, isBright);
+            ms.Renderer = new ThemedProfessionalRenderer(colorTable);
+            MenuBarSwitchTracker.Attach(ms);
+            foreach (ToolStripItem item in ms.Items)
             {
-                item.DropDown.BackColor = menuBg;
-                item.DropDown.Font = _fontManager.MenuFont;
-                item.DropDown.Renderer = new MyRenderer(isBright, new CustomColorTable(isBright));
-            }
-            foreach (ToolStripItem subItem in item.DropDownItems)
-            {
-                if (subItem is ToolStripMenuItem subMenu) ApplyThemeToMenuItems(subMenu, menuBg, isBright);
-                else subItem.Font = _fontManager.MenuFont;
+                ApplyMenuItemTheme(item, colorTable, isBright ? null : menuBg);
             }
         }
 
-        private static void UpdatePanelBorder(Panel p, Color bg, Color border)
+        // ライトテーマは標準の配色にアクセント色を加えたもの、ダーク/OLED テーマは暗い配色
+        private static ProfessionalColorTable CreateMenuColorTable(Color menuBg, bool isBright)
+            => isBright ? new AccentColorTable() : new ThemedProfessionalColorTable(menuBg);
+
+        private static void ApplyMenuItemTheme(ToolStripItem item, ProfessionalColorTable colorTable, Color? darkBg)
         {
-            p.BackColor = bg;
-            p.Tag = border;
-            p.Invalidate();
+            item.ResetBackColor();
+            item.ResetForeColor();
+            item.ResetFont();
+            if (item is not ToolStripMenuItem menuItem) return;
+
+            if (menuItem.HasDropDown) ApplyDropDownTheme(menuItem.DropDown, colorTable, darkBg);
+            foreach (ToolStripItem subItem in menuItem.DropDownItems)
+            {
+                ApplyMenuItemTheme(subItem, colorTable, darkBg);
+            }
         }
 
-        private static void SetTitleBarDarkMode(IntPtr handle, bool dark)
+        // ドロップダウン（メニューバーのサブメニュー / トレイのコンテキストメニュー）。darkBg が null ならシステム色。
+        private static void ApplyDropDownTheme(ToolStripDropDown dropDown, ProfessionalColorTable colorTable, Color? darkBg)
+        {
+            if (darkBg is Color bg)
+            {
+                dropDown.BackColor = bg;
+                dropDown.ForeColor = ThemedProfessionalColorTable.DarkText;
+            }
+            else
+            {
+                dropDown.ResetBackColor();
+                dropDown.ResetForeColor();
+            }
+            dropDown.ResetFont();
+            dropDown.Renderer = new ThemedProfessionalRenderer(colorTable);
+
+            // チェックやラジオが付く項目（とアイコン）が 1 つもないメニューは、左端のチェック欄を詰める。
+            // 項目はあとから追加されることがある（トレイのプロデュースアイドル一覧など）ので、開くたびに決める
+            dropDown.Opening -= UpdateCheckMargin;
+            dropDown.Opening += UpdateCheckMargin;
+        }
+
+        private static void UpdateCheckMargin(object? sender, EventArgs e)
+        {
+            if (sender is not ToolStripDropDownMenu menu) return;
+            // 欄を詰めたメニューの文字の位置は ThemedProfessionalRenderer.OnRenderItemText で少し右へずらす
+            menu.ShowImageMargin = menu.Items.OfType<ToolStripMenuItem>()
+                .Any(item => item.CheckOnClick || item.Checked || item is RadioMenuItem || item.Image != null);
+        }
+
+
+        internal static void SetTitleBarDarkMode(IntPtr handle, bool dark)
         {
             try
             {
                 int useDark = dark ? 1 : 0;
                 if (DwmSetWindowAttribute(handle, 20, ref useDark, sizeof(int)) != 0)
                     _ = DwmSetWindowAttribute(handle, 19, ref useDark, sizeof(int));
+
+                // ライトテーマはタイトルバーを白にしてメニューバーと区別する（Windows 11 以降のみ有効）。
+                // ダーク/OLED はシステムの既定に戻す
+                Color title = COLOR_LIGHT_TITLEBAR;
+                int caption = dark ? DWMWA_COLOR_DEFAULT : title.R | (title.G << 8) | (title.B << 16); // COLORREF（0x00BBGGRR）
+                _ = DwmSetWindowAttribute(handle, DWMWA_CAPTION_COLOR, ref caption, sizeof(int));
             }
             catch { }
         }

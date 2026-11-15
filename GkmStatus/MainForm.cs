@@ -26,12 +26,16 @@ namespace GkmStatus
         }
 
         private readonly bool isInitializing = true;
-        private int footerButtonsY;
         private bool _isFirstStartup = true;
         private bool _syncingStartupSetting;
         private bool _isUpdating;
-        private readonly bool _forceVisibleOnStartup;
+        // 初回セットアップで「最小化した状態で起動」を有効にした回は、ウィンドウを表示したままにするため書き換える
+        private bool _forceVisibleOnStartup;
         private int _updateDisplayVersion;
+        // 最後に Discord に送った Details / State / Buttons（未送信なら null）。入力欄と比べて「更新」を押せるようにする
+        private string? _sentPresenceKey;
+        // 経過時間をリセットしてから、まだ「更新」を押していない
+        private bool _timestampResetPending;
         private bool _runtimeResourcesDisposed;
 
         private readonly DiscordRpcService rpc = new();
@@ -40,6 +44,16 @@ namespace GkmStatus
         private System.Windows.Forms.Timer? connectionTimer;
         private System.Windows.Forms.Timer? retryTimer;
         private System.Windows.Forms.Timer? clockTimer;
+        private System.Windows.Forms.Timer? plvReminderTimer;
+        /// <summary>PLv の確認の通知を押したときに、どの通知かを見分けるための目印（trayIcon.Tag）。</summary>
+        private static readonly object ProducerLevelReminderTag = new();
+        /// <summary>ウィンドウ表示中に通知のためだけにトレイアイコンを出したか（通知が閉じたら隠す）。</summary>
+        private bool _trayIconShownForReminder;
+        private ActivityPreviewForm? _previewForm;
+        /// <summary>メモリ使用量の表示を更新する間隔（clockTimer の何回に 1 回か）と、前回表示した値（0.1MB 単位）。</summary>
+        private const int MEMORY_UPDATE_TICKS = 2;
+        private int _memoryUpdateTick;
+        private long _shownMemoryTenths = -1;
         private int connectionSeconds = 0;
         private bool suppressAutomaticReconnect;
         private const int CONNECTION_TIMEOUT = 30;
@@ -158,6 +172,7 @@ namespace GkmStatus
             _configManager.Load();
             LoadSettings();
             PromptForUsageTelemetryConsentIfNeeded();
+            PromptForBackgroundSetupIfNeeded();
 
             if (!_forceVisibleOnStartup && startMinimizedItem.Checked)
             {
@@ -191,6 +206,7 @@ namespace GkmStatus
                 _ = CheckForUpdatesAsync(manual: false);
 
             SendStartupUsageTelemetry();
+            CheckProducerLevelReminder();
 
 
             this.FormClosing += (s, e) =>
@@ -241,13 +257,46 @@ namespace GkmStatus
                 I18n.T(UsageTelemetry_ConsentTitle),
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Information,
-                MessageBoxDefaultButton.Button2);
+                MessageBoxDefaultButton.Button1);
 
             settings.UsageTelemetryAllowed = result == DialogResult.Yes;
             settings.TelemetryInstallationId = settings.UsageTelemetryAllowed == true
                 ? UsageTelemetryClient.CreateInstallationId()
                 : null;
             usageTelemetryItem.Checked = settings.UsageTelemetryAllowed == true;
+            _configManager.Save();
+        }
+
+        /// <summary>
+        /// 初回起動時（config.json が新しく作られた、または BackgroundSetupCompleted がない）に、
+        /// 「システム起動時に実行」と「最小化した状態で起動」をまとめて有効にするか確認する。
+        /// </summary>
+        private void PromptForBackgroundSetupIfNeeded()
+        {
+            var settings = _configManager.Config.Settings;
+            if (settings.BackgroundSetupCompleted)
+                return;
+
+            var result = MessageBox.Show(
+                I18n.T(BackgroundSetup_Body),
+                I18n.T(BackgroundSetup_Title),
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question,
+                MessageBoxDefaultButton.Button1);
+
+            if (result == DialogResult.Yes)
+            {
+                // 失敗したときは runAtStartupItem の CheckedChanged がチェックを戻してエラーを表示する
+                runAtStartupItem.Checked = true;
+                startMinimizedItem.Checked = true;
+                settings.StartMinimized = true;
+            }
+
+            // 確認ダイアログを表示した今回は、はい・いいえどちらを選んでも
+            // 「最小化した状態で起動」の設定に関わらずウィンドウを表示して起動する
+            _forceVisibleOnStartup = true;
+
+            settings.BackgroundSetupCompleted = true;
             _configManager.Save();
         }
 
@@ -285,7 +334,7 @@ namespace GkmStatus
             _runtimeResourcesDisposed = true;
 
             Interlocked.Increment(ref _updateDisplayVersion);
-            foreach (var timer in new[] { connectionTimer, retryTimer, clockTimer, gameAppGuideTimer, resetGuideTimer })
+            foreach (var timer in new[] { connectionTimer, retryTimer, clockTimer, plvReminderTimer, gameAppGuideTimer, resetGuideTimer })
             {
                 timer?.Stop();
                 timer?.Dispose();
@@ -293,6 +342,7 @@ namespace GkmStatus
             connectionTimer = null;
             retryTimer = null;
             clockTimer = null;
+            plvReminderTimer = null;
 
             _updateCts?.Cancel();
             _updateCts?.Dispose();
@@ -342,12 +392,13 @@ namespace GkmStatus
             ReapplyTheme();
         }
 
+        /// <summary>「表示」→「テーマ」で選ばれているテーマ。</summary>
+        private AppTheme SelectedTheme
+            => themeLight.Checked ? AppTheme.Light : themeDark.Checked ? AppTheme.Dark : themeOLED.Checked ? AppTheme.OLED : AppTheme.Auto;
+
         private void ReapplyTheme()
         {
-            AppTheme theme = AppTheme.Auto;
-            if (themeLight.Checked) theme = AppTheme.Light;
-            else if (themeDark.Checked) theme = AppTheme.Dark;
-            else if (themeOLED.Checked) theme = AppTheme.OLED;
+            AppTheme theme = SelectedTheme;
 
             _themeManager.ApplyTheme(this, theme);
             if (trayIcon.ContextMenuStrip != null)
@@ -360,7 +411,14 @@ namespace GkmStatus
             if (!btnUpdate.Enabled) btnUpdate.BackColor = disabledColor;
             if (!btnDisconnect.Enabled) btnDisconnect.BackColor = disabledColor;
             if (!btnResetTime.Enabled) btnResetTime.BackColor = disabledColor;
+
+            // プレビューも Discord の配色を切り替える
+            _previewForm?.SetTheme(PreviewTheme);
         }
+
+        /// <summary>プレビューに使う Discord のテーマ。OLED はミッドナイト、それ以外は実際の背景が明るいかどうかでライトかダーク。</summary>
+        private AppTheme PreviewTheme
+            => themeOLED.Checked ? AppTheme.OLED : (this.BackColor.GetBrightness() > 0.5 ? AppTheme.Light : AppTheme.Dark);
 
         private void ApplyLanguage()
         {
@@ -377,8 +435,12 @@ namespace GkmStatus
                 autoConnectItem.Text = I18n.T(Menu_AutoConnect);
                 usageTelemetryItem.Text = I18n.T(Menu_UsageTelemetry);
                 checkForUpdatesItem.Text = I18n.T(Menu_CheckForUpdates);
+                notificationMenu.Text = I18n.T(Menu_Notifications);
                 notifyInBackgroundItem.Text = I18n.T(Menu_NotifyInBackground);
                 notifyOnMinimizeItem.Text = I18n.T(Menu_NotifyOnMinimize);
+                plvReminderItem.Text = I18n.T(Menu_NotifyProducerLevel);
+                memoryUsageItem.Text = I18n.T(Menu_ShowMemoryUsage);
+                ApplyMemoryUsageVisibility();
                 minimizeToTrayItem.Text = I18n.T(Menu_MinimizeToTray);
                 monitorItem.Text = I18n.T(Menu_MonitorProcess);
 
@@ -393,6 +455,7 @@ namespace GkmStatus
                 helpMenu.Text = I18n.T(Menu_Help);
                 openAppLocationMenu.Text = I18n.T(Menu_OpenAppLocation);
                 openConfigLocationMenu.Text = I18n.T(Menu_OpenConfigLocation);
+                openLogLocationMenu.Text = I18n.T(Menu_OpenLogLocation);
                 githubMenu.Text = I18n.T(Menu_Github);
                 checkUpdateMenuItem.Text = I18n.T(Menu_CheckUpdateNow);
                 aboutMenu.Text = I18n.T(Menu_About);
@@ -430,6 +493,8 @@ namespace GkmStatus
             btnResetTime.Text = I18n.T(Timestamp_Reset);
             btnUpdate.Text = I18n.T(Button_Update);
             btnDisconnect.Text = I18n.T(Button_Disconnect);
+            btnPreview.Text = I18n.T(Button_Preview);
+            _previewForm?.Close();
 
             Native.SetPlaceholder(txtPName, I18n.T(Placeholder_PName));
             Native.SetPlaceholder(txtBtn1Label, I18n.T(Placeholder_BtnLabel, 1));
@@ -469,7 +534,11 @@ namespace GkmStatus
             RefreshCombo(cmbDetailsType!, [I18n.T(Details_None), I18n.T(Details_PName), I18n.T(Details_PLv), I18n.T(Details_Both)]);
             RefreshCombo(cmbStateType!, [I18n.T(State_None), I18n.T(State_PID), I18n.T(State_Idol), I18n.T(State_Producing), I18n.T(State_Custom)]);
             RefreshCombo(cmbBtnMode!, [I18n.T(Button_ModeNone), I18n.T(Button_ModeStore), I18n.T(Button_ModeApp), I18n.T(Button_ModeCustom)]);
+            RefreshCombo(cmbStatusDisplay!, [I18n.T(StatusDisplay_Auto), I18n.T(StatusDisplay_Name), I18n.T(StatusDisplay_Details), I18n.T(StatusDisplay_State)]);
+            lblStatusDisplayNote.Text = I18n.T(StatusDisplay_AutoNote);
+            LayoutStatusDisplayNote(); // 言語によって項目と説明の長さが変わるので並べ直す
             RefreshCombo(cmbCharNameLang!, [I18n.T(CharName_JP), I18n.T(CharName_EN)]);
+            LayoutCharNameLangRow(); // 言語によって項目の長さが変わるので幅を合わせ直す
 
             CmbStateType_SelectedIndexChanged(null, EventArgs.Empty);
             CmbBtnMode_SelectedIndexChanged(null, EventArgs.Empty);
@@ -491,7 +560,7 @@ namespace GkmStatus
 
         private void ShowAboutDialog()
         {
-            using var about = new AboutForm(this.BackColor, this.ForeColor, _fontManager.AppFont, uiScale);
+            using var about = new AboutForm(_fontManager, _themeManager, SelectedTheme, uiScale);
             about.ShowDialog(this);
         }
 
@@ -567,7 +636,10 @@ namespace GkmStatus
                 if (string.IsNullOrEmpty(applicationPath))
                     throw new InvalidOperationException("Could not locate GkmStatus.exe.");
 
-                await Task.Run(() => UpdaterService.StartUpdate(result, applicationPath));
+                using (Process updater = await Task.Run(() => UpdaterService.StartUpdate(result, applicationPath)))
+                {
+                    // 起動できたことだけ確かめればよいので、プロセスのハンドルはすぐに解放する
+                }
                 SafeBeginInvoke(() =>
                 {
                     _isUpdating = true;
@@ -580,6 +652,7 @@ namespace GkmStatus
             }
             catch (Exception ex)
             {
+                ErrorLog.Write("Update download", ex);
                 SafeBeginInvoke(() =>
                 {
                     if (manual)
@@ -609,22 +682,14 @@ namespace GkmStatus
 
             bool isProduceMode = stateType is PresenceStateType.Idol or PresenceStateType.Producing;
 
-            if (txtStateCustom.Tag is Panel container)
-            {
-                container.Visible = !isProduceMode && stateType != PresenceStateType.None;
-            }
+            txtStateCustom.Visible = !isProduceMode && stateType != PresenceStateType.None;
 
             cmbProduceCharacter.Visible = isProduceMode;
             cmbCharNameLang.Visible = isProduceMode;
 
             if (stateType == PresenceStateType.PID)
             {
-                if (txtStateCustom.Tag is Panel con)
-                {
-                    con.Width = S(165);
-                    txtStateCustom.Width = S(165) - S(10);
-                    con.Invalidate();
-                }
+                txtStateCustom.Width = S(165);
                 txtStateCustom.Enabled = true;
                 txtStateCustom.MaxLength = 8;
                 Native.SetPlaceholder(txtStateCustom, I18n.T(Placeholder_PID));
@@ -635,12 +700,7 @@ namespace GkmStatus
             }
             else if (stateType == PresenceStateType.Custom)
             {
-                if (txtStateCustom.Tag is Panel con)
-                {
-                    con.Width = S(320);
-                    txtStateCustom.Width = S(320) - S(10);
-                    con.Invalidate();
-                }
+                txtStateCustom.Width = S(320);
                 txtStateCustom.Enabled = true;
                 txtStateCustom.MaxLength = 128;
                 Native.SetPlaceholder(txtStateCustom, I18n.T(Placeholder_Custom));
@@ -733,6 +793,8 @@ namespace GkmStatus
             settings.AutoCheckUpdates = checkForUpdatesItem.Checked;
             settings.ShowBackgroundNotifications = notifyInBackgroundItem.Checked;
             settings.NotifyOnMinimize = notifyOnMinimizeItem.Checked;
+            settings.NotifyProducerLevel = plvReminderItem.Checked;
+            settings.ShowMemoryUsage = memoryUsageItem.Checked;
             settings.MinimizeToTray = minimizeToTrayItem.Checked;
             settings.AutoDetectGakumas = monitorItem.Checked;
             var selectedTheme = themeLight.Checked ? AppTheme.Light : (themeDark.Checked ? AppTheme.Dark : (themeOLED.Checked ? AppTheme.OLED : AppTheme.Auto));
@@ -751,6 +813,7 @@ namespace GkmStatus
             presence.StateType = GetStateString(stateType);
             presence.ButtonMode = GetButtonModeString(buttonMode);
             presence.CharNameLangIndex = cmbCharNameLang.SelectedIndex;
+            presence.StatusDisplay = GetStatusDisplayString(GetStatusDisplay(cmbStatusDisplay.SelectedIndex));
 
             PresenceEditorHistory.SaveEditorHistory(presence, stateType, txtStateCustom.Text, buttonMode,
                 txtBtn1Label.Text, txtBtn1Url.Text, txtBtn2Label.Text, txtBtn2Url.Text);
@@ -778,19 +841,27 @@ namespace GkmStatus
                 checkForUpdatesItem.Checked = settings.AutoCheckUpdates;
                 notifyInBackgroundItem.Checked = settings.ShowBackgroundNotifications;
                 notifyOnMinimizeItem.Checked = settings.NotifyOnMinimize;
+                plvReminderItem.Checked = settings.NotifyProducerLevel;
+                memoryUsageItem.Checked = settings.ShowMemoryUsage;
                 minimizeToTrayItem.Checked = settings.MinimizeToTray;
                 monitorItem.Checked = settings.AutoDetectGakumas;
 
                 _processWatcher.Enabled = settings.AutoDetectGakumas;
 
                 var theme = GetTheme(settings.SelectedTheme);
-                switch (theme)
+                ToolStripMenuItem selectedThemeItem = theme switch
                 {
-                    case AppTheme.Light: themeLight.PerformClick(); break;
-                    case AppTheme.Dark: themeDark.PerformClick(); break;
-                    case AppTheme.OLED: themeOLED.PerformClick(); break;
-                    default: themeAuto.PerformClick(); break;
-                }
+                    AppTheme.Light => themeLight,
+                    AppTheme.Dark => themeDark,
+                    AppTheme.OLED => themeOLED,
+                    _ => themeAuto
+                };
+                // PerformClick() は使わない。閉じたままのサブメニューで ItemClicked を起こすと、WinForms 内部に
+                // 「クリックで閉じる」理由が残る。そのせいで、後でホバーでテーマ→言語へ移ったときにテーマのサブメニューが
+                // ItemClicked で閉じられ、DropDown.Closing の取り消しにかかって開いたまま重なってしまうため。
+                ThemeManager.UpdateThemeChecks(selectedThemeItem,
+                    [.. new[] { themeAuto, themeLight, themeDark, themeOLED }.Where(item => item != selectedThemeItem)]);
+                ReapplyTheme();
 
                 var language = GetLanguage(settings.SelectedLanguage ?? (System.Globalization.CultureInfo.CurrentUICulture.Name.StartsWith("ja") ? "ja" : "en"));
                 if (language == I18n.Language.English)
@@ -832,12 +903,13 @@ namespace GkmStatus
                 cmbProduceCharacter.SelectedIndex = charIdx >= 0 ? charIdx : 0;
 
                 cmbBtnMode.SelectedIndex = GetButtonModeIndex(GetButtonMode(presence.ButtonMode ?? GetButtonModeString(PresenceButtonMode.Store)));
+                cmbStatusDisplay.SelectedIndex = GetStatusDisplayIndex(GetStatusDisplay(presence.StatusDisplay));
 
                 ApplyLanguage();
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("UI Load Error: " + ex.Message);
+                ErrorLog.Write("UI load", ex);
             }
         }
 
@@ -849,9 +921,108 @@ namespace GkmStatus
             clockTimer.Tick += (s, e) =>
             {
                 UpdateTimestampLabel();
+                UpdateMemoryUsageLabel();
                 if (rpc.IsInitialized == true)
                     rpc.Invoke();
             };
+
+            // 常駐したまま日をまたいでも気づけるよう、1 時間ごとに PLv の確認の時期か調べる
+            plvReminderTimer = new System.Windows.Forms.Timer { Interval = (int)TimeSpan.FromHours(1).TotalMilliseconds, Enabled = true };
+            plvReminderTimer.Tick += (s, e) => CheckProducerLevelReminder();
+        }
+
+        /// <summary>
+        /// 「メモリ使用量を表示」に合わせて、ステータス欄の右側のメモリ使用量を出し入れする。
+        /// 表示中はステータスメッセージの幅をその分だけ狭める。
+        /// </summary>
+        private void ApplyMemoryUsageVisibility()
+        {
+            bool show = memoryUsageItem.Checked;
+            // 「メモリ使用量: 9999.9 MB」が入る幅を右端に確保する
+            int width = TextRenderer.MeasureText(I18n.T(Status_MemoryUsage, "9999.9 MB"), lblMemoryUsage.Font).Width + S(4);
+            lblMemoryUsage.SetBounds(this.ClientSize.Width - S(20) - width, lblStatus.Top, width, lblStatus.Height);
+            lblMemoryUsage.Visible = show;
+            int right = show ? lblMemoryUsage.Left - S(8) : this.ClientSize.Width - S(20);
+            lblStatus.Width = right - lblStatus.Left;
+            _shownMemoryTenths = -1;
+            _memoryUpdateTick = 0;
+            UpdateMemoryUsageLabel();
+        }
+
+        /// <summary>
+        /// メモリ使用量を表示し直す（clockTimer から呼ばれ、MEMORY_UPDATE_TICKS 回に 1 回だけ取得する）。
+        /// ウィンドウが見えていないときは取得しない。値が変わらなければ文字列も作らない。
+        /// </summary>
+        private void UpdateMemoryUsageLabel()
+        {
+            if (!memoryUsageItem.Checked || !this.Visible || this.WindowState == FormWindowState.Minimized)
+                return;
+            if (_memoryUpdateTick++ % MEMORY_UPDATE_TICKS != 0)
+                return;
+            if (MemoryUsage.GetBytes() is not long bytes)
+                return;
+            long tenths = MemoryUsage.ToTenthsOfMegabyte(bytes);
+            if (tenths == _shownMemoryTenths)
+                return;
+            _shownMemoryTenths = tenths;
+            lblMemoryUsage.Text = I18n.T(Status_MemoryUsage, MemoryUsage.Format(tenths));
+        }
+
+        /// <summary>
+        /// 前回から 30 日たっていたら、PLv が上がっていないか確かめるよう通知する。
+        /// PLv が基準（ProducerLevelReminder.StopLevel）以上のときは、設定にかかわらず通知しない。
+        /// PLv を表示しない設定のときも通知せず、次の確認を 30 日後に回す。
+        /// 「バックグラウンドで動作したとき」の通知設定とは別で、それがオフでもトレイに常駐中に通知する。
+        /// </summary>
+        private void CheckProducerLevelReminder()
+        {
+            var settings = _configManager.Config.Settings;
+            DateTime now = DateTime.UtcNow;
+            if (ProducerLevelReminder.NeedsStart(settings.LastProducerLevelReminder, now))
+            {
+                settings.LastProducerLevelReminder = now;
+                _configManager.Save();
+                return;
+            }
+            if (ProducerLevelReminder.IsAtStopLevel((int)numPLevel.Value)
+                || !plvReminderItem.Checked
+                || !ProducerLevelReminder.IsDue(settings.LastProducerLevelReminder, now))
+                return;
+
+            settings.LastProducerLevelReminder = now;
+            _configManager.Save();
+
+            var detailsType = GetDetailsType(cmbDetailsType.SelectedIndex);
+            bool showsLevel = detailsType == PresenceDetailsType.PLv || detailsType == PresenceDetailsType.Both;
+            if (!showsLevel)
+                return;
+
+            if (!trayIcon.Visible)
+            {
+                trayIcon.Visible = true;
+                _trayIconShownForReminder = true;
+            }
+            trayIcon.Tag = ProducerLevelReminderTag;
+            trayIcon.ShowBalloonTip(10000, I18n.T(Notify_ProducerLevelTitle),
+                I18n.T(Notify_ProducerLevelBody, (int)numPLevel.Value), ToolTipIcon.Info);
+        }
+
+        /// <summary>ウィンドウ表示中に通知のためだけに出したトレイアイコンを、通知が閉じたら隠す。</summary>
+        private void HideTrayIconAfterReminder()
+        {
+            if (!_trayIconShownForReminder) return;
+            _trayIconShownForReminder = false;
+            if (this.Visible && this.WindowState != FormWindowState.Minimized)
+                trayIcon.Visible = false;
+        }
+
+        /// <summary>PLv の入力欄を選び、すぐ打ち替えられるようにする。</summary>
+        private void FocusProducerLevelInput()
+        {
+            _trayIconShownForReminder = false;
+            if (!numPLevel.Enabled) return;
+            numPLevel.Focus();
+            numPLevel.Select(0, numPLevel.Text.Length);
         }
 
         private void InitializeRpc(ConnectionTrigger trigger = ConnectionTrigger.Manual)
@@ -894,7 +1065,6 @@ namespace GkmStatus
             lblStatus.Text = I18n.T("Status_Connecting", 0);
             lblStatus.ForeColor = COLOR_PAUSE;
             btnConnect.Enabled = false;
-            AdjustStatusVerticalPosition();
             _trayIconManager?.UpdateStatusIcon(COLOR_PAUSE, I18n.T(Tray_Status_Connecting));
 
             connectionTimer.Start();
@@ -906,12 +1076,15 @@ namespace GkmStatus
 
         private void HandleConnectionError(string message)
         {
+            ErrorLog.Write("Discord connection", message);
+            if (message == DiscordRpcService.ConnectionFailedMessage)
+                message = I18n.T(Status_ConnectionFailed);
             connectionTimer?.Stop();
             lblStatus.Text = message; lblStatus.ForeColor = COLOR_ERROR;
             statusToolTip.SetToolTip(lblStatus, message);
-            AdjustStatusVerticalPosition();
             btnConnect.Text = I18n.T(Button_Connect); btnConnect.BackColor = COLOR_CONNECT; btnConnect.Enabled = true;
             btnUpdate.Enabled = false; btnUpdate.BackColor = COLOR_DISABLED;
+            ResetSentPresence();
             btnDisconnect.Enabled = false; btnDisconnect.BackColor = COLOR_DISABLED;
             _trayIconManager?.UpdateStatusIcon(null);
             rpc.Deinitialize(preserveError: true);
@@ -968,13 +1141,11 @@ namespace GkmStatus
             string status = I18n.T(Status_Connected, username);
             lblStatus.Text = status;
             lblStatus.ForeColor = COLOR_CONNECT;
-            statusToolTip.SetToolTip(lblStatus, status.Replace("\n", " "));
-            AdjustStatusVerticalPosition();
+            statusToolTip.SetToolTip(lblStatus, lblStatus.Text);
             btnConnect.Text = I18n.T(Button_Pause);
             btnConnect.BackColor = COLOR_PAUSE;
             btnConnect.Enabled = true;
-            btnUpdate.Enabled = true;
-            btnUpdate.BackColor = COLOR_PRIMARY;
+            RefreshUpdateButton();
             btnDisconnect.Enabled = true;
             btnDisconnect.BackColor = COLOR_ERROR;
             btnResetTime.Enabled = true;
@@ -1025,13 +1196,13 @@ namespace GkmStatus
             string status = I18n.T(Status_Paused);
             lblStatus.Text = status;
             lblStatus.ForeColor = COLOR_PAUSE;
-            statusToolTip.SetToolTip(lblStatus, status.Replace("\n", " "));
-            AdjustStatusVerticalPosition();
+            statusToolTip.SetToolTip(lblStatus, lblStatus.Text);
             btnConnect.Text = I18n.T(Button_Resume);
             btnConnect.BackColor = COLOR_CONNECT;
             btnConnect.Enabled = true;
             btnUpdate.Enabled = false;
             btnUpdate.BackColor = GetDisabledButtonColor();
+            ResetSentPresence();
             btnDisconnect.Enabled = true;
             btnDisconnect.BackColor = COLOR_ERROR;
             btnResetTime.Enabled = true;
@@ -1046,13 +1217,13 @@ namespace GkmStatus
             string status = monitorItem.Checked ? I18n.T(Status_Disconnected_Auto) : I18n.T(Status_Disconnected);
             lblStatus.Text = status;
             lblStatus.ForeColor = Color.Gray;
-            statusToolTip.SetToolTip(lblStatus, status.Replace("\n", " "));
-            AdjustStatusVerticalPosition();
+            statusToolTip.SetToolTip(lblStatus, lblStatus.Text);
             btnConnect.Text = I18n.T(Button_Connect);
             btnConnect.BackColor = COLOR_CONNECT;
             btnConnect.Enabled = true;
             btnUpdate.Enabled = false;
             btnUpdate.BackColor = GetDisabledButtonColor();
+            ResetSentPresence();
             btnDisconnect.Enabled = false;
             btnDisconnect.BackColor = GetDisabledButtonColor();
             btnResetTime.Enabled = false;
@@ -1061,11 +1232,80 @@ namespace GkmStatus
             _trayIconManager?.UpdateMenuState(rpc.Status);
         }
 
+        /// <summary>Discord に送るアクティビティの文字とボタン（入力欄の内容から作る）。</summary>
+        private sealed record PresenceContent(string Details, string State, string? StateUrl, Button[]? Buttons, StatusDisplayType StatusDisplay);
+
         private void UpdateRpc()
         {
             if (rpc.Status != RpcStatus.Connected)
                 return;
 
+            var content = BuildPresenceContent();
+            try
+            {
+                rpc.UpdatePresence(new RichPresence
+                {
+                    Details = content.Details,
+                    State = content.State,
+                    StateUrl = content.StateUrl,
+                    DetailsUrl = RPC_ACTIVITY_URL,
+                    Assets = new Assets
+                    {
+                        LargeImageKey = RPC_LARGE_IMAGE_KEY,
+                        LargeImageText = LargeImageText,
+                        LargeImageUrl = RPC_ACTIVITY_URL
+                    },
+                    Buttons = content.Buttons,
+                    StatusDisplay = content.StatusDisplay,
+                    Timestamps = new Timestamps(startTime)
+                });
+                _sentPresenceKey = GetPresenceKey(content);
+                _timestampResetPending = false;
+            }
+            catch (Exception ex)
+            {
+                ErrorLog.Write("Discord presence update", ex);
+            }
+            RefreshUpdateButton();
+        }
+
+        /// <summary>アクティビティの内容を比べるための文字列（Buttons は配列なので中身を並べる）。</summary>
+        private static string GetPresenceKey(PresenceContent content)
+        {
+            var parts = new List<string> { content.Details, content.State, content.StateUrl ?? "", content.StatusDisplay.ToString() };
+            if (content.Buttons != null)
+                foreach (var button in content.Buttons)
+                    parts.Add($"{button.Label}\u001F{button.Url}");
+            return string.Join("\u001E", parts);
+        }
+
+        /// <summary>
+        /// 「更新」ボタンは、Discord に接続中で、入力内容（または経過時間のリセット）が
+        /// 最後に送った内容から変わっているときだけ押せるようにする。
+        /// </summary>
+        private void RefreshUpdateButton()
+        {
+            if (btnUpdate == null)
+                return;
+
+            bool needsUpdate = rpc.Status == RpcStatus.Connected && !isManualPaused && _sentPresenceKey != null
+                && (_timestampResetPending || GetPresenceKey(BuildPresenceContent()) != _sentPresenceKey);
+            btnUpdate.Enabled = needsUpdate;
+            btnUpdate.BackColor = needsUpdate ? COLOR_PRIMARY : GetDisabledButtonColor();
+        }
+
+        /// <summary>Discord のアクティビティが表示されていない状態になったので、送った内容の記録を消す。</summary>
+        private void ResetSentPresence()
+        {
+            _sentPresenceKey = null;
+            _timestampResetPending = false;
+        }
+
+        private const string RPC_LARGE_IMAGE_KEY = "app";
+        private static string LargeImageText => $"{I18n.T(App_Name)} v{Application.ProductVersion}";
+
+        private PresenceContent BuildPresenceContent()
+        {
             string? pName = string.IsNullOrWhiteSpace(txtPName.Text) ? I18n.T(Placeholder_PName) : txtPName.Text;
             string? details = null;
             var detailsType = GetDetailsType(cmbDetailsType.SelectedIndex);
@@ -1120,29 +1360,103 @@ namespace GkmStatus
             }
             if (!string.IsNullOrEmpty(details) && details.Length < 2) details = "";
             if (!string.IsNullOrEmpty(state) && state.Length < 2) state = "";
+            return new PresenceContent(details ?? "", state ?? "", stateUrl, buttons, ResolveStatusDisplay(stateType));
+        }
 
-            try
+        /// <summary>
+        /// 「名前の下に表示する内容」の行を並べ直す。コンボボックスは項目が収まる幅にし（言語で変わる）、
+        /// その右側に「自動」の説明（2 行）をコンボボックスと上下中央をそろえて置く。
+        /// </summary>
+        private void LayoutStatusDisplayNote()
+        {
+            if (cmbStatusDisplay == null || lblStatusDisplayNote == null)
+                return;
+
+            int itemWidth = cmbStatusDisplay.Items.Cast<object>()
+                .Select(item => TextRenderer.MeasureText(item.ToString() ?? "", cmbStatusDisplay.Font).Width)
+                .DefaultIfEmpty(0).Max();
+            cmbStatusDisplay.Width = Math.Max(S(150), itemWidth + SystemInformation.VerticalScrollBarWidth + S(8));
+
+            lblStatusDisplayNote.Location = new Point(
+                cmbStatusDisplay.Right + S(10),
+                cmbStatusDisplay.Top + (cmbStatusDisplay.Height - lblStatusDisplayNote.PreferredHeight) / 2);
+            UpdateStatusDisplayNote();
+        }
+
+        /// <summary>「自動」が選ばれているときだけ説明を表示する。</summary>
+        private void UpdateStatusDisplayNote()
+        {
+            if (cmbStatusDisplay == null || lblStatusDisplayNote == null)
+                return;
+            lblStatusDisplayNote.Visible = GetStatusDisplay(cmbStatusDisplay.SelectedIndex) == PresenceStatusDisplay.Auto;
+        }
+
+        /// <summary>
+        /// 名前の下に表示する内容を決める。「自動」のときは、State が「プロデュース中」なら State、それ以外は Name。
+        /// </summary>
+        private StatusDisplayType ResolveStatusDisplay(PresenceStateType stateType)
+        {
+            return GetStatusDisplay(cmbStatusDisplay.SelectedIndex) switch
             {
-                rpc.UpdatePresence(new RichPresence
-                {
-                    Details = details ?? "",
-                    State = state ?? "",
-                    StateUrl = stateUrl,
-                    DetailsUrl = RPC_ACTIVITY_URL,
-                    Assets = new Assets
-                    {
-                        LargeImageKey = "app",
-                        LargeImageText = $"{I18n.T(App_Name)} v{Application.ProductVersion}",
-                        LargeImageUrl = RPC_ACTIVITY_URL
-                    },
-                    Buttons = buttons,
-                    Timestamps = new Timestamps(startTime)
-                });
-            }
-            catch (Exception ex)
+                PresenceStatusDisplay.Name => StatusDisplayType.Name,
+                PresenceStatusDisplay.Details => StatusDisplayType.Details,
+                PresenceStatusDisplay.State => StatusDisplayType.State,
+                _ => stateType == PresenceStateType.Producing ? StatusDisplayType.State : StatusDisplayType.Name,
+            };
+        }
+
+        /// <summary>プレビューに出す内容。Discord に送るものと同じ組み立て方で作る。</summary>
+        private ActivityPreviewData GetPreviewData()
+        {
+            var content = BuildPresenceContent();
+            int appIndex = Math.Clamp(cmbGameName.SelectedIndex, 0, GameApps.Count - 1);
+            bool isSessionActive = rpc.Status is RpcStatus.Connected or RpcStatus.Paused;
+            return new ActivityPreviewData(
+                GameApps[appIndex].AppId,
+                GameApps[appIndex].Name,
+                content.Details,
+                content.State,
+                !string.IsNullOrEmpty(content.StateUrl),
+                LargeImageText,
+                content.Buttons?.Select(b => b.Label).ToArray() ?? [],
+                isSessionActive ? DateTime.UtcNow - startTime : TimeSpan.Zero,
+                rpc.CurrentDisplayName ?? I18n.T(Preview_UserFallback),
+                rpc.CurrentAvatarUrl,
+                GetStatusDisplayText(content, GameApps[appIndex].Name));
+        }
+
+        /// <summary>
+        /// メンバー一覧で名前の下に出る 1 行。StatusDisplay で選んだ項目が空のときは、ゲームの表示名になるものとして扱う。
+        /// </summary>
+        private static string GetStatusDisplayText(PresenceContent content, string appName)
+        {
+            string text = content.StatusDisplay switch
             {
-                Debug.WriteLine("RPC Update Error: " + ex.Message);
+                StatusDisplayType.Details => content.Details,
+                StatusDisplayType.State => content.State,
+                _ => appName,
+            };
+            return string.IsNullOrEmpty(text) ? appName : text;
+        }
+
+        /// <summary>プレビューのウィンドウを開く（開いていれば前に出す）。メイン画面の右に並べる。</summary>
+        private void ShowActivityPreview()
+        {
+            if (_previewForm is { IsDisposed: false })
+            {
+                _previewForm.RefreshData();
+                _previewForm.Activate();
+                return;
             }
+
+            _previewForm = new ActivityPreviewForm(GetPreviewData, PreviewTheme, this.DeviceDpi / 96f) { Icon = this.Icon };
+            var screen = Screen.FromControl(this).WorkingArea;
+            int x = this.Right + S(8);
+            if (x + _previewForm.Width > screen.Right) x = Math.Max(screen.Left, this.Left - S(8) - _previewForm.Width);
+            int y = Math.Clamp(this.Top, screen.Top, Math.Max(screen.Top, screen.Bottom - _previewForm.Height));
+            _previewForm.Location = new Point(x, y);
+            _previewForm.FormClosed += (s, e) => _previewForm = null;
+            _previewForm.Show(this);
         }
 
         private static Button? TryCreateRpcButton(string? label, string? url)
@@ -1175,15 +1489,7 @@ namespace GkmStatus
             TimeSpan ts = isSessionActive ? DateTime.UtcNow - startTime : TimeSpan.Zero;
 
             lblStartTime.Text = $"{I18n.T(Timestamp_Label)}: {(int)ts.TotalHours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
-            lblStartTime.ForeColor = this.BackColor.GetBrightness() > 0.5f ? Color.Black : Color.LightGray;
-        }
-
-        private void AdjustStatusVerticalPosition()
-        {
-            if (lblStatus == null || btnConnect == null) return;
-            int btnHeight = btnConnect.Height;
-            int areaCenterY = (footerButtonsY + S(20)) + (btnHeight / 2);
-            lblStatus.Top = areaCenterY - (lblStatus.Height / 2);
+            lblStartTime.ForeColor = this.BackColor.GetBrightness() > 0.5f ? COLOR_LIGHT_TEXT : Color.LightGray;
         }
 
         private void RefreshProduceCharacterList()
@@ -1208,6 +1514,35 @@ namespace GkmStatus
                 value = false;
             }
             base.SetVisibleCore(value);
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            // このアプリが管理者権限で動いているとき（管理者として実行した場合など）でも、通常の権限で二重起動された
+            // プロセスからの「ウィンドウを表示して」というメッセージを受け取れるようにする（既定では Windows に遮断される）
+            int message = GkmStatus.src.native.Native.WM_SHOW_EXISTING_INSTANCE;
+            if (message != 0)
+                GkmStatus.src.native.Native.ChangeWindowMessageFilterEx(this.Handle, message, GkmStatus.src.native.Native.MSGFLT_ALLOW, IntPtr.Zero);
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            // 二重起動された別プロセスから、ウィンドウ表示の依頼を受け取る
+            if (m.Msg != 0 && m.Msg == GkmStatus.src.native.Native.WM_SHOW_EXISTING_INSTANCE)
+            {
+                if (!isInitializing && !IsDisposed && !Disposing)
+                    BringToFrontFromAnotherInstance();
+                return;
+            }
+
+            base.WndProc(ref m);
+        }
+
+        private void BringToFrontFromAnotherInstance()
+        {
+            RestoreFromTray();
+            GkmStatus.src.native.Native.SetForegroundWindow(this.Handle);
         }
     }
 }

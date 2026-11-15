@@ -35,40 +35,6 @@ namespace GkmStatus
         void Cfg<T>(T c, Action<T> action) => action?.Invoke(c);
         private int S(int value) => (int)Math.Round(value * uiScale);
 
-        private int StanderdCmbHight()
-        {
-            //後でキャッシュする
-            using var temp = new ComboBox { Font = _fontManager.AppFont, FlatStyle = FlatStyle.Flat, DropDownStyle = ComboBoxStyle.DropDownList };
-            return temp.PreferredHeight;
-        }
-
-        private T WrapStylePanel<T>(T control, Point loc, int w) where T : Control
-        {
-            int autoHeight = StanderdCmbHight();
-
-            Panel container = new()
-            {
-                Location = loc,
-                Size = new(w, autoHeight),
-                BackColor = Default_BackColor,
-                Parent = this
-            };
-
-            container.Paint += (s, e) =>
-            {
-                if (container.Tag is Color col)
-                    ControlPaint.DrawBorder(e.Graphics, container.ClientRectangle, col, ButtonBorderStyle.Solid);
-            };
-
-            control.Location = new Point(S(5), (autoHeight - TextRenderer.MeasureText("Ag", control.Font).Height) / 2 - S(1));
-            control.Width = w - S(10);
-            control.Parent = container;
-
-            control.Tag = container;
-
-            return control;
-        }
-
         private Button CreateButton(Point l, int w, Color bc)
         {
             int btnHeight = Math.Max(S(35), TextRenderer.MeasureText("Ag", _fontManager.AppFontBold).Height + S(15));
@@ -85,14 +51,27 @@ namespace GkmStatus
             };
         }
 
+        /// <summary>
+        /// 「2行目の情報」の行で、名前表記のコンボボックスを項目（「Japanese Names」など）が収まる幅にし、
+        /// 右端（S(500)）をそろえたまま、その分アイドル選択のコンボボックスを狭める。表示言語を変えたときにも呼ぶ。
+        /// </summary>
+        private void LayoutCharNameLangRow()
+        {
+            int textWidth = 0;
+            foreach (object item in cmbCharNameLang.Items)
+                textWidth = Math.Max(textWidth, TextRenderer.MeasureText(cmbCharNameLang.GetItemText(item), _fontManager.AppFontMedium).Width);
+            int width = Math.Max(S(150), textWidth + SystemInformation.VerticalScrollBarWidth + S(16)); // ボタンと左右の余白の分
+            int right = S(500);
+            cmbCharNameLang.Bounds = new Rectangle(right - width, cmbCharNameLang.Top, width, cmbCharNameLang.Height);
+            cmbProduceCharacter.Width = cmbCharNameLang.Left - S(5) - cmbProduceCharacter.Left;
+        }
+
         private ComboBox CreateCombo(Point loc, int w, string[] i)
         {
-            var cb = new ComboBox
+            // 見た目はシステム標準で、選択中の項目と一覧の縁どりだけアクセント色にしたもの
+            var cb = new AccentComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                BackColor = Default_BackColor,
-                ForeColor = Default_ForeColor,
-                FlatStyle = FlatStyle.Flat,
                 Font = _fontManager.AppFont,
                 Location = loc,
                 Width = w,
@@ -104,36 +83,53 @@ namespace GkmStatus
 
         private NumericUpDown CreateNumeric(Point loc, int w)
         {
-            var nud = new NumericUpDown
+            return new NumericUpDown
             {
-                BorderStyle = BorderStyle.None,
-                BackColor = Default_BackColor,
-                ForeColor = Default_ForeColor,
                 Font = _fontManager.AppFont,
+                Location = loc,
+                Width = w,
                 Minimum = 1,
-                Maximum = 100
+                Maximum = 100,
+                Parent = this
             };
-            return WrapStylePanel(nud, loc, w);
         }
 
         private TextBox CreateText(Point loc, int w)
         {
-            var tb = new TextBox
+            // システム標準の TextBox に、ダーク時に IME の未確定文字を入力欄の色で表示する機能を加えたもの
+            return new ImeCompositionTextBox
             {
-                BorderStyle = BorderStyle.None,
-                BackColor = Default_BackColor,
-                ForeColor = Default_ForeColor,
-                Font = _fontManager.AppFont
+                Font = _fontManager.AppFont,
+                Location = loc,
+                Width = w,
+                Parent = this
             };
-            return WrapStylePanel(tb, loc, w);
         }
 
+        /// <summary>エクスプローラーを起動する。起動したプロセスのハンドルは持ち続けないよう、すぐに解放する。</summary>
+        private static void OpenInExplorer(string arguments)
+        {
+            using var explorer = Process.Start("explorer.exe", arguments);
+        }
+
+        /// <summary>
+        /// メニューの項目を取り除いて破棄する。トレイのサブメニューは開くたびに項目を作り直すので、
+        /// 取り除くだけ（Clear）だと古い項目が破棄されないまま残っていく。
+        /// </summary>
+        private static void ClearAndDisposeItems(ToolStripItemCollection items)
+        {
+            ToolStripItem[] oldItems = [.. items.Cast<ToolStripItem>()];
+            items.Clear();
+            foreach (ToolStripItem item in oldItems)
+                item.Dispose();
+        }
 
         private void ApplyComponent()
         {
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
 
-            this.ClientSize = new Size(S(520), S(630));
+            // 「名前の下に表示する内容」セクション（見出し S(25) + 入力行 S(45)）の分を含めた高さ
+            this.ClientSize = new Size(S(520), S(700));
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
 
             this.MaximizeBox = false;
@@ -153,7 +149,7 @@ namespace GkmStatus
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("Icon Load Error: " + ex.Message);
+                ErrorLog.Write("Icon load", ex);
             }
 
             trayIcon = new NotifyIcon
@@ -168,7 +164,12 @@ namespace GkmStatus
             };
             trayIcon.BalloonTipClicked += (s, e) =>
             {
-                if (trayIcon.Tag is UpdateCheckResult updateResult)
+                if (ReferenceEquals(trayIcon.Tag, ProducerLevelReminderTag))
+                {
+                    trayIcon.Tag = null;
+                    this.Invoke((MethodInvoker)(() => { RestoreFromTray(); FocusProducerLevelInput(); }));
+                }
+                else if (trayIcon.Tag is UpdateCheckResult updateResult)
                 {
                     trayIcon.Tag = null;
                     _ = DownloadUpdateAsync(updateResult, manual: false);
@@ -178,6 +179,8 @@ namespace GkmStatus
                     this.Invoke((MethodInvoker)(() => RestoreFromTray()));
                 }
             };
+
+            trayIcon.BalloonTipClosed += (s, e) => HideTrayIconAfterReminder();
 
             var trayMenu = new ContextMenuStrip();
             trayMenu.Opening += (s, e) =>
@@ -196,11 +199,11 @@ namespace GkmStatus
             trayMenuDetails.DropDownItems.Add(new ToolStripMenuItem("..."));
             trayMenuDetails.DropDownOpening += (s, e) =>
             {
-                trayMenuDetails.DropDownItems.Clear();
+                ClearAndDisposeItems(trayMenuDetails.DropDownItems);
                 for (int i = 0; i < cmbDetailsType.Items.Count; i++)
                 {
                     string text = cmbDetailsType.Items[i]?.ToString() ?? "";
-                    var item = new ToolStripMenuItem(text);
+                    var item = new RadioMenuItem(text);
                     if (cmbDetailsType.SelectedIndex == i) item.Checked = true;
                     int index = i;
                     item.Click += (sender, ev) =>
@@ -224,11 +227,11 @@ namespace GkmStatus
             trayMenuState.DropDownItems.Add(new ToolStripMenuItem("..."));
             trayMenuState.DropDownOpening += (s, e) =>
             {
-                trayMenuState.DropDownItems.Clear();
+                ClearAndDisposeItems(trayMenuState.DropDownItems);
                 for (int i = 0; i < cmbStateType.Items.Count; i++)
                 {
                     string text = cmbStateType.Items[i]?.ToString() ?? "";
-                    var item = new ToolStripMenuItem(text);
+                    var item = new RadioMenuItem(text);
                     if (cmbStateType.SelectedIndex == i) item.Checked = true;
                     int index = i;
                     item.Click += (sender, ev) =>
@@ -258,14 +261,14 @@ namespace GkmStatus
             trayMenuProduce.DropDownItems.Add(new ToolStripMenuItem("..."));
             trayMenuProduce.DropDownOpening += (s, e) =>
             {
-                trayMenuProduce.DropDownItems.Clear();
+                ClearAndDisposeItems(trayMenuProduce.DropDownItems);
                 string currentId = (GetStateString(cmbStateType.SelectedIndex) == "Idol") ? CurrentPresence.SelectedIdolCharacterId : CurrentPresence.SelectedProduceCharacterId;
 
                 for (int i = 0; i < ProduceCharacters.Count; i++)
                 {
                     var pc = ProduceCharacters[i];
                     string displayName = CurrentPresence.CharNameLangIndex == 1 ? pc.NameEn : pc.Display;
-                    var item = new ToolStripMenuItem(displayName);
+                    var item = new RadioMenuItem(displayName);
                     if (currentId == pc.Id) item.Checked = true;
 
                     int index = i;
@@ -316,10 +319,12 @@ namespace GkmStatus
             trayIcon.ContextMenuStrip = trayMenu;
 
             int y = S(40);
+            var sectionHeaders = new List<Label>();
             void AddHeader(int top, string tag)
             {
                 var lbl = new Label {Location = new Point(S(20), top), AutoSize = true, Font = _fontManager.AppFontBold, ForeColor = Color.LightGray, Tag = tag };
                 this.Controls.Add(lbl);
+                sectionHeaders.Add(lbl);
             }
 
             AddHeader(y, "Header_GameName"); y += S(25);
@@ -348,14 +353,38 @@ namespace GkmStatus
             y += S(45);
 
             AddHeader(y, "Header_Details"); y += S(25);
-            cmbDetailsType = CreateCombo(new Point(S(20), y), S(180), [I18n.T(Details_None), I18n.T(Details_PName), I18n.T(Details_PLv), I18n.T(Details_Both)]);
+            // 「プロデューサー名とPLv」がスケーリング 100% でも収まるよう、全角 2 文字分広げる（その分プロデューサー名欄を狭める）
+            int detailsExtra = TextRenderer.MeasureText("あい", _fontManager.AppFontMedium, Size.Empty, TextFormatFlags.NoPadding).Width;
+            cmbDetailsType = CreateCombo(new Point(S(20), y), S(180) + detailsExtra, [I18n.T(Details_None), I18n.T(Details_PName), I18n.T(Details_PLv), I18n.T(Details_Both)]);
             cmbDetailsType.SelectedIndex = 3; cmbDetailsType.SelectedIndexChanged += UpdateDetailsInputs;
-            txtPName = CreateText(new Point(S(210), y), S(200));
+            // 右端（S(500)）から順に: 数字入力欄（3 桁が収まる幅）→「PLv」ラベル → プロデューサー名（残りの幅）
+            int rowRight = S(500);
+            int numWidth = TextRenderer.MeasureText("100", _fontManager.AppFontMedium).Width + SystemInformation.VerticalScrollBarWidth + S(12);
+            numPLevel = CreateNumeric(new Point(rowRight - numWidth, y), numWidth);
+            numPLevel.ValueChanged += (s, e) =>
+            {
+                if (isInitializing) return;
+                // PLv を見直したので、次の確認の通知は今から 30 日後にする
+                _configManager.Config.Settings.LastProducerLevelReminder = DateTime.UtcNow;
+                SaveSettings();
+            };
+
+            Size plvTextSize = TextRenderer.MeasureText("PLv", _fontManager.AppFontMedium);
+            lblPLevel = new Label
+            {
+                Name = "lblPLevel",
+                Text = "PLv",
+                AutoSize = true,
+                Font = _fontManager.AppFontMedium,
+                Location = new Point(numPLevel.Left - S(6) - plvTextSize.Width, y + (numPLevel.Height - plvTextSize.Height) / 2),
+                Parent = this
+            };
+
+            int pNameLeft = S(210) + detailsExtra;
+            txtPName = CreateText(new Point(pNameLeft, y), lblPLevel.Left - S(10) - pNameLeft);
             Native.SetPlaceholder(txtPName, I18n.T(Placeholder_PName));
             txtPName.MaxLength = 10;
             txtPName.TextChanged += (s, e) => { if (!isInitializing) SaveSettings(); };
-            numPLevel = CreateNumeric(new Point(S(420), y), S(80));
-            numPLevel.ValueChanged += (s, e) => { if (!isInitializing) SaveSettings(); };
             y += S(45);
 
             AddHeader(y, "Header_State"); y += S(25);
@@ -380,6 +409,7 @@ namespace GkmStatus
             );
             cmbCharNameLang.Visible = false;
             cmbCharNameLang.SelectedIndex = 0;
+            LayoutCharNameLangRow();
             cmbCharNameLang.SelectedIndexChanged += (s, e) =>
             {
                 if (!isInitializing)
@@ -413,6 +443,31 @@ namespace GkmStatus
             cmbStateType.SelectedIndexChanged += CmbStateType_SelectedIndexChanged;
             y += S(45);
 
+            // Discord で名前の下に表示する内容（自動 / Name / Details / State）
+            AddHeader(y, "Header_StatusDisplay"); y += S(25);
+            cmbStatusDisplay = CreateCombo(new(S(20), y), S(210),
+                [I18n.T(StatusDisplay_Auto), I18n.T(StatusDisplay_Name), I18n.T(StatusDisplay_Details), I18n.T(StatusDisplay_State)]);
+            cmbStatusDisplay.SelectedIndex = GetStatusDisplayIndex(PresenceStatusDisplay.Auto);
+
+            // 「自動」のときだけ、コンボボックスの右側に何が表示されるかの説明（2 行）を出す
+            lblStatusDisplayNote = new Label
+            {
+                Name = "lblStatusDisplayNote",
+                Text = I18n.T(StatusDisplay_AutoNote),
+                AutoSize = true,
+                ForeColor = Color.Gray,
+                Font = _fontManager.AppFontMedium
+            };
+            this.Controls.Add(lblStatusDisplayNote);
+            LayoutStatusDisplayNote();
+
+            cmbStatusDisplay.SelectedIndexChanged += (s, e) =>
+            {
+                UpdateStatusDisplayNote();
+                if (!isInitializing) SaveSettings();
+            };
+            y += S(45);
+
             AddHeader(y, "Header_Timestamp"); y += S(25);
             lblStartTime = new Label { Text = I18n.T(Timestamp_Label) + ": 00:00:00", Location = new Point(S(20), y + S(7)), AutoSize = true };
             this.Controls.Add(lblStartTime);
@@ -425,6 +480,9 @@ namespace GkmStatus
                 resetGuideTimer.Stop();
                 resetGuideTimer.Start();
                 if (rpc.IsInitialized == true) UpdateRpc();
+                // 経過時間のリセットは「更新」を押して反映するので、押せるようにする
+                _timestampResetPending = true;
+                RefreshUpdateButton();
             };
             y += S(45);
 
@@ -506,10 +564,26 @@ namespace GkmStatus
 
             y += S(50);
 
-            y = this.ClientSize.Height - S(80);
-            footerButtonsY = y;
-            this.Controls.Add(new Label { BorderStyle = BorderStyle.Fixed3D, Location = new Point(0, y), Size = new Size(S(520), S(2)) });
-            y += S(20);
+            // 見出しを帯にし、見出しと項目をカードで囲む（項目は y までに並んでいる）
+            SectionCards.Apply(this, sectionHeaders, top: S(32), headerToContent: S(25), bottomLimit: y, S);
+
+            // 下部: 区切り線 / ボタン / 区切り線 / ステータス欄（1 行）。ウィンドウの下端から積み上げる
+            int statusBarHeight = Math.Max(S(26), TextRenderer.MeasureText("Ag", _fontManager.AppFontMedium).Height + S(8));
+            int footerButtonHeight = Math.Max(S(35), TextRenderer.MeasureText("Ag", _fontManager.AppFontBold).Height + S(15));
+            int footerHeight = S(2) + S(12) + footerButtonHeight + S(12) + S(2) + statusBarHeight;
+
+            // ボタン設定の警告（最大 3 行: ラベルの長さ + 2 行の URL の警告）が下部の区切り線にかからない高さにする
+            int warningMaxHeight = TextRenderer.MeasureText("Ag\nAg\nAg", lblBtnWarning.Font).Height;
+            int requiredHeight = lblBtnWarning.Top + warningMaxHeight + S(8) + footerHeight;
+            if (this.ClientSize.Height < requiredHeight)
+                this.ClientSize = new Size(this.ClientSize.Width, requiredHeight);
+
+            int statusSeparatorY = this.ClientSize.Height - statusBarHeight - S(2);
+            y = statusSeparatorY - S(12) - footerButtonHeight;
+            void AddFooterSeparator(int top)
+                => this.Controls.Add(new Label { Name = FOOTER_SEPARATOR_NAME, BorderStyle = BorderStyle.Fixed3D, Location = new Point(0, top), Size = new Size(S(520), S(2)) });
+            AddFooterSeparator(y - S(12) - S(2));
+            AddFooterSeparator(statusSeparatorY);
 
             btnConnect = CreateButton(new Point(S(20), y), S(100), COLOR_CONNECT);
             btnConnect.Click += (s, e) =>
@@ -528,8 +602,7 @@ namespace GkmStatus
                 string updatedText = I18n.T(Status_Updated);
                 lblStatus.Text = updatedText;
                 lblStatus.ForeColor = COLOR_PRIMARY;
-                statusToolTip.SetToolTip(lblStatus, updatedText.Replace("\n", " "));
-                AdjustStatusVerticalPosition();
+                statusToolTip.SetToolTip(lblStatus, lblStatus.Text);
 
                 await System.Threading.Tasks.Task.Delay(2000);
 
@@ -546,14 +619,37 @@ namespace GkmStatus
             };
             btnDisconnect = CreateButton(new Point(S(240), y), S(100), COLOR_ERROR);
             btnDisconnect.Enabled = false; btnDisconnect.Click += (s, e) => DisposeRpc();
+            // Discord での表示を確かめるプレビュー（左の余白と同じだけ空けて右端にそろえる）
+            btnPreview = CreateButton(new Point(this.ClientSize.Width - S(20) - S(100), y), S(100), COLOR_PRIMARY);
+            btnPreview.Text = I18n.T(Button_Preview);
+            btnPreview.Click += (s, e) => ShowActivityPreview();
 
-            lblStatus = new Label { Name = "lblStatus", Text = I18n.T(Status_Disconnected), Location = new Point(S(352), y), AutoSize = true, ForeColor = Color.Gray, Font = _fontManager.AppFontMedium };
+            lblStatus = new StatusBarLabel
+            {
+                Name = "lblStatus", Text = I18n.T(Status_Disconnected), ForeColor = Color.Gray, Font = _fontManager.AppFontMedium,
+                Location = new Point(S(20), statusSeparatorY + S(2)), Size = new Size(this.ClientSize.Width - S(40), statusBarHeight),
+            };
+            // ステータス欄の右端にメモリ使用量（「設定」の「メモリ使用量を表示」がオンのときだけ）。
+            // 幅と位置は言語で変わるので ApplyMemoryUsageVisibility で決める
+            lblMemoryUsage = new Label
+            {
+                Name = "lblMemoryUsage", AutoSize = false, TextAlign = ContentAlignment.MiddleRight,
+                ForeColor = Color.Gray, Font = _fontManager.AppFontMedium, Visible = false,
+                Location = new Point(this.ClientSize.Width - S(20), lblStatus.Top),
+                Size = new Size(0, statusBarHeight),
+            };
             statusToolTip = new ToolTip();
             statusToolTip.SetToolTip(lblStatus, lblStatus.Text);
             this.Controls.Add(btnConnect); this.Controls.Add(btnUpdate); this.Controls.Add(btnDisconnect); this.Controls.Add(lblStatus);
+            this.Controls.Add(lblMemoryUsage);
 
-
-            AdjustStatusVerticalPosition();
+            // Details / State / Buttons の入力が変わったら、Discord に送った内容と比べて「更新」を押せるかを決め直す
+            // （各コントロールの既存のハンドラーの後に呼ばれるよう、ここで登録する）
+            foreach (var combo in new[] { cmbDetailsType, cmbStateType, cmbProduceCharacter, cmbCharNameLang, cmbStatusDisplay, cmbBtnMode })
+                combo.SelectedIndexChanged += (s, e) => RefreshUpdateButton();
+            foreach (var text in new[] { txtPName, txtStateCustom, txtBtn1Label, txtBtn1Url, txtBtn2Label, txtBtn2Url })
+                text.TextChanged += (s, e) => RefreshUpdateButton();
+            numPLevel.ValueChanged += (s, e) => RefreshUpdateButton();
 
             var menu = new MenuStrip();
             fileMenu = new(I18n.T(Menu_File));
@@ -617,18 +713,32 @@ namespace GkmStatus
                 SaveSettings();
             };
 
-            ToolStripSeparator separatorSettings = new();
+            memoryUsageItem = new(I18n.T(Menu_ShowMemoryUsage)) { CheckOnClick = true };
+            memoryUsageItem.CheckedChanged += (s, e) => { ApplyMemoryUsageVisibility(); SaveSettings(); };
+
+            // 通知の設定はサブメニューにまとめる
+            notificationMenu = new(I18n.T(Menu_Notifications));
+            plvReminderItem = new(I18n.T(Menu_NotifyProducerLevel)) { CheckOnClick = true, Checked = true };
+            plvReminderItem.CheckedChanged += (s, e) => SaveSettings();
+            notificationMenu.DropDownItems.AddRange([notifyInBackgroundItem, notifyOnMinimizeItem, plvReminderItem]);
+            notificationMenu.DropDown.Closing += (s, e) =>
+            {
+                if (e.CloseReason == ToolStripDropDownCloseReason.ItemClicked) e.Cancel = true;
+            };
+
             settingsMenu.DropDownItems.AddRange([
+                monitorItem,
+                new ToolStripSeparator(),
                 runAtStartupItem,
                 startMinimizedItem,
                 autoConnectItem,
                 checkForUpdatesItem,
-                separatorSettings,
-                monitorItem,
                 usageTelemetryItem,
-                notifyInBackgroundItem,
-                notifyOnMinimizeItem,
-                minimizeToTrayItem
+                new ToolStripSeparator(),
+                minimizeToTrayItem,
+                notificationMenu,
+                new ToolStripSeparator(),
+                memoryUsageItem
             ]);
 
             settingsMenu.DropDown.Closing += (s, e) =>
@@ -638,10 +748,10 @@ namespace GkmStatus
 
             viewMenu = new ToolStripMenuItem(I18n.T(Menu_View));
             themeMenu = new ToolStripMenuItem(I18n.T(Menu_Theme));
-            themeAuto = new ToolStripMenuItem(I18n.T(Menu_ThemeAuto));
-            themeLight = new ToolStripMenuItem(I18n.T(Menu_ThemeLight));
-            themeDark = new ToolStripMenuItem(I18n.T(Menu_ThemeDark));
-            themeOLED = new ToolStripMenuItem(I18n.T(Menu_ThemeOLED));
+            themeAuto = new RadioMenuItem(I18n.T(Menu_ThemeAuto));
+            themeLight = new RadioMenuItem(I18n.T(Menu_ThemeLight));
+            themeDark = new RadioMenuItem(I18n.T(Menu_ThemeDark));
+            themeOLED = new RadioMenuItem(I18n.T(Menu_ThemeOLED));
 
             themeAuto.Click += (s, e) => { ThemeManager.UpdateThemeChecks(themeAuto, themeLight, themeDark, themeOLED); ReapplyTheme(); SaveSettings(); };
             themeLight.Click += (s, e) => { ThemeManager.UpdateThemeChecks(themeLight, themeAuto, themeDark, themeOLED); ReapplyTheme(); SaveSettings(); };
@@ -657,8 +767,8 @@ namespace GkmStatus
 
             var separator2 = new ToolStripSeparator();
             langMenu = new ToolStripMenuItem(I18n.T(Menu_Language));
-            langEnglish = new ToolStripMenuItem("English");
-            langJapanese = new ToolStripMenuItem("日本語");
+            langEnglish = new RadioMenuItem("English");
+            langJapanese = new RadioMenuItem("日本語");
 
             langEnglish.Click += (s, e) => { I18n.CurrentLanguage = I18n.Language.English; ThemeManager.UpdateThemeChecks(langEnglish, langJapanese); ApplyLanguage(); SaveSettings(); };
             langJapanese.Click += (s, e) => { I18n.CurrentLanguage = I18n.Language.Japanese; ThemeManager.UpdateThemeChecks(langJapanese, langEnglish); ApplyLanguage(); SaveSettings(); };
@@ -677,7 +787,7 @@ namespace GkmStatus
 
             openAppLocationMenu.Click += (s, e) =>
             {
-                try { Process.Start("explorer.exe", $"/select,\"{Process.GetCurrentProcess().MainModule?.FileName}\""); }
+                try { OpenInExplorer($"/select,\"{Environment.ProcessPath}\""); }
                 catch { MessageBox.Show(I18n.T(Error_Browser)); }
             };
 
@@ -685,14 +795,25 @@ namespace GkmStatus
             {
                 try
                 {
-                    if (File.Exists(CONFIG_PATH)) Process.Start("explorer.exe", $"/select,\"{CONFIG_PATH}\"");
-                    else Process.Start("explorer.exe", $"\"{Path.GetDirectoryName(CONFIG_PATH)}\"");
+                    if (File.Exists(CONFIG_PATH)) OpenInExplorer($"/select,\"{CONFIG_PATH}\"");
+                    else OpenInExplorer($"\"{Path.GetDirectoryName(CONFIG_PATH)}\"");
+                }
+                catch { MessageBox.Show(I18n.T(Error_Browser)); }
+            };
+
+            openLogLocationMenu = new ToolStripMenuItem(I18n.T(Menu_OpenLogLocation));
+            openLogLocationMenu.Click += (s, e) =>
+            {
+                try
+                {
+                    Directory.CreateDirectory(ErrorLog.DefaultDirectory);
+                    OpenInExplorer($"\"{ErrorLog.DefaultDirectory}\"");
                 }
                 catch { MessageBox.Show(I18n.T(Error_Browser)); }
             };
 
             githubMenu = new ToolStripMenuItem(I18n.T(Menu_Github));
-            githubMenu.Click += (s, e) => { try { Process.Start(new ProcessStartInfo("https://github.com/Wea017net/GkmStatus") { UseShellExecute = true }); } catch { MessageBox.Show(I18n.T(Error_Browser)); } };
+            githubMenu.Click += (s, e) => { try { using var browser = Process.Start(new ProcessStartInfo("https://github.com/Wea017net/GkmStatus") { UseShellExecute = true }); } catch { MessageBox.Show(I18n.T(Error_Browser)); } };
 
             checkUpdateMenuItem = new ToolStripMenuItem(I18n.T(Menu_CheckUpdateNow));
             checkUpdateMenuItem.Click += (s, e) => _ = CheckForUpdatesAsync(manual: true);
@@ -701,7 +822,7 @@ namespace GkmStatus
             aboutMenu.Click += (s, e) => ShowAboutDialog();
 
             var separatorHelp = new ToolStripSeparator();
-            helpMenu.DropDownItems.AddRange([openAppLocationMenu, openConfigLocationMenu, separatorHelp, githubMenu, checkUpdateMenuItem, aboutMenu]);
+            helpMenu.DropDownItems.AddRange([openAppLocationMenu, openConfigLocationMenu, openLogLocationMenu, separatorHelp, githubMenu, checkUpdateMenuItem, aboutMenu]);
 
             menu.Items.Add(fileMenu); menu.Items.Add(settingsMenu); menu.Items.Add(viewMenu); menu.Items.Add(helpMenu);
             this.Controls.Add(menu);
@@ -721,6 +842,7 @@ namespace GkmStatus
         private ComboBox cmbDetailsType;
         private TextBox txtPName;
         private NumericUpDown numPLevel;
+        private Label lblPLevel;
         private ComboBox cmbStateType;
         private ComboBox cmbProduceCharacter;
         private ComboBox cmbCharNameLang;
@@ -730,6 +852,8 @@ namespace GkmStatus
         private Label lblResetGuide;
         private System.Windows.Forms.Timer resetGuideTimer;
         private ComboBox cmbBtnMode;
+        private ComboBox cmbStatusDisplay;
+        private Label lblStatusDisplayNote;
         private Label lblBtnModeNote;
         private TextBox txtBtn1Label;
         private TextBox txtBtn1Url;
@@ -740,6 +864,9 @@ namespace GkmStatus
         private Button btnUpdate;
         private Button btnDisconnect;
         private Label lblStatus;
+        private Label lblMemoryUsage;
+        private Button btnPreview;
+        private ToolStripMenuItem memoryUsageItem;
         private ToolTip statusToolTip;
         private ToolStripMenuItem fileMenu, exitItem;
         private ToolStripMenuItem settingsMenu;
@@ -749,8 +876,10 @@ namespace GkmStatus
         private ToolStripMenuItem usageTelemetryItem;
         private ToolStripMenuItem checkForUpdatesItem;
         private ToolStripMenuItem monitorItem;
+        private ToolStripMenuItem notificationMenu;
         private ToolStripMenuItem notifyInBackgroundItem;
         private ToolStripMenuItem notifyOnMinimizeItem;
+        private ToolStripMenuItem plvReminderItem;
         private ToolStripMenuItem minimizeToTrayItem;
         private ToolStripMenuItem viewMenu;
         private ToolStripMenuItem themeMenu;
@@ -764,6 +893,7 @@ namespace GkmStatus
         private ToolStripMenuItem helpMenu;
         private ToolStripMenuItem openAppLocationMenu;
         private ToolStripMenuItem openConfigLocationMenu;
+        private ToolStripMenuItem openLogLocationMenu;
         private ToolStripMenuItem githubMenu;
         private ToolStripMenuItem checkUpdateMenuItem;
         private ToolStripMenuItem aboutMenu;

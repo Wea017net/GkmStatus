@@ -43,19 +43,39 @@
     },
     {
       "key": "UsageTelemetry_ConsentBody",
-      "text": "Allow anonymous usage data to be sent?\nYou can change this anytime in Settings."
+      "text": "Allow anonymous usage data to be sent?\nSettings like your producer name or favorite idol are not sent.\n(You can change this anytime in Settings.)"
+    },
+    {
+      "key": "BackgroundSetup_Title",
+      "text": "Recommended settings"
+    },
+    {
+      "key": "BackgroundSetup_Body",
+      "text": "Keeping GkmStatus running in the background\nlets it detect when gakumas.exe starts and exits, and show your status on Discord automatically.\nIt uses about 50 MB of memory while running in the background.\n\nEnable \"Run at system startup\" and \"Start minimized in tray\"?\n(You can change this anytime in Settings.)"
     },
     {
       "key": "Menu_CheckForUpdates",
       "text": "Check for updates on startup"
     },
     {
+      "key": "Menu_Notifications",
+      "text": "Notifications"
+    },
+    {
+      "key": "Menu_ShowMemoryUsage",
+      "text": "Show memory usage"
+    },
+    {
+      "key": "Menu_NotifyProducerLevel",
+      "text": "Producer Level check (every 30 days)"
+    },
+    {
       "key": "Menu_NotifyInBackground",
-      "text": "Notify in background"
+      "text": "When running in the background"
     },
     {
       "key": "Menu_NotifyOnMinimize",
-      "text": "Notify on minimize"
+      "text": "When minimized"
     },
     {
       "key": "Menu_MinimizeToTray",
@@ -114,6 +134,10 @@
       "text": "Open app location..."
     },
     {
+      "key": "Menu_OpenLogLocation",
+      "text": "Open log folder..."
+    },
+    {
       "key": "Menu_OpenConfigLocation",
       "text": "Open config location..."
     },
@@ -145,6 +169,30 @@
     {
       "key": "Header_State",
       "text": "Line 2 Info (State)"
+    },
+    {
+      "key": "Header_StatusDisplay",
+      "text": "Shown Under Your Name (StatusDisplay)"
+    },
+    {
+      "key": "StatusDisplay_Auto",
+      "text": "Auto"
+    },
+    {
+      "key": "StatusDisplay_Name",
+      "text": "Game Display Name (Name)"
+    },
+    {
+      "key": "StatusDisplay_Details",
+      "text": "Line 1 Info (Details)"
+    },
+    {
+      "key": "StatusDisplay_State",
+      "text": "Line 2 Info (State)"
+    },
+    {
+      "key": "StatusDisplay_AutoNote",
+      "text": "Line 2 Info if \"Producing...\",\notherwise the Game Display Name"
     },
     {
       "key": "Header_Timestamp",
@@ -316,6 +364,14 @@
       "text": "Connected\n(Display Paused)"
     },
     {
+      "key": "Status_MemoryUsage",
+      "text": "Memory usage: {0}"
+    },
+    {
+      "key": "Status_ConnectionFailed",
+      "text": "Discord connection failed. (Is the Discord app running?)"
+    },
+    {
       "key": "Status_Timeout",
       "text": "Timeout: \nPlease check Discord."
     },
@@ -359,6 +415,22 @@
     {
       "key": "Button_Resume",
       "text": "Resume"
+    },
+    {
+      "key": "Button_Preview",
+      "text": "Preview"
+    },
+    {
+      "key": "Preview_Title",
+      "text": "Discord activity preview"
+    },
+    {
+      "key": "Preview_Playing",
+      "text": "Playing"
+    },
+    {
+      "key": "Preview_UserFallback",
+      "text": "You"
     },
     {
       "key": "Button_Update",
@@ -452,6 +524,14 @@
     {
       "key": "Update_DownloadFailed",
       "text": "Update failed: {0}"
+    },
+    {
+      "key": "Notify_ProducerLevelTitle",
+      "text": "Producer Level check"
+    },
+    {
+      "key": "Notify_ProducerLevelBody",
+      "text": "Has your Producer Level gone up?\nIt is currently set to PLv{0}. If it has, update the PLv in the app to your current level."
     },
     {
       "key": "Notify_Minimized",

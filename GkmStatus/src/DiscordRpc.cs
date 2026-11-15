@@ -21,7 +21,39 @@ namespace GkmStatus.src
         private bool disposed;
         public RpcStatus Status { get; private set; } = RpcStatus.Disconnected;
         public string? CurrentUsername { get; private set; }
+        /// <summary>接続中のユーザーの表示名（未設定ならユーザー名）。プレビューのメンバー一覧の行に使う。</summary>
+        public string? CurrentDisplayName { get; private set; }
+        /// <summary>接続中のユーザーのアバター画像の URL（取れなければ null）。</summary>
+        public string? CurrentAvatarUrl { get; private set; }
         public string? LastErrorMessage { get; private set; }
+
+        internal static bool IsDiscordCdnUrl(string? url)
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+                return false;
+            string host = uri.Host;
+            return host.Equals("cdn.discordapp.com", StringComparison.OrdinalIgnoreCase)
+                || host.EndsWith(".discordapp.com", StringComparison.OrdinalIgnoreCase)
+                || host.EndsWith(".discordapp.net", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string? TryGetAvatarUrl(User user)
+        {
+            try
+            {
+                // 画像の取得先は Discord から受け取った情報で決まるので、Discord の配信元（https）以外は使わない
+                string url = user.GetAvatarURL(User.AvatarFormat.PNG, User.AvatarSize.x128);
+                return IsDiscordCdnUrl(url) ? url : null;
+            }
+            catch (Exception ex)
+            {
+                ErrorLog.Write("Discord avatar URL", ex);
+                return null;
+            }
+        }
+
+        /// <summary>Discord に接続できなかったときの LastErrorMessage。画面では Discord の起動を促す一言を添えて表示する。</summary>
+        public const string ConnectionFailedMessage = "Discord connection failed.";
 
         public event EventHandler<RpcStatus>? StatusChanged;
         public event EventHandler<string>? Ready;
@@ -34,6 +66,8 @@ namespace GkmStatus.src
                 Deinitialize();
 
             CurrentUsername = null;
+            CurrentDisplayName = null;
+            CurrentAvatarUrl = null;
             LastErrorMessage = null;
 
             var session = new DiscordRpcClient(appId)
@@ -48,6 +82,8 @@ namespace GkmStatus.src
                 if (!ReferenceEquals(client, session)) return;
                 Status= RpcStatus.Connected;
                 CurrentUsername = e.User.Username;
+                CurrentDisplayName = string.IsNullOrWhiteSpace(e.User.DisplayName) ? e.User.Username : e.User.DisplayName;
+                CurrentAvatarUrl = TryGetAvatarUrl(e.User);
                 LastErrorMessage = null;
                 Ready?.Invoke(this, e.User.Username);
                 StatusChanged?.Invoke(this, Status);
@@ -66,6 +102,8 @@ namespace GkmStatus.src
                 if (!ReferenceEquals(client, session)) return;
                 Status = RpcStatus.Disconnected;
                 CurrentUsername = null;
+                CurrentDisplayName = null;
+                CurrentAvatarUrl = null;
                 StatusChanged?.Invoke(this, Status);
             };
 
@@ -73,7 +111,7 @@ namespace GkmStatus.src
             {
                 if (!ReferenceEquals(client, session)) return;
                 Status = RpcStatus.Error;
-                LastErrorMessage = "Discord connection failed.";
+                LastErrorMessage = ConnectionFailedMessage;
                 StatusChanged?.Invoke(this, Status);
             };
 
@@ -90,6 +128,7 @@ namespace GkmStatus.src
                 }
             } catch (Exception ex)
             {
+                ErrorLog.Write("Discord RPC initialize", ex);
                 Status = RpcStatus.Error;
                 LastErrorMessage = ex.Message;
                 StatusChanged?.Invoke(this, Status);
@@ -112,6 +151,8 @@ namespace GkmStatus.src
 
             Status = RpcStatus.Disconnected;
             CurrentUsername = null;
+            CurrentDisplayName = null;
+            CurrentAvatarUrl = null;
             if (!preserveError)
                 LastErrorMessage = null;
             StatusChanged?.Invoke(this, Status);

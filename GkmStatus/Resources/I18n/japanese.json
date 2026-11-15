@@ -42,19 +42,39 @@
     },
     {
       "key": "UsageTelemetry_ConsentBody",
-      "text": "匿名の利用状況データを送信することを許可しますか？\nこれは設定からいつでも変更できます。"
+      "text": "匿名の利用状況データを送信することを許可しますか？\nプロデューサー名や担当アイドルなどの設定内容は送信されません。\n（これは設定からいつでも変更できます。）"
+    },
+    {
+      "key": "BackgroundSetup_Title",
+      "text": "推奨設定の確認"
+    },
+    {
+      "key": "BackgroundSetup_Body",
+      "text": "学マステータスをバックグラウンドで常駐させておくと、\nDMM GAMES版学園アイドルマスターの起動と終了を検知して、自動的に Discord へステータスを表示できます。\nバックグラウンドでのメモリ使用量は約 50MB です。\n\n「システム起動時に実行」と「最小化した状態で起動」を有効にしますか？\n（これは設定からいつでも変更できます。）"
     },
     {
       "key": "Menu_CheckForUpdates",
       "text": "起動時にアプリの更新を確認"
     },
     {
+      "key": "Menu_Notifications",
+      "text": "通知設定"
+    },
+    {
+      "key": "Menu_ShowMemoryUsage",
+      "text": "メモリ使用量を表示"
+    },
+    {
+      "key": "Menu_NotifyProducerLevel",
+      "text": "プロデューサーレベルの確認（30日ごと）"
+    },
+    {
       "key": "Menu_NotifyInBackground",
-      "text": "バックグラウンド動作時に通知"
+      "text": "バックグラウンドで動作したとき"
     },
     {
       "key": "Menu_NotifyOnMinimize",
-      "text": "最小化時に通知"
+      "text": "最小化したとき"
     },
     {
       "key": "Menu_MinimizeToTray",
@@ -113,6 +133,10 @@
       "text": "このアプリの場所を開く..."
     },
     {
+      "key": "Menu_OpenLogLocation",
+      "text": "ログフォルダを開く..."
+    },
+    {
       "key": "Menu_OpenConfigLocation",
       "text": "設定ファイルの場所を開く..."
     },
@@ -143,6 +167,30 @@
     {
       "key": "Header_State",
       "text": "2行目の情報 (State)"
+    },
+    {
+      "key": "Header_StatusDisplay",
+      "text": "名前の下に表示する内容 (StatusDisplay)"
+    },
+    {
+      "key": "StatusDisplay_Auto",
+      "text": "自動"
+    },
+    {
+      "key": "StatusDisplay_Name",
+      "text": "ゲームの表示名 (Name)"
+    },
+    {
+      "key": "StatusDisplay_Details",
+      "text": "1行目の情報 (Details)"
+    },
+    {
+      "key": "StatusDisplay_State",
+      "text": "2行目の情報 (State)"
+    },
+    {
+      "key": "StatusDisplay_AutoNote",
+      "text": "「プロデュース中」なら2行目の情報を、\nそれ以外はゲームの表示名を表示します"
     },
     {
       "key": "Header_Timestamp",
@@ -314,6 +362,14 @@
       "text": "接続済み\n（表示を停止中）"
     },
     {
+      "key": "Status_MemoryUsage",
+      "text": "メモリ使用量: {0}"
+    },
+    {
+      "key": "Status_ConnectionFailed",
+      "text": "Discord connection failed.（Discordアプリを起動していますか？）"
+    },
+    {
       "key": "Status_Timeout",
       "text": "タイムアウト:\nDiscordの起動を要確認"
     },
@@ -357,6 +413,22 @@
     {
       "key": "Button_Resume",
       "text": "再開"
+    },
+    {
+      "key": "Button_Preview",
+      "text": "プレビュー"
+    },
+    {
+      "key": "Preview_Title",
+      "text": "Discord での表示のプレビュー"
+    },
+    {
+      "key": "Preview_Playing",
+      "text": "プレイ中："
+    },
+    {
+      "key": "Preview_UserFallback",
+      "text": "あなた"
     },
     {
       "key": "Button_Update",
@@ -450,6 +522,14 @@
     {
       "key": "Update_DownloadFailed",
       "text": "更新に失敗しました: {0}"
+    },
+    {
+      "key": "Notify_ProducerLevelTitle",
+      "text": "プロデューサーレベルの確認"
+    },
+    {
+      "key": "Notify_ProducerLevelBody",
+      "text": "プロデューサーレベルは上がっていませんか？\n現在の設定は PLv{0} です。上がっていたら、アプリの PLv を今のレベルに設定しましょう。"
     },
     {
       "key": "Notify_Minimized",

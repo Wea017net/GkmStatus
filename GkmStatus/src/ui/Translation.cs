@@ -35,8 +35,13 @@ namespace GkmStatus.src.ui
             Menu_UsageTelemetry,
             UsageTelemetry_ConsentTitle,
             UsageTelemetry_ConsentBody,
+            BackgroundSetup_Title,
+            BackgroundSetup_Body,
             Menu_CheckForUpdates,
+            Menu_Notifications,
             Menu_NotifyInBackground,
+            Menu_NotifyProducerLevel,
+            Menu_ShowMemoryUsage,
             Menu_NotifyOnMinimize,
             Menu_MinimizeToTray,
             Menu_MonitorProcess,
@@ -53,6 +58,7 @@ namespace GkmStatus.src.ui
             Menu_About,
             Menu_OpenAppLocation,
             Menu_OpenConfigLocation,
+            Menu_OpenLogLocation,
             Tray_Open,
             Tray_Idol,
             Tray_ProducingIdol,
@@ -61,6 +67,12 @@ namespace GkmStatus.src.ui
             Header_GameName,
             Header_Details,
             Header_State,
+            Header_StatusDisplay,
+            StatusDisplay_Auto,
+            StatusDisplay_Name,
+            StatusDisplay_Details,
+            StatusDisplay_State,
+            StatusDisplay_AutoNote,
             Header_Timestamp,
             Header_Buttons,
 
@@ -108,6 +120,8 @@ namespace GkmStatus.src.ui
             Status_Connecting,
             Status_Paused,
             Status_Timeout,
+            Status_ConnectionFailed,
+            Status_MemoryUsage,
             Status_Error,
             Status_InitFailed,
             Status_Exception,
@@ -120,6 +134,10 @@ namespace GkmStatus.src.ui
             Button_Pause,
             Button_Resume,
             Button_Update,
+            Button_Preview,
+            Preview_Title,
+            Preview_Playing,
+            Preview_UserFallback,
             Button_Disconnect,
             Button_StoreLabel_Mobile,
             Button_StoreLabel_DMM,
@@ -144,6 +162,8 @@ namespace GkmStatus.src.ui
             Update_DownloadComplete,
             Update_DownloadFailed,
             Notify_Minimized,
+            Notify_ProducerLevelTitle,
+            Notify_ProducerLevelBody,
             Notify_TrayIdolChanged,
             Notify_TrayDetailsChanged,
             Notify_TrayStateChanged,
@@ -237,7 +257,7 @@ namespace GkmStatus.src.ui
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("I18n load error: " + ex.Message);
+                ErrorLog.Write("Translation load", ex);
             }
 
             return map;

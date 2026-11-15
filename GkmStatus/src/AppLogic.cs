@@ -25,6 +25,15 @@ namespace GkmStatus.src
 		Both
 	}
 
+	/// <summary>Discord で名前の下に表示する内容（StatusDisplay）。Auto は State が「プロデュース中」のときだけ State、それ以外は Name。</summary>
+	public enum PresenceStatusDisplay
+	{
+		Auto,
+		Name,
+		Details,
+		State
+	}
+
 	public enum PresenceButtonMode
 	{
 		None,
@@ -97,6 +106,11 @@ namespace GkmStatus.src
 		public static int GetDetailsIndex(PresenceDetailsType t) => (int)t;
 		public static string GetDetailsString(int i) => GetDetailsString(GetDetailsType(i));
 		public static int GetDetailsIndex(string s) => GetDetailsIndex(GetDetailsType(s));
+
+		public static PresenceStatusDisplay GetStatusDisplay(int i) => Enum.IsDefined(typeof(PresenceStatusDisplay), i) ? (PresenceStatusDisplay)i : PresenceStatusDisplay.Auto;
+		public static PresenceStatusDisplay GetStatusDisplay(string? s) => Enum.TryParse<PresenceStatusDisplay>(s, out var t) && Enum.IsDefined(t) ? t : PresenceStatusDisplay.Auto;
+		public static string GetStatusDisplayString(PresenceStatusDisplay t) => t.ToString();
+		public static int GetStatusDisplayIndex(PresenceStatusDisplay t) => (int)t;
 
 		public static PresenceButtonMode GetButtonMode(int i) => Enum.IsDefined(typeof(PresenceButtonMode), i) ? (PresenceButtonMode)i : PresenceButtonMode.None;
 		public static PresenceButtonMode GetButtonMode(string? s) => Enum.TryParse<PresenceButtonMode>(s, out var t) && Enum.IsDefined(t) ? t : PresenceButtonMode.None;

@@ -510,6 +510,32 @@ public sealed class RegressionTests
         }
     }
 
+    [TestMethod]
+    public void UnelevatedRestartCommandLineQuotesArgumentsForWindows()
+    {
+        var type = typeof(DiscordRpcService).Assembly.GetType("GkmStatus.src.native.UnelevatedProcess");
+        Assert.IsNotNull(type);
+
+        string plain = InvokeStatic<string>(type, "BuildCommandLine", @"C:\Apps\GkmStatus.exe",
+            new[] { "--show-after-update", "--cleanup-update-helper", "Updater-0123456789abcdef0123456789abcdef", "1234" });
+        Assert.AreEqual(@"C:\Apps\GkmStatus.exe --show-after-update --cleanup-update-helper Updater-0123456789abcdef0123456789abcdef 1234", plain);
+
+        // 空白を含むパスは引用符で囲み、末尾の \ と引用符はエスケープする
+        string quoted = InvokeStatic<string>(type, "BuildCommandLine", @"C:\Program Files\Gkm Status\GkmStatus.exe",
+            new[] { "", @"dir with space\", "say \"hi\"" });
+        Assert.AreEqual("\"C:\\Program Files\\Gkm Status\\GkmStatus.exe\" \"\" \"dir with space\\\\\" \"say \\\"hi\\\"\"", quoted);
+    }
+
+    [TestMethod]
+    public void AvatarImagesAreOnlyLoadedFromDiscordOverHttps()
+    {
+        Assert.IsTrue(InvokeStatic<bool>(typeof(DiscordRpcService), "IsDiscordCdnUrl", "https://cdn.discordapp.com/avatars/1/abc.png?size=128"));
+        Assert.IsFalse(InvokeStatic<bool>(typeof(DiscordRpcService), "IsDiscordCdnUrl", "http://cdn.discordapp.com/avatars/1/abc.png"));
+        Assert.IsFalse(InvokeStatic<bool>(typeof(DiscordRpcService), "IsDiscordCdnUrl", "https://cdn.discordapp.com.example.com/avatars/1/abc.png"));
+        Assert.IsFalse(InvokeStatic<bool>(typeof(DiscordRpcService), "IsDiscordCdnUrl", "https://example.com/avatars/1/abc.png"));
+        Assert.IsFalse(InvokeStatic<bool>(typeof(DiscordRpcService), "IsDiscordCdnUrl", "file:///C:/Windows/win.ini"));
+    }
+
     private static string CreateTemporaryConfigPath()
     {
         string directory = Path.Combine(Path.GetTempPath(), "GkmStatus.Tests", Guid.NewGuid().ToString("N"));

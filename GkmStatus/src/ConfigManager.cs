@@ -46,7 +46,7 @@ namespace GkmStatus.src
             }
             catch (Exception e)
             {
-                Debug.WriteLine("Failed to load config, using default. Error: " + e.Message);
+                ErrorLog.Write("Config load (using defaults)", e, ErrorLog.DirectoryFor(_configPath));
                 Config = CreateDefaultConfig();
             }
         }
@@ -77,7 +77,7 @@ namespace GkmStatus.src
             catch (Exception e)
             {
                 LastSaveError = e.Message;
-                Debug.WriteLine("Failed to save config. Error: " + e);
+                ErrorLog.Write("Config save", e, ErrorLog.DirectoryFor(_configPath));
                 return false;
             }
             finally
@@ -111,6 +111,10 @@ namespace GkmStatus.src
                 config.Settings.LastUpdateCheck = Read(settings, "LastUpdateCheck", config.Settings.LastUpdateCheck);
                 config.Settings.UsageTelemetryAllowed = Read(settings, "UsageTelemetryAllowed", config.Settings.UsageTelemetryAllowed);
                 config.Settings.TelemetryInstallationId = Read(settings, "TelemetryInstallationId", config.Settings.TelemetryInstallationId);
+                config.Settings.BackgroundSetupCompleted = Read(settings, "BackgroundSetupCompleted", config.Settings.BackgroundSetupCompleted);
+                config.Settings.NotifyProducerLevel = Read(settings, "NotifyProducerLevel", config.Settings.NotifyProducerLevel);
+                config.Settings.ShowMemoryUsage = Read(settings, "ShowMemoryUsage", config.Settings.ShowMemoryUsage);
+                config.Settings.LastProducerLevelReminder = Read(settings, "LastProducerLevelReminder", config.Settings.LastProducerLevelReminder);
                 if (config.Settings.LastUpdateCheck > DateTime.UtcNow)
                     config.Settings.LastUpdateCheck = DateTime.MinValue;
             }
@@ -134,6 +138,7 @@ namespace GkmStatus.src
                     value.SelectedProduceCharacterId = defaultProduceId;
                 value.GameAppIndex = Math.Clamp(Read(presence, "GameAppIndex", value.GameAppIndex), 0, GameApps.Count - 1);
                 value.ButtonMode = GetButtonModeString(GetButtonMode(Read(presence, "ButtonMode", value.ButtonMode)));
+                value.StatusDisplay = GetStatusDisplayString(GetStatusDisplay(Read(presence, "StatusDisplay", value.StatusDisplay)));
                 value.StateHistory = ReadStateHistory(presence);
                 value.ButtonHistory = ReadButtonHistory(presence);
             }
@@ -259,6 +264,14 @@ namespace GkmStatus.src
         public DateTime LastUpdateCheck { get; set; } = DateTime.MinValue;
         public bool? UsageTelemetryAllowed { get; set; }
         public string? TelemetryInstallationId { get; set; }
+        /// <summary>初回起動時の「推奨設定の確認」を済ませたか。config.json が新しく作られたときや、この項目がないときは false。</summary>
+        public bool BackgroundSetupCompleted { get; set; }
+        /// <summary>30 日ごとに PLv の見直しを促す通知を出すか。</summary>
+        public bool NotifyProducerLevel { get; set; } = true;
+        /// <summary>ステータス欄の右側にメモリ使用量を表示するか。</summary>
+        public bool ShowMemoryUsage { get; set; }
+        /// <summary>PLv の見直しの起点（前回通知した日時、または PLv を変更した日時。UTC）。未記録は MinValue。</summary>
+        public DateTime LastProducerLevelReminder { get; set; } = DateTime.MinValue;
     }
 
     public class PresenceSettings
@@ -274,6 +287,8 @@ namespace GkmStatus.src
         public int GameAppIndex { get; set; } = 0;
         public string ButtonMode { get; set; } = GetButtonModeString(PresenceButtonMode.App);
         public Dictionary<string, ButtonHistoryData> ButtonHistory { get; set; } = [];
+        /// <summary>Discord で名前の下に表示する内容（<see cref="PresenceStatusDisplay"/> の名前）。</summary>
+        public string StatusDisplay { get; set; } = GetStatusDisplayString(PresenceStatusDisplay.Auto);
     }
 
     public class ButtonHistoryData

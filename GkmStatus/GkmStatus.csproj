@@ -11,7 +11,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <Version>1.2.0</Version>
+    <Version>2.0.0</Version>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <Authors>Wea017net</Authors>
     <Copyright>Copyright © 2026 Wea017net</Copyright>
@@ -31,6 +31,8 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\app.ico" />
     <EmbeddedResource Include="Resources\app_icon_2048px.png" />
+    <EmbeddedResource Include="Resources\menu_check.png" />
+    <EmbeddedResource Include="Resources\menu_radio.png" />
 	<EmbeddedResource Include="Resources\produce_characters.json" />
 	<EmbeddedResource Include="Resources\I18n\japanese.json" />
 	<EmbeddedResource Include="Resources\I18n\english.json" />

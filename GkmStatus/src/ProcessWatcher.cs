@@ -49,7 +49,18 @@ namespace GkmStatus.src
 
         private void OnTick(object? sender, EventArgs e)
         {
-            var processes = Process.GetProcessesByName(_processName);
+            Process[] processes;
+            try
+            {
+                processes = Process.GetProcessesByName(_processName);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+            {
+                // プロセスの一覧が取れなかった回は判定を飛ばす（タイマーの中で例外を出すとエラーダイアログになるため）
+                ErrorLog.Write("Process watch", ex);
+                return;
+            }
+
             try
             {
                 bool isNowRunning = processes.Length > 0;
