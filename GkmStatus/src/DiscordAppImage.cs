@@ -16,7 +16,8 @@ namespace GkmStatus.src
 
         private static HttpClient CreateClient()
         {
-            var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            // 画像は小さいので、想定外に大きい応答は読み込まない
+            var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10), MaxResponseContentBufferSize = 8 * 1024 * 1024 };
             client.DefaultRequestHeaders.UserAgent.ParseAdd(AppConstants.APP_NAME);
             return client;
         }

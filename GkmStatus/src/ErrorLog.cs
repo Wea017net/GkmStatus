@@ -19,6 +19,9 @@ namespace GkmStatus.src
         /// <summary>同じエラーが続くとき（接続の自動再試行など）は、この間隔に 1 回だけ記録する。</summary>
         public static readonly TimeSpan RepeatInterval = TimeSpan.FromHours(1);
 
+        /// <summary>重複の判定用に覚えておくエラーの数の上限。</summary>
+        private const int MaxRememberedErrors = 200;
+
         public static readonly string DefaultDirectory = Path.Combine(APP_DATA_DIRECTORY, "logs");
 
         private static readonly object Gate = new();
@@ -43,6 +46,7 @@ namespace GkmStatus.src
                     string key = context + "\n" + message;
                     if (LastWritten.TryGetValue(key, out var last) && now - last < RepeatInterval)
                         return;
+                    ForgetOldEntries(now);
                     LastWritten[key] = now;
                     WriteTo(directory ?? DefaultDirectory, now, context, message);
                 }
@@ -51,6 +55,20 @@ namespace GkmStatus.src
             {
                 Debug.WriteLine("Failed to write error log: " + e.Message);
             }
+        }
+
+        /// <summary>
+        /// 重複の判定用に覚えているエラーが増えすぎないようにする（常駐したまま内容の違うエラーが続くと増え続けるため）。
+        /// MaxRememberedErrors 件に達したら RepeatInterval を過ぎたものを忘れ、それでも減らなければすべて忘れる。
+        /// </summary>
+        private static void ForgetOldEntries(DateTime now)
+        {
+            if (LastWritten.Count < MaxRememberedErrors)
+                return;
+            foreach (string oldKey in LastWritten.Where(entry => now - entry.Value >= RepeatInterval).Select(entry => entry.Key).ToList())
+                LastWritten.Remove(oldKey);
+            if (LastWritten.Count >= MaxRememberedErrors)
+                LastWritten.Clear();
         }
 
         /// <summary>1 件を記録する。その日のファイルを新しく作ったときは、古いログを削除する。</summary>

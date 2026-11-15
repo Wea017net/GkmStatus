@@ -25,7 +25,17 @@ namespace GkmStatus
             ApplicationConfiguration.Initialize();
 
             using var mutex = new System.Threading.Mutex(false, "Wea017net_GkmStatus_Singleton");
-            if (!mutex.WaitOne(0, false))
+            bool ownsMutex;
+            try
+            {
+                ownsMutex = mutex.WaitOne(0, false);
+            }
+            catch (System.Threading.AbandonedMutexException)
+            {
+                // 前のインスタンスが強制終了などで Mutex を解放せずに終わった場合。所有権はこのプロセスに移っている
+                ownsMutex = true;
+            }
+            if (!ownsMutex)
             {
                 // 起動中のインスタンスにウィンドウを表示させる
                 // （前面化の権限を渡してから、全トップレベルウィンドウへ通知する）

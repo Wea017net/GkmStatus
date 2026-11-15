@@ -29,7 +29,9 @@ namespace GkmStatus.src
         {
             var client = new HttpClient
             {
-                Timeout = TimeSpan.FromSeconds(10)
+                Timeout = TimeSpan.FromSeconds(10),
+                // Release の情報（JSON）は小さいので、想定外に大きい応答は読み込まない
+                MaxResponseContentBufferSize = 8 * 1024 * 1024
             };
             client.DefaultRequestHeaders.UserAgent.ParseAdd(AppConstants.HTTP_USER_AGENT);
             return client;

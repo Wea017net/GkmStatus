@@ -33,6 +33,13 @@ namespace GkmStatus.src.native
         [return: MarshalAs(UnmanagedType.Bool)]
         public static partial bool AllowSetForegroundWindow(int dwProcessId);
 
+        public const int MSGFLT_ALLOW = 1;
+
+        /// <summary>権限の低いプロセスから届くメッセージを、このウィンドウで受け取るかどうかを設定する。</summary>
+        [LibraryImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static partial bool ChangeWindowMessageFilterEx(IntPtr hWnd, int message, int action, IntPtr changeFilterStruct);
+
         /// <summary>
         /// 二重起動されたときに、起動中のインスタンスへウィンドウ表示を依頼するためのメッセージ
         /// </summary>
