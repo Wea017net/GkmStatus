@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Security.AccessControl;
-using System.Security.Cryptography;
 using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
@@ -108,9 +107,26 @@ internal static class UpdaterService
             if (!updaterProcess.WaitForExit((int)TimeSpan.FromSeconds(30).TotalMilliseconds))
                 return;
         }
-        catch (ArgumentException) { }
+        catch (ArgumentException) { } // すでに終了している
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            // Updater は管理者権限で動いているので、権限の違いで終了を待てないことがある。
+            // ここで例外を出すと更新直後の起動が失敗するので、削除だけを試す
+        }
 
         TryDeleteDirectory(updaterDirectory);
+        if (Directory.Exists(updaterDirectory))
+            _ = RetryDeleteDirectoryAsync(updaterDirectory);
+    }
+
+    /// <summary>Updater がまだ終了していなくて消せなかったフォルダーを、しばらくの間だけ裏で消し直す。</summary>
+    private static async Task RetryDeleteDirectoryAsync(string directory)
+    {
+        for (int attempt = 0; attempt < 30 && Directory.Exists(directory); attempt++)
+        {
+            await Task.Delay(1000).ConfigureAwait(false);
+            TryDeleteDirectory(directory);
+        }
     }
 
     public static void CleanupStaleTemporaryUpdaters()
@@ -269,20 +285,7 @@ internal static class UpdaterService
             MessageBox.Show(I18n.T(I18n.Text_List.Update_DownloadComplete), I18n.T(I18n.Text_List.App_Name), MessageBoxButtons.OK, MessageBoxIcon.Information);
             try
             {
-                var startInfo = new ProcessStartInfo(completedRequest.ApplicationPath)
-                {
-                    UseShellExecute = false,
-                    WorkingDirectory = completedRequest.InstallDirectory
-                };
-                startInfo.ArgumentList.Add(ShowAfterUpdateArgument);
-                AddCleanupTemporaryUpdaterArguments(startInfo, completedRequest);
-#if GKMSTATUS_UPDATER_TEST_MODE
-                startInfo.Environment["GKMSTATUS_TEST_DATA_DIR"] = completedRequest.DataDirectory;
-                startInfo.Environment["GKMSTATUS_TEST_ROOT"] = completedRequest.TestRoot;
-                startInfo.Environment["GKMSTATUS_TEST_PACKAGE"] = completedRequest.TestPackage;
-                startInfo.Environment["GKMSTATUS_TEST_LATEST_VERSION"] = completedRequest.TestLatestVersion;
-#endif
-                Process.Start(startInfo);
+                StartApplication(completedRequest, showAfterUpdate: true);
             }
             catch (Exception ex)
             {
@@ -294,6 +297,41 @@ internal static class UpdaterService
             MessageBox.Show(I18n.T(I18n.Text_List.Update_DownloadFailed, errorMessage), I18n.T(I18n.Text_List.App_Name), MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 
+    /// <summary>
+    /// 更新後（または更新に失敗したあと）にアプリを起動する。
+    /// Updater は管理者権限で動いているので、そのまま起動するとアプリも管理者権限で動き続けてしまう。
+    /// 通常の権限（シェルと同じ権限）で起動し、できなかったときだけ従来どおりそのまま起動する。
+    /// </summary>
+    private static void StartApplication(UpdateRequest request, bool showAfterUpdate)
+    {
+        List<string> arguments = [];
+        if (showAfterUpdate)
+            arguments.Add(ShowAfterUpdateArgument);
+        arguments.Add(CleanupTemporaryUpdaterArgument);
+        arguments.Add(Path.GetFileName(request.UpdaterDirectory));
+        arguments.Add(Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+        if (native.UnelevatedProcess.TryStart(request.ApplicationPath, arguments, request.InstallDirectory, out string? failure))
+            return;
+        if (failure != null)
+            ErrorLog.Write("Unelevated restart (starting with updater privileges instead)", failure);
+
+        var startInfo = new ProcessStartInfo(request.ApplicationPath)
+        {
+            UseShellExecute = false,
+            WorkingDirectory = request.InstallDirectory
+        };
+        foreach (string argument in arguments)
+            startInfo.ArgumentList.Add(argument);
+#if GKMSTATUS_UPDATER_TEST_MODE
+        startInfo.Environment["GKMSTATUS_TEST_DATA_DIR"] = request.DataDirectory;
+        startInfo.Environment["GKMSTATUS_TEST_ROOT"] = request.TestRoot;
+        startInfo.Environment["GKMSTATUS_TEST_PACKAGE"] = request.TestPackage;
+        startInfo.Environment["GKMSTATUS_TEST_LATEST_VERSION"] = request.TestLatestVersion;
+#endif
+        using var process = Process.Start(startInfo);
+    }
+
     private static UpdateRequest ApplyUpdate(UpdateRequest request)
     {
         SetUpdaterEnvironment(request);
@@ -301,10 +339,7 @@ internal static class UpdaterService
         ValidateRequest(request);
         WaitForParentProcess(request.ParentProcessId);
 
-        string tempDirectory = Path.GetFullPath(TempDirectory);
-        string downloadedArchivePath = Path.Combine(tempDirectory, request.FileName);
         string workDirectory = CreateSecureWorkingDirectory();
-        string archivePath = Path.Combine(workDirectory, request.FileName);
         string stageDirectory = Path.Combine(workDirectory, "stage");
         string backupDirectory = Path.Combine(workDirectory, "backup");
         List<(string Destination, string? Backup)> changedFiles = [];
@@ -312,16 +347,17 @@ internal static class UpdaterService
 
         try
         {
+            // 管理者権限で動いている間は、一般ユーザーが書き換えられるフォルダー（%AppData% の Temp）へは書き込まない。
+            // 管理者だけが書き込める作業フォルダーへ直接ダウンロードし、そこで SHA-256 を確かめてから展開する
             using var updateService = new UpdateService();
-            updateService.DownloadReleaseAsync(new UpdateCheckResult
+            string archivePath = updateService.DownloadReleaseAsync(new UpdateCheckResult
             {
                 LatestVersion = request.Version,
                 DownloadFileName = request.FileName,
                 DownloadUrl = request.DownloadUrl,
                 DownloadSha256 = request.Sha256
-            }, tempDirectory).GetAwaiter().GetResult();
+            }, workDirectory).GetAwaiter().GetResult();
 
-            CopyVerifiedArchive(downloadedArchivePath, archivePath, request.Sha256);
             ExtractAndValidate(archivePath, stageDirectory);
             ReplaceFiles(stageDirectory, request.InstallDirectory, backupDirectory, changedFiles);
         }
@@ -343,7 +379,6 @@ internal static class UpdaterService
         {
             if (!preserveWorkDirectory)
                 TryDeleteDirectory(workDirectory);
-            TryDeleteFile(downloadedArchivePath);
         }
 
         return request;
@@ -361,6 +396,9 @@ internal static class UpdaterService
         if (!Path.GetDirectoryName(applicationPath)!.Equals(installDirectory, StringComparison.OrdinalIgnoreCase) ||
             !Path.GetFileName(applicationPath).Equals("GkmStatus.exe", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("The application update target is invalid.");
+        // 更新できるのは、すでに GkmStatus.exe が置かれているフォルダーだけ（関係のないフォルダーへ書き込ませない）
+        if (!File.Exists(applicationPath))
+            throw new InvalidOperationException("The application update target does not exist.");
         EnsureNoReparsePoints(applicationPath);
 
         string expectedFileName = $"GkmStatus_win-x64_v{UpdateService.NormalizeVersion(request.Version)}.zip";
@@ -422,15 +460,7 @@ internal static class UpdaterService
             catch (ArgumentException) { }
 
             if (File.Exists(request.ApplicationPath))
-            {
-                var startInfo = new ProcessStartInfo(request.ApplicationPath)
-                {
-                    UseShellExecute = true,
-                    WorkingDirectory = request.InstallDirectory
-                };
-                AddCleanupTemporaryUpdaterArguments(startInfo, request);
-                Process.Start(startInfo);
-            }
+                StartApplication(request, showAfterUpdate: false);
         }
         catch (Exception ex)
         {
@@ -545,27 +575,6 @@ internal static class UpdaterService
         }
     }
 
-    private static void CopyVerifiedArchive(string sourcePath, string destinationPath, string expectedSha256)
-    {
-        if (!UpdateService.TryParseSha256(expectedSha256, out string expectedHash))
-            throw new InvalidOperationException("The update checksum is invalid.");
-
-        using var source = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        byte[] actualHash = SHA256.HashData(source);
-        if (!Convert.ToHexString(actualHash).Equals(expectedHash, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException("The downloaded update failed its SHA-256 verification.");
-
-        source.Position = 0;
-        using var destination = new FileStream(destinationPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
-        source.CopyTo(destination);
-        destination.Flush(flushToDisk: true);
-
-        destination.Position = 0;
-        byte[] copiedHash = SHA256.HashData(destination);
-        if (!Convert.ToHexString(copiedHash).Equals(expectedHash, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException("The staged update failed its SHA-256 verification.");
-    }
-
     private static void ReplaceFiles(
         string stageDirectory,
         string installDirectory,
@@ -662,28 +671,11 @@ internal static class UpdaterService
 #endif
     }
 
-    private static void AddCleanupTemporaryUpdaterArguments(ProcessStartInfo startInfo, UpdateRequest request)
-    {
-        startInfo.ArgumentList.Add(CleanupTemporaryUpdaterArgument);
-        startInfo.ArgumentList.Add(Path.GetFileName(request.UpdaterDirectory));
-        startInfo.ArgumentList.Add(Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
-    }
-
     private static void TryDeleteDirectory(string path)
     {
         try
         {
             if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
-        }
-        catch (IOException) { }
-        catch (UnauthorizedAccessException) { }
-    }
-
-    private static void TryDeleteFile(string path)
-    {
-        try
-        {
-            if (File.Exists(path)) File.Delete(path);
         }
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }

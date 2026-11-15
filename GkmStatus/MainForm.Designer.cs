@@ -106,6 +106,23 @@ namespace GkmStatus
             };
         }
 
+        /// <summary>エクスプローラーを起動する。起動したプロセスのハンドルは持ち続けないよう、すぐに解放する。</summary>
+        private static void OpenInExplorer(string arguments)
+        {
+            using var explorer = Process.Start("explorer.exe", arguments);
+        }
+
+        /// <summary>
+        /// メニューの項目を取り除いて破棄する。トレイのサブメニューは開くたびに項目を作り直すので、
+        /// 取り除くだけ（Clear）だと古い項目が破棄されないまま残っていく。
+        /// </summary>
+        private static void ClearAndDisposeItems(ToolStripItemCollection items)
+        {
+            ToolStripItem[] oldItems = [.. items.Cast<ToolStripItem>()];
+            items.Clear();
+            foreach (ToolStripItem item in oldItems)
+                item.Dispose();
+        }
 
         private void ApplyComponent()
         {
@@ -182,7 +199,7 @@ namespace GkmStatus
             trayMenuDetails.DropDownItems.Add(new ToolStripMenuItem("..."));
             trayMenuDetails.DropDownOpening += (s, e) =>
             {
-                trayMenuDetails.DropDownItems.Clear();
+                ClearAndDisposeItems(trayMenuDetails.DropDownItems);
                 for (int i = 0; i < cmbDetailsType.Items.Count; i++)
                 {
                     string text = cmbDetailsType.Items[i]?.ToString() ?? "";
@@ -210,7 +227,7 @@ namespace GkmStatus
             trayMenuState.DropDownItems.Add(new ToolStripMenuItem("..."));
             trayMenuState.DropDownOpening += (s, e) =>
             {
-                trayMenuState.DropDownItems.Clear();
+                ClearAndDisposeItems(trayMenuState.DropDownItems);
                 for (int i = 0; i < cmbStateType.Items.Count; i++)
                 {
                     string text = cmbStateType.Items[i]?.ToString() ?? "";
@@ -244,7 +261,7 @@ namespace GkmStatus
             trayMenuProduce.DropDownItems.Add(new ToolStripMenuItem("..."));
             trayMenuProduce.DropDownOpening += (s, e) =>
             {
-                trayMenuProduce.DropDownItems.Clear();
+                ClearAndDisposeItems(trayMenuProduce.DropDownItems);
                 string currentId = (GetStateString(cmbStateType.SelectedIndex) == "Idol") ? CurrentPresence.SelectedIdolCharacterId : CurrentPresence.SelectedProduceCharacterId;
 
                 for (int i = 0; i < ProduceCharacters.Count; i++)
@@ -770,7 +787,7 @@ namespace GkmStatus
 
             openAppLocationMenu.Click += (s, e) =>
             {
-                try { Process.Start("explorer.exe", $"/select,\"{Process.GetCurrentProcess().MainModule?.FileName}\""); }
+                try { OpenInExplorer($"/select,\"{Environment.ProcessPath}\""); }
                 catch { MessageBox.Show(I18n.T(Error_Browser)); }
             };
 
@@ -778,8 +795,8 @@ namespace GkmStatus
             {
                 try
                 {
-                    if (File.Exists(CONFIG_PATH)) Process.Start("explorer.exe", $"/select,\"{CONFIG_PATH}\"");
-                    else Process.Start("explorer.exe", $"\"{Path.GetDirectoryName(CONFIG_PATH)}\"");
+                    if (File.Exists(CONFIG_PATH)) OpenInExplorer($"/select,\"{CONFIG_PATH}\"");
+                    else OpenInExplorer($"\"{Path.GetDirectoryName(CONFIG_PATH)}\"");
                 }
                 catch { MessageBox.Show(I18n.T(Error_Browser)); }
             };
@@ -790,13 +807,13 @@ namespace GkmStatus
                 try
                 {
                     Directory.CreateDirectory(ErrorLog.DefaultDirectory);
-                    Process.Start("explorer.exe", $"\"{ErrorLog.DefaultDirectory}\"");
+                    OpenInExplorer($"\"{ErrorLog.DefaultDirectory}\"");
                 }
                 catch { MessageBox.Show(I18n.T(Error_Browser)); }
             };
 
             githubMenu = new ToolStripMenuItem(I18n.T(Menu_Github));
-            githubMenu.Click += (s, e) => { try { Process.Start(new ProcessStartInfo("https://github.com/Wea017net/GkmStatus") { UseShellExecute = true }); } catch { MessageBox.Show(I18n.T(Error_Browser)); } };
+            githubMenu.Click += (s, e) => { try { using var browser = Process.Start(new ProcessStartInfo("https://github.com/Wea017net/GkmStatus") { UseShellExecute = true }); } catch { MessageBox.Show(I18n.T(Error_Browser)); } };
 
             checkUpdateMenuItem = new ToolStripMenuItem(I18n.T(Menu_CheckUpdateNow));
             checkUpdateMenuItem.Click += (s, e) => _ = CheckForUpdatesAsync(manual: true);

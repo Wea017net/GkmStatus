@@ -27,9 +27,24 @@ namespace GkmStatus.src
         public string? CurrentAvatarUrl { get; private set; }
         public string? LastErrorMessage { get; private set; }
 
+        internal static bool IsDiscordCdnUrl(string? url)
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+                return false;
+            string host = uri.Host;
+            return host.Equals("cdn.discordapp.com", StringComparison.OrdinalIgnoreCase)
+                || host.EndsWith(".discordapp.com", StringComparison.OrdinalIgnoreCase)
+                || host.EndsWith(".discordapp.net", StringComparison.OrdinalIgnoreCase);
+        }
+
         private static string? TryGetAvatarUrl(User user)
         {
-            try { return user.GetAvatarURL(User.AvatarFormat.PNG, User.AvatarSize.x128); }
+            try
+            {
+                // 画像の取得先は Discord から受け取った情報で決まるので、Discord の配信元（https）以外は使わない
+                string url = user.GetAvatarURL(User.AvatarFormat.PNG, User.AvatarSize.x128);
+                return IsDiscordCdnUrl(url) ? url : null;
+            }
             catch (Exception ex)
             {
                 ErrorLog.Write("Discord avatar URL", ex);

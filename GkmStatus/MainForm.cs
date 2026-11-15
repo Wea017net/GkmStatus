@@ -636,7 +636,10 @@ namespace GkmStatus
                 if (string.IsNullOrEmpty(applicationPath))
                     throw new InvalidOperationException("Could not locate GkmStatus.exe.");
 
-                await Task.Run(() => UpdaterService.StartUpdate(result, applicationPath));
+                using (Process updater = await Task.Run(() => UpdaterService.StartUpdate(result, applicationPath)))
+                {
+                    // 起動できたことだけ確かめればよいので、プロセスのハンドルはすぐに解放する
+                }
                 SafeBeginInvoke(() =>
                 {
                     _isUpdating = true;
@@ -1511,6 +1514,16 @@ namespace GkmStatus
                 value = false;
             }
             base.SetVisibleCore(value);
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            // このアプリが管理者権限で動いているとき（管理者として実行した場合など）でも、通常の権限で二重起動された
+            // プロセスからの「ウィンドウを表示して」というメッセージを受け取れるようにする（既定では Windows に遮断される）
+            int message = GkmStatus.src.native.Native.WM_SHOW_EXISTING_INSTANCE;
+            if (message != 0)
+                GkmStatus.src.native.Native.ChangeWindowMessageFilterEx(this.Handle, message, GkmStatus.src.native.Native.MSGFLT_ALLOW, IntPtr.Zero);
         }
 
         protected override void WndProc(ref Message m)
