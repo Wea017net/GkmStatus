@@ -27,7 +27,15 @@ namespace GkmStatus
             using var mutex = new System.Threading.Mutex(false, "Wea017net_GkmStatus_Singleton");
             if (!mutex.WaitOne(0, false))
             {
-                MessageBox.Show("すでに起動しています。", "GkmStatus", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                // 起動中のインスタンスにウィンドウを表示させる
+                // （前面化の権限を渡してから、全トップレベルウィンドウへ通知する）
+                GkmStatus.src.native.Native.AllowSetForegroundWindow(GkmStatus.src.native.Native.ASFW_ANY);
+                int message = GkmStatus.src.native.Native.WM_SHOW_EXISTING_INSTANCE;
+                if (message == 0 || !GkmStatus.src.native.Native.PostMessage(
+                        GkmStatus.src.native.Native.HWND_BROADCAST, message, IntPtr.Zero, IntPtr.Zero))
+                {
+                    MessageBox.Show("すでに起動しています。", "GkmStatus", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
                 return;
             }
             GkmStatus.src.UpdaterService.CleanupTemporaryUpdaterFromArguments(args);
